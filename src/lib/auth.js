@@ -4,9 +4,9 @@
 
 const GUID_KEY = 'mbh_user_guid';
 
-// TODO replace with the real Caspio login URL when ready.
-// This is the slug of the Caspio Authentication's login DataPage.
-export const CASPIO_LOGIN_URL = 'https://YOUR-CASPIO-ACCOUNT.caspio.com/dp/REPLACE_WITH_LOGIN_DATAPAGE_SLUG';
+// Caspio Authentication login URL (e2j2rj) — hits this redirects to the
+// post-login destination (the redirector DataPage) on successful auth.
+export const CASPIO_LOGIN_URL = 'https://d2hct674.caspio.app/users/e2j2rj/login';
 
 export function captureGuidFromUrl() {
   const params = new URLSearchParams(window.location.search);
