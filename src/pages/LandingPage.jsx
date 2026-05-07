@@ -2,10 +2,8 @@ import { useState, useEffect } from 'react';
 import { CASPIO_LOGIN_URL } from '../lib/auth.js';
 import './LandingPage.css';
 
-// TODO: extract Ken's logo PNG from the artifact and drop it at src/assets/logo.png,
-// then `import logoSrc from '../assets/logo.png'` and use it in the hero.
-// For the first deploy we render the wordmark in text only.
-
+// Hosted on Cloudinary (same source the Caspio header uses via system_parm.header.logo_url).
+const LOGO_URL = 'https://res.cloudinary.com/dai0low65/image/upload/v1763491944/logo_pp70kv.png';
 const CALENDLY_URL = 'https://calendly.com/ken-mybiohealth/mybiohealth-office-hours';
 
 export default function LandingPage() {
@@ -66,10 +64,7 @@ export default function LandingPage() {
       <section id="hero" className="section-hero">
         <div className="section-inner">
           <div className="container-narrow center">
-            <h1 className="hero" style={{ fontFamily: 'Georgia, serif', fontSize: '4rem', marginBottom: 56 }}>
-              <span style={{ fontStyle: 'italic', fontWeight: 400 }}>My</span>
-              <strong style={{ fontWeight: 700 }}>BioHealth.ca</strong>
-            </h1>
+            <img className="hero-logo" src={LOGO_URL} alt="MyBioHealth.ca — It's in you to know, live life" />
             <div className="eyebrow">The Founding Cohort</div>
             <h1 className="hero">We're building a Founding Cohort of motivated members.</h1>
             <p className="subhead">Focused on prevention, emerging conditions, and your health's trajectory.</p>
