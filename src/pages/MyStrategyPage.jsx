@@ -82,6 +82,8 @@ function NotesPair() {
 export default function MyStrategyPage() {
   const [optimalSignal, setOptimalSignal] = useState(null);
   const [rxOpen, setRxOpen] = useState(null);
+  const [openPriorities, setOpenPriorities] = useState({ 1: true, 2: true, 3: true });
+  const togglePriority = (n) => setOpenPriorities((p) => ({ ...p, [n]: !p[n] }));
 
   return (
     <div style={{ padding: '22px 16px 80px' }}>
@@ -98,61 +100,67 @@ export default function MyStrategyPage() {
       <div style={{ fontSize: 12, color: '#374151', marginBottom: 20 }}>Two habits. Three priorities. Signal-confirmed.</div>
 
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', marginBottom: 10 }}>Priorities</div>
-      {PRIORITIES.map((p) => (
+      {PRIORITIES.map((p) => {
+        const isOpen = openPriorities[p.n];
+        return (
         <div key={p.n} style={{ background: CARD, borderRadius: 14, padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 12 }}>
+          <div onClick={() => togglePriority(p.n)} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: isOpen ? 12 : 0, cursor: 'pointer' }}>
             <div style={{ width: 24, height: 24, borderRadius: '50%', background: SLATE, color: 'white', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>P{p.n}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: SLATE, lineHeight: 1.25, marginBottom: 3 }}>{p.name}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ fontSize: 12, color: MBH_SAGE, fontWeight: 600, fontFamily: 'monospace' }}>→ {p.target}</div>
                 {p.primarySignal && OPTIMAL_AUTHORITIES[p.primarySignal] && (
-                  <button onClick={() => setOptimalSignal(p.primarySignal)} style={{ background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', color: MBH_SAGE, fontSize: 13, lineHeight: 1, fontWeight: 700 }}>ⓘ</button>
+                  <button onClick={(e) => { e.stopPropagation(); setOptimalSignal(p.primarySignal); }} style={{ background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', color: MBH_SAGE, fontSize: 13, lineHeight: 1, fontWeight: 700 }}>ⓘ</button>
                 )}
               </div>
             </div>
+            <span style={{ fontSize: 12, color: '#9ca3af', marginTop: 6, lineHeight: 1, flexShrink: 0, transition: 'transform 0.15s', transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)', display: 'inline-block' }}>▼</span>
           </div>
 
-          {p.kind === 'chart' && p.history && (
-            <div style={{ background: OFFWHITE, borderRadius: 10, padding: '10px 6px 6px', marginBottom: 10 }}>
-              <ZoneChart history={p.history} unit={p.unit} {...p.chartConfig} />
-              <div style={{ fontSize: 11, color: '#374151', textAlign: 'right', paddingRight: 12, marginTop: -2 }}>
-                Latest: <strong style={{ color: SLATE, fontFamily: 'monospace' }}>{p.latest} {p.unit}</strong> · {p.latestDate}
+          {isOpen && (<>
+            {p.kind === 'chart' && p.history && (
+              <div style={{ background: OFFWHITE, borderRadius: 10, padding: '10px 6px 6px', marginBottom: 10 }}>
+                <ZoneChart history={p.history} unit={p.unit} {...p.chartConfig} />
+                <div style={{ fontSize: 11, color: '#374151', textAlign: 'right', paddingRight: 12, marginTop: -2 }}>
+                  Latest: <strong style={{ color: SLATE, fontFamily: 'monospace' }}>{p.latest} {p.unit}</strong> · {p.latestDate}
+                </div>
               </div>
-            </div>
-          )}
-
-          {p.kind === 'donut' && (
-            <div style={{ background: OFFWHITE, borderRadius: 10, padding: '6px 10px 10px', marginBottom: 10 }}>
-              <TARDonut hr78={p.hr78} hr10={p.hr10} target={p.targetHr} />
-              <div style={{ fontSize: 11, color: '#374151', borderTop: `1px solid ${BORDER}`, paddingTop: 8, marginTop: 4 }}>{p.latestDate} · {p.next}</div>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginRight: 2 }}>Related:</span>
-            {p.related.map((r) => (
-              <span key={r.label} style={{ background: OFFWHITE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: '3px 10px', fontSize: 11, color: SLATE, fontWeight: 500, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ fontWeight: 600 }}>{r.label}</span>
-                <span style={{ color: '#374151' }}>{r.value}</span>
-                {OPTIMAL_AUTHORITIES[r.label] && (
-                  <button onClick={(e) => { e.stopPropagation(); setOptimalSignal(r.label); }} style={{ background: 'none', border: 'none', padding: 0, marginLeft: 1, cursor: 'pointer', color: MBH_SAGE, fontSize: 11, lineHeight: 1, fontWeight: 700 }}>ⓘ</button>
-                )}
-              </span>
-            ))}
-            {p.rx && (
-              <button onClick={() => setRxOpen(rxOpen === p.n ? null : p.n)} style={{ background: SAGE_BG, border: `1px solid ${MBH_SAGE}40`, borderRadius: 14, padding: '3px 10px', fontSize: 11, color: SAGE_TEXT, fontWeight: 600, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'baseline', gap: 5, cursor: 'pointer' }}>
-                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Rx</span>
-                <span>{p.rx}</span>
-                <span style={{ opacity: 0.6, fontSize: 11 }}>{rxOpen === p.n ? '▲' : '▼'}</span>
-              </button>
             )}
-          </div>
 
-          {p.rx && rxOpen === p.n && <RxDetail />}
-          <NotesPair />
+            {p.kind === 'donut' && (
+              <div style={{ background: OFFWHITE, borderRadius: 10, padding: '6px 10px 10px', marginBottom: 10 }}>
+                <TARDonut hr78={p.hr78} hr10={p.hr10} target={p.targetHr} />
+                <div style={{ fontSize: 11, color: '#374151', borderTop: `1px solid ${BORDER}`, paddingTop: 8, marginTop: 4 }}>{p.latestDate} · {p.next}</div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginRight: 2 }}>Related:</span>
+              {p.related.map((r) => (
+                <span key={r.label} style={{ background: OFFWHITE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: '3px 10px', fontSize: 11, color: SLATE, fontWeight: 500, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ fontWeight: 600 }}>{r.label}</span>
+                  <span style={{ color: '#374151' }}>{r.value}</span>
+                  {OPTIMAL_AUTHORITIES[r.label] && (
+                    <button onClick={(e) => { e.stopPropagation(); setOptimalSignal(r.label); }} style={{ background: 'none', border: 'none', padding: 0, marginLeft: 1, cursor: 'pointer', color: MBH_SAGE, fontSize: 11, lineHeight: 1, fontWeight: 700 }}>ⓘ</button>
+                  )}
+                </span>
+              ))}
+              {p.rx && (
+                <button onClick={() => setRxOpen(rxOpen === p.n ? null : p.n)} style={{ background: SAGE_BG, border: `1px solid ${MBH_SAGE}40`, borderRadius: 14, padding: '3px 10px', fontSize: 11, color: SAGE_TEXT, fontWeight: 600, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'baseline', gap: 5, cursor: 'pointer' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Rx</span>
+                  <span>{p.rx}</span>
+                  <span style={{ opacity: 0.6, fontSize: 11 }}>{rxOpen === p.n ? '▲' : '▼'}</span>
+                </button>
+              )}
+            </div>
+
+            {p.rx && rxOpen === p.n && <RxDetail />}
+            <NotesPair />
+          </>)}
         </div>
-      ))}
+        );
+      })}
 
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', marginBottom: 10, marginTop: 8 }}>MicroHabits (MHx)</div>
       {MHX_LIST.map((mhx, i) => (
