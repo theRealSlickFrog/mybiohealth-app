@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# SPA fallback — any non-asset path returns index.html so client-side routes work
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
