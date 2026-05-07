@@ -1,52 +1,56 @@
-import { useEffect, useState } from 'react';
+// App shell — sticky top bar, hamburger drawer, page routing.
+import { useState, useEffect } from 'react';
+import { SLATE, OFFWHITE, MBH_DROP_IMG, NAV_ITEMS } from '../lib/constants.js';
 import { captureGuidFromUrl } from '../lib/auth.js';
-
-// Placeholder app shell. Will become the page selector
-// (MyStrategy, BioSignals, GlucoseSummary, DEXA, Vault, etc.) once the
-// prototype is ported page by page.
+import Drawer from '../components/Drawer.jsx';
+import MyStrategyPage from './MyStrategyPage.jsx';
+import BioSignalsPage from './BioSignalsPage.jsx';
+import GlucoseSummaryPage from './GlucoseSummaryPage.jsx';
+import DEXAPage from './DEXAPage.jsx';
+import VaultPage from './VaultPage.jsx';
+import CalendarPage from './CalendarPage.jsx';
+import LibraryPage from './LibraryPage.jsx';
+import QuestionsPage from './QuestionsPage.jsx';
 
 export default function AppShell() {
-  const [guid, setGuid] = useState(null);
+  const [activePage, setActivePage] = useState('strategy');
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
-    setGuid(captureGuidFromUrl());
+    captureGuidFromUrl();
   }, []);
 
+  const pageLabel = NAV_ITEMS.find((n) => n.key === activePage)?.label;
+  const showLabel = activePage !== 'strategy';
+
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 32,
-    }}>
-      <div style={{ textAlign: 'center', maxWidth: 480 }}>
-        <h1 style={{
-          fontFamily: 'Georgia, serif',
-          fontSize: 32,
-          fontWeight: 'normal',
-          marginBottom: 12,
-        }}>
-          <em style={{ fontStyle: 'italic', fontWeight: 400 }}>My</em>
-          <strong style={{ fontWeight: 700 }}>BioHealth</strong>
-        </h1>
-        <p style={{ color: '#5e564b', fontSize: 14, marginBottom: 32 }}>
-          App shell — pages coming next.
-        </p>
-        <div style={{
-          background: 'white',
-          border: '1px solid #ede9e3',
-          borderRadius: 12,
-          padding: 20,
-          fontSize: 13,
-          color: '#5e564b',
-          fontFamily: 'ui-monospace, monospace',
-          textAlign: 'left',
-        }}>
-          {guid
-            ? <>Authenticated as <code style={{ color: '#1e2d3d' }}>{guid.slice(0, 8)}…</code></>
-            : 'No GUID — use the Caspio redirector to land here, or append ?guid=test for a smoke test.'}
+    <div style={{ fontFamily: "'DM Sans',sans-serif", background: OFFWHITE, minHeight: '100vh', color: SLATE }}>
+      {drawerOpen && <Drawer activePage={activePage} onSelect={setActivePage} onClose={() => setDrawerOpen(false)} />}
+
+      <div style={{ position: 'sticky', top: 0, zIndex: 100, background: SLATE, padding: '13px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <button onClick={() => setDrawerOpen(true)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '2px 4px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ width: 20, height: 2, background: 'white', borderRadius: 1 }} />
+          <div style={{ width: 20, height: 2, background: 'white', borderRadius: 1 }} />
+          <div style={{ width: 20, height: 2, background: 'white', borderRadius: 1 }} />
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+          <img src={MBH_DROP_IMG} alt="MyBioHealth" style={{ width: 24, height: 24, display: 'block', objectFit: 'contain' }} />
+          <div style={{ color: 'white', fontSize: 13, fontWeight: 600, lineHeight: 1 }}>
+            <em style={{ fontStyle: 'normal' }}>My</em>BioHealth
+            {showLabel && <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> · {pageLabel}</span>}
+          </div>
         </div>
+      </div>
+
+      <div style={{ maxWidth: 740, margin: '0 auto' }}>
+        {activePage === 'strategy'   && <MyStrategyPage />}
+        {activePage === 'biosignals' && <BioSignalsPage />}
+        {activePage === 'glucose'    && <GlucoseSummaryPage />}
+        {activePage === 'dexa'       && <DEXAPage />}
+        {activePage === 'vault'      && <VaultPage />}
+        {activePage === 'calendar'   && <CalendarPage />}
+        {activePage === 'library'    && <LibraryPage />}
+        {activePage === 'questions'  && <QuestionsPage />}
       </div>
     </div>
   );
