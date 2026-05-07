@@ -1,16 +1,43 @@
 // MyStrategy — priorities, MicroHabits, routines, strategy elements.
-// All hardcoded from prototype: priorities/Rx/strategy elements aren't in DB yet.
-import { useState } from 'react';
+// Priorities/Rx/strategy elements stay hardcoded (no schema yet).
+// MicroHabits are now live from microhabit_x_member + microhabit, with the
+// endGame/renew shape filled in from a per-habit override map until those
+// concepts get real columns.
+import { useState, useEffect } from 'react';
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, AMBER, AMBER_TEXT, SLATE, OFFWHITE, CARD, BORDER, VERSION, RENEWAL } from '../lib/constants.js';
 import { OPTIMAL_AUTHORITIES } from '../lib/optimal-authorities.js';
+import { getStoredGuid } from '../lib/auth.js';
 import OptimalDrawer from '../components/OptimalDrawer.jsx';
 import ZoneChart from '../components/ZoneChart.jsx';
 
-const MHX_LIST = [
-  { name: 'Glucose rest', detail: '> 4 hours, 5/7 days', endGameKind: 'signal', endGameSignal: 'TAR', endGameNote: 'until TAR settles', renew: 'Next CGM cycle ~May 24' },
-  { name: 'Protein-centric breakfast', detail: '5/7 days', endGameKind: 'steady', endGameNote: 'steady', renew: 'Next CGM cycle ~May 24' },
-  { name: 'Deliberate nuts, seeds, legumes, fish — swap for refined carbs and sugars', detail: 'Start 2/7 days', endGameKind: 'cadence', endGameStart: '2/7', endGameGoal: '5/7', renew: 'Slow-burn pattern shift' },
+const API_BASE = 'https://kenises-api-proxy.netlify.app';
+
+// Per-habit overrides for the endGame structure that doesn't exist in the DB yet.
+// Keyed loosely by habit name (case-insensitive substring match).
+// If a habit doesn't match, it falls through to the steady default with just the frequency.
+const MHX_OVERRIDES = [
+  { match: /glucose rest/i,                        kind: 'signal',  signal: 'TAR',     renew: 'Next CGM cycle' },
+  { match: /protein.*breakfast/i,                  kind: 'steady',                     renew: 'Next CGM cycle' },
+  { match: /(nuts|seeds|legumes|fish|mediterran)/i, kind: 'cadence', start: '2/7', goal: '5/7', renew: 'Slow-burn pattern shift' },
 ];
+
+function buildMhxRow(assignment, habit) {
+  const name = habit?.microhabit_name || `Habit ${assignment.microhabit_id}`;
+  const detail = assignment.frequency
+    ? `${assignment.frequency}${/\d+\/\d+/.test(assignment.frequency) ? ' days' : ''}`
+    : (habit?.default_frequency || '');
+  const override = MHX_OVERRIDES.find((o) => o.match.test(name));
+  const base = { name, detail, endGameKind: 'steady', endGameNote: 'steady', renew: '' };
+  if (!override) return base;
+  return {
+    ...base,
+    endGameKind: override.kind || 'steady',
+    endGameSignal: override.signal,
+    endGameStart: override.start,
+    endGameGoal: override.goal,
+    renew: override.renew || '',
+  };
+}
 
 const PRIORITIES = [
   {
@@ -84,6 +111,38 @@ export default function MyStrategyPage() {
   const [rxOpen, setRxOpen] = useState(null);
   const [openPriorities, setOpenPriorities] = useState({ 1: true, 2: true, 3: true });
   const togglePriority = (n) => setOpenPriorities((p) => ({ ...p, [n]: !p[n] }));
+
+  const [mhxList, setMhxList] = useState([]);
+  const [mhxState, setMhxState] = useState('loading'); // loading | empty | ready
+
+  useEffect(() => {
+    let cancelled = false;
+    const guid = getStoredGuid();
+    if (!guid) { setMhxState('empty'); return; }
+
+    (async () => {
+      try {
+        const where = encodeURIComponent(`member_id='${guid}'`);
+        const [asnResp, habResp] = await Promise.all([
+          fetch(`${API_BASE}/rest/v2/tables/microhabit_x_member/records?q.where=${where}&q.limit=50`),
+          fetch(`${API_BASE}/rest/v2/tables/microhabit/records?q.limit=200`),
+        ]);
+        if (!asnResp.ok || !habResp.ok) { if (!cancelled) setMhxState('empty'); return; }
+        const assignments = ((await asnResp.json()).Result || []).filter((a) => !a.end_dt);
+        const habits = (await habResp.json()).Result || [];
+        const habitsById = new Map(habits.map((h) => [h.microhabit_id, h]));
+        const list = assignments.map((a) => buildMhxRow(a, habitsById.get(a.microhabit_id)));
+        if (cancelled) return;
+        setMhxList(list);
+        setMhxState(list.length ? 'ready' : 'empty');
+      } catch (e) {
+        console.error('MHx load error:', e);
+        if (!cancelled) setMhxState('empty');
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div style={{ padding: '22px 16px 80px' }}>
@@ -163,7 +222,13 @@ export default function MyStrategyPage() {
       })}
 
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', marginBottom: 10, marginTop: 8 }}>MicroHabits (MHx)</div>
-      {MHX_LIST.map((mhx, i) => (
+      {mhxState === 'loading' && (
+        <div style={{ background: CARD, borderRadius: 14, padding: '14px 18px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', marginBottom: 10, fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>Loading habits…</div>
+      )}
+      {mhxState === 'empty' && (
+        <div style={{ background: CARD, borderRadius: 14, padding: '14px 18px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', marginBottom: 10, fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>No active habits assigned yet.</div>
+      )}
+      {mhxState === 'ready' && mhxList.map((mhx, i) => (
         <div key={i} style={{ background: CARD, borderRadius: 14, padding: '14px 18px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: MBH_SAGE, background: SAGE_BG, padding: '2px 8px', borderRadius: 10 }}>MHx ({i + 1})</span>
