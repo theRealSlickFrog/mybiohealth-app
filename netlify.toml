@@ -2,6 +2,19 @@
   command = "npm run build"
   publish = "dist"
 
+# Force explicit UTF-8 charset on JS and CSS — without this, sparse
+# non-ASCII characters (ⓘ ▼ ▲ → ↗ etc) render as mojibake in some
+# browser/Netlify combinations.
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Content-Type = "text/css; charset=utf-8"
+
 # SPA fallback — any non-asset path returns index.html so client-side routes work
 [[redirects]]
   from = "/*"
