@@ -1,5 +1,5 @@
 // App shell — sticky top bar, hamburger drawer, page routing.
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { SLATE, OFFWHITE, MBH_DROP_IMG, NAV_ITEMS } from '../lib/constants.js';
 import { captureGuidFromUrl } from '../lib/auth.js';
 import Drawer from '../components/Drawer.jsx';
@@ -12,13 +12,15 @@ import CalendarPage from './CalendarPage.jsx';
 import LibraryPage from './LibraryPage.jsx';
 import QuestionsPage from './QuestionsPage.jsx';
 
+// Capture the GUID at module-load time, before any component renders. Doing
+// it in a useEffect means child components mount + run their own effects
+// (which read sessionStorage) BEFORE this would have run — React runs child
+// effects before parent effects, so a useEffect here was too late.
+captureGuidFromUrl();
+
 export default function AppShell() {
   const [activePage, setActivePage] = useState('strategy');
   const [drawerOpen, setDrawerOpen] = useState(false);
-
-  useEffect(() => {
-    captureGuidFromUrl();
-  }, []);
 
   const pageLabel = NAV_ITEMS.find((n) => n.key === activePage)?.label;
   const showLabel = activePage !== 'strategy';
