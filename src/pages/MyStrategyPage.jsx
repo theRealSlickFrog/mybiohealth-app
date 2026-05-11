@@ -130,8 +130,10 @@ export default function MyStrategyPage() {
         if (!asnResp.ok || !habResp.ok) { if (!cancelled) setMhxState('empty'); return; }
         const assignments = ((await asnResp.json()).Result || []).filter((a) => !a.end_dt);
         const habits = (await habResp.json()).Result || [];
-        const habitsById = new Map(habits.map((h) => [h.microhabit_id, h]));
-        const list = assignments.map((a) => buildMhxRow(a, habitsById.get(a.microhabit_id)));
+        // Normalize keys — microhabit.microhabit_id is a Number,
+        // microhabit_x_member.microhabit_id is a String. Map uses strict eq.
+        const habitsById = new Map(habits.map((h) => [String(h.microhabit_id), h]));
+        const list = assignments.map((a) => buildMhxRow(a, habitsById.get(String(a.microhabit_id))));
         if (cancelled) return;
         setMhxList(list);
         setMhxState(list.length ? 'ready' : 'empty');
