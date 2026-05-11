@@ -1,5 +1,6 @@
 // Slide-out left navigation drawer.
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, CARD, BORDER, MBH_DROP_IMG, NAV_ITEMS, VERSION, RENEWAL } from '../lib/constants.js';
+import { logout } from '../lib/auth.js';
 
 export default function Drawer({ activePage, onSelect, onClose }) {
   const groups = [
@@ -57,6 +58,20 @@ export default function Drawer({ activePage, onSelect, onClose }) {
           ))}
         </div>
         <div style={{ padding: '16px 20px', borderTop: `1px solid ${BORDER}`, flexShrink: 0 }}>
+          <button
+            onClick={logout}
+            style={{
+              width: '100%', background: 'transparent', border: `1px solid ${BORDER}`,
+              borderRadius: 999, padding: '10px 16px', fontSize: 13, fontWeight: 500,
+              color: '#5e564b', cursor: 'pointer', marginBottom: 14, fontFamily: 'inherit',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = '#f5f0e8'; }}
+            onMouseOut={(e)  => { e.currentTarget.style.background = 'transparent'; }}
+          >
+            <span style={{ fontSize: 14 }}>🚪</span>
+            <span>Log out</span>
+          </button>
           <div style={{ fontSize: 12, color: '#374151' }}>v{VERSION} · renews {RENEWAL}</div>
           <div style={{ fontSize: 11, color: '#374151', marginTop: 8, fontStyle: 'italic', opacity: 0.7 }}>
             Built with Claude · Anthropic

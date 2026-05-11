@@ -8,6 +8,14 @@ const GUID_KEY = 'mbh_user_guid';
 // post-login destination (the redirector DataPage) on successful auth.
 export const CASPIO_LOGIN_URL = 'https://d2hct674.caspio.app/users/e2j2rj/login';
 
+// Caspio logout URL — ends the Caspio session and bounces back to our landing.
+export const CASPIO_LOGOUT_URL = 'https://d2hct674.caspio.app/users/e2j2rj/logout?redirect=https://mybiohealth.netlify.app';
+
+export function logout() {
+  clearStoredGuid();
+  window.location.href = CASPIO_LOGOUT_URL;
+}
+
 export function captureGuidFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const guid = params.get('guid');
