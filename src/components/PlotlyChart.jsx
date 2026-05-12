@@ -45,10 +45,11 @@ const DTICK_DEFS = {
   E: { label: 'Equal',     axisType: 'category', dtick: null },
 };
 
-export default function PlotlyChart({ history, thresholds, reference, unit, markerName, height = 320 }) {
+export default function PlotlyChart({ history, thresholds, reference, unit, markerName, height = 260 }) {
   const ref = useRef(null);
   const [cfg, setCfg] = useState(null);
   const [activeDtick, setActiveDtick] = useState(null);
+  const [legend, setLegend] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -170,46 +171,20 @@ export default function PlotlyChart({ history, thresholds, reference, unit, mark
       });
     }
 
-    // Dynamic legend — only show what's present in the data
+    // Dynamic legend items — rendered as React DOM below the chart (see return)
     const present = new Set(emojiSymbolsAll);
-    const legendItems = [];
-    if (present.has(cfg.emojis.optimal))      legendItems.push(`${cfg.emojis.optimal} Optimal`);
-    if (present.has(cfg.emojis.drift))        legendItems.push(`${cfg.emojis.drift} Drift Zone`);
-    if (present.has(cfg.emojis.driftPlus))    legendItems.push(`${cfg.emojis.driftPlus} Drift Zone+`);
-    if (present.has(cfg.emojis.concern))      legendItems.push(`<span style="color:#c0483a;font-weight:bold;">${cfg.emojis.concern} Concern</span>`);
+    const legendData = [];
+    if (present.has(cfg.emojis.optimal))   legendData.push({ emoji: cfg.emojis.optimal, label: 'Optimal' });
+    if (present.has(cfg.emojis.drift))     legendData.push({ emoji: cfg.emojis.drift, label: 'Drift Zone' });
+    if (present.has(cfg.emojis.driftPlus)) legendData.push({ emoji: cfg.emojis.driftPlus, label: 'Drift Zone+' });
+    if (present.has(cfg.emojis.concern))   legendData.push({ emoji: cfg.emojis.concern, label: 'Concern', color: '#c0483a' });
     if (hasRef) {
       const refLabelVal = refDirection ? `${refDirection} ${refValue}` : refValue;
-      legendItems.push(`<span style="font-size: 14px;">${cfg.emojis.target}</span> Reference ${refLabelVal}${unit ? ' '+unit : ''}`);
+      legendData.push({ emoji: cfg.emojis.target, label: `Reference ${refLabelVal}${unit ? ' '+unit : ''}` });
     }
+    setLegend(legendData);
 
-    // Annotations: Latest, Reference (if present), zone labels, legend
-    const latestDate = dates[dates.length - 1];
-    const latestLabelDate = latestDate;
-    const annotations = [
-      {
-        x: latestLabelDate, y: 1.02, xref: 'x', yref: 'paper', text: 'Latest',
-        showarrow: false, xanchor: 'center', yanchor: 'bottom',
-        bgcolor: 'white', bordercolor: '#9ca3af', borderwidth: 1,
-        font: { size: cfg.textFontSize - 1, color: '#1e2d3d' },
-      },
-    ];
-    if (hasRef && refDate) {
-      annotations.push({
-        x: refDate, y: 1.02, xref: 'x', yref: 'paper', text: 'Reference',
-        showarrow: false, xanchor: 'center', yanchor: 'bottom',
-        bgcolor: 'white', bordercolor: 'orange', borderwidth: 1,
-        font: { size: cfg.textFontSize - 1, color: '#1e2d3d' },
-      });
-    }
-    if (legendItems.length > 0) {
-      annotations.push({
-        x: 0, y: -0.24, xref: 'paper', yref: 'paper',
-        text: legendItems.join('  '),
-        showarrow: false, xanchor: 'left', yanchor: 'top',
-        font: { size: cfg.textFontSize - 1, color: '#374151' },
-        align: 'left',
-      });
-    }
+    const annotations = [];
 
     const def = (activeDtick && DTICK_DEFS[activeDtick]) || DTICK_DEFS.Q;
     const xaxis = def.axisType === 'category'
@@ -240,7 +215,7 @@ export default function PlotlyChart({ history, thresholds, reference, unit, mark
       },
       plot_bgcolor: 'white',
       paper_bgcolor: 'transparent',
-      margin: { l: 44, r: 28, t: 28, b: legendItems.length > 0 ? 64 : 36 },
+      margin: { l: 44, r: 28, t: 12, b: 36 },
       shapes,
       showlegend: false,
       annotations,
@@ -275,6 +250,20 @@ export default function PlotlyChart({ history, thresholds, reference, unit, mark
         </div>
       )}
       <div ref={ref} style={{ width: '100%', height }} aria-label={`Chart for ${markerName || 'marker'}`} />
+      {legend.length > 0 && (
+        <div style={{
+          display: 'flex', flexWrap: 'wrap', gap: 12,
+          marginTop: 6, paddingLeft: 4,
+          fontSize: 11, color: '#374151', lineHeight: 1.4,
+        }}>
+          {legend.map((item, i) => (
+            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: item.color || '#374151', fontWeight: item.color ? 600 : 400 }}>
+              <span>{item.emoji}</span>
+              <span>{item.label}</span>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
