@@ -1,10 +1,11 @@
-// MyStrategy — priorities, MicroHabits, routines, strategy elements.
-// Priorities/Rx/strategy elements stay hardcoded (no schema yet).
-// MicroHabits are now live from microhabit_x_member + microhabit, with the
-// endGame/renew shape filled in from a per-habit override map until those
-// concepts get real columns.
+// MyStrategy — fully driven by mystrategy_ready_report (the materialized
+// read model). Front end is dumb: read one row by member_id, render flat.
+// Two external lookups per priority that has a primary marker:
+//   1) marker history from report_ready_result (for the chart)
+//   2) related markers from marker_x_marker (for the "Related: X" pills)
+// Both are derived from a single bulk fetch each at load time.
 import { useState, useEffect } from 'react';
-import { MBH_SAGE, SAGE_BG, SAGE_TEXT, AMBER, AMBER_TEXT, SLATE, OFFWHITE, CARD, BORDER, VERSION, RENEWAL } from '../lib/constants.js';
+import { MBH_SAGE, SAGE_BG, SAGE_TEXT, AMBER, AMBER_TEXT, SLATE, OFFWHITE, CARD, BORDER } from '../lib/constants.js';
 import { OPTIMAL_AUTHORITIES } from '../lib/optimal-authorities.js';
 import { getStoredGuid } from '../lib/auth.js';
 import OptimalDrawer from '../components/OptimalDrawer.jsx';
@@ -12,64 +13,7 @@ import ZoneChart from '../components/ZoneChart.jsx';
 
 const API_BASE = 'https://kenises-api-proxy.netlify.app';
 
-// Per-habit overrides for the endGame structure that doesn't exist in the DB yet.
-// Keyed loosely by habit name (case-insensitive substring match).
-// If a habit doesn't match, it falls through to the steady default with just the frequency.
-const MHX_OVERRIDES = [
-  { match: /glucose rest/i,                        kind: 'signal',  signal: 'TAR',     renew: 'Next CGM cycle' },
-  { match: /protein.*breakfast/i,                  kind: 'steady',                     renew: 'Next CGM cycle' },
-  { match: /(nuts|seeds|legumes|fish|mediterran)/i, kind: 'cadence', start: '2/7', goal: '5/7', renew: 'Slow-burn pattern shift' },
-];
-
-function buildMhxRow(assignment, habit) {
-  const name = habit?.microhabit_name || `Habit ${assignment.microhabit_id}`;
-  const detail = assignment.frequency
-    ? `${assignment.frequency}${/\d+\/\d+/.test(assignment.frequency) ? ' days' : ''}`
-    : (habit?.default_frequency || '');
-  const override = MHX_OVERRIDES.find((o) => o.match.test(name));
-  const base = { name, detail, endGameKind: 'steady', endGameNote: 'steady', renew: '' };
-  if (!override) return base;
-  return {
-    ...base,
-    endGameKind: override.kind || 'steady',
-    endGameSignal: override.signal,
-    endGameStart: override.start,
-    endGameGoal: override.goal,
-    renew: override.renew || '',
-  };
-}
-
-const PRIORITIES = [
-  {
-    n: 1, name: 'Optimize ApoB', primarySignal: 'ApoB',
-    target: 'Trending → < 0.80 g/L · re-test at 3 months',
-    latest: '1.10', unit: 'g/L', latestDate: 'Jan 2025',
-    history: [{ date: 'Mar 2019', value: '1.04' }, { date: 'Feb 2021', value: '1.13' }, { date: 'Mar 2023', value: '1.12' }, { date: 'Jan 2025', value: '1.10' }],
-    chartConfig: { optimalMax: 0.80, driftMax: 1.20, driftMin: 0, optimalMin: 0, higherIsBetter: false },
-    related: [{ label: 'LDL', value: '3.6 mmol/L' }, { label: 'non-HDL', value: '3.3 mmol/L' }],
-    rx: 'Statin started', kind: 'chart',
-  },
-  {
-    n: 2, name: 'Reduce TAR', primarySignal: null,
-    target: '< 2 hr/day, then < 1 hr/day',
-    latest: '4.9', unit: 'hr/day', latestDate: 'Cycle 1 · Apr 2026',
-    next: 'Next CGM cycle ~May 24',
-    related: [{ label: 'HOMA-IR', value: 'est. ok' }, { label: 'A1c', value: '5.5%' }],
-    kind: 'donut', hr78: 4.0, hr10: 0.9, targetHr: 1,
-  },
-  {
-    n: 3, name: 'Reduce Liver Stress', primarySignal: 'GGT',
-    target: 'GGT < 35 → < 25 U/L',
-    latest: '52', unit: 'U/L', latestDate: 'Jan 2025',
-    history: [{ date: 'Mar 2017', value: '50' }, { date: 'Mar 2019', value: '70' }, { date: 'Feb 2021', value: '59' }, { date: 'Jan 2025', value: '52' }],
-    chartConfig: { optimalMax: 25, driftMax: 50, driftMin: 0, optimalMin: 0, higherIsBetter: false },
-    related: [{ label: 'ALT', value: '29 U/L' }, { label: 'AST', value: '—' }],
-    kind: 'chart',
-  },
-];
-
 function TARDonut({ hr78, hr10, target }) {
-  // Simple SVG donut showing TAR breakdown
   const total = hr78 + hr10;
   const targetMet = total <= target;
   return (
@@ -90,61 +34,180 @@ function TARDonut({ hr78, hr10, target }) {
   );
 }
 
-function RxDetail() {
+function RxDetail({ text }) {
   return (
     <div style={{ background: OFFWHITE, borderRadius: 10, padding: '10px 14px', marginBottom: 10, fontSize: 12.5, color: '#374151', lineHeight: 1.6 }}>
-      <strong style={{ color: SLATE }}>Statin started — Rosuvastatin 5mg.</strong> Recheck ApoB and full lipid panel at 3 months.
+      <strong style={{ color: SLATE }}>{text}.</strong>
     </div>
   );
 }
 
-function NotesPair() {
+function WhyBlock({ text }) {
   return (
-    <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 10, marginTop: 4 }}>
-      <div style={{ fontSize: 11, color: '#9ca3af', fontStyle: 'italic' }}>Notes pair (clinician + member) — coming soon</div>
+    <div style={{ background: SAGE_BG, borderLeft: `3px solid ${MBH_SAGE}`, borderRadius: '0 8px 8px 0', padding: '10px 14px', fontSize: 12.5, lineHeight: 1.65, color: SAGE_TEXT, marginBottom: 8 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: MBH_SAGE, marginBottom: 4 }}>The Why</div>
+      {text}
     </div>
   );
+}
+
+// Pull priorities/mhx/strategy_elements out of the flat row into a shape
+// the render code can map over.
+function unflattenRow(row) {
+  if (!row) return null;
+  const priorities = [];
+  for (let n = 1; n <= 3; n++) {
+    if (!row[`p${n}_name`]) continue;
+    priorities.push({
+      n,
+      name: row[`p${n}_name`],
+      kind: row[`p${n}_kind`],
+      primaryMarker: row[`p${n}_primary_marker`] || null,
+      target: row[`p${n}_target_text`],
+      latest: row[`p${n}_latest_value`],
+      unit: row[`p${n}_unit`],
+      latestDate: row[`p${n}_latest_date`],
+      nextText: row[`p${n}_next_text`],
+      rx: row[`p${n}_rx_text`],
+      why: row[`p${n}_why_text`],
+      hr78: row[`p${n}_donut_hr78`],
+      hr10: row[`p${n}_donut_hr10`],
+      targetHr: row[`p${n}_donut_target_hr`],
+    });
+  }
+  const mhx = [];
+  for (let n = 1; n <= 6; n++) {
+    if (!row[`mhx${n}_name`]) continue;
+    mhx.push({
+      n,
+      name: row[`mhx${n}_name`],
+      frequency: row[`mhx${n}_frequency`],
+      endGameKind: row[`mhx${n}_end_game_kind`],
+      endGameSignal: row[`mhx${n}_end_game_signal`],
+      endGameStart: row[`mhx${n}_end_game_start`],
+      endGameGoal: row[`mhx${n}_end_game_goal`],
+      renew: row[`mhx${n}_renew_text`],
+      why: row[`mhx${n}_why_text`],
+    });
+  }
+  const strategyElements = ['sx', 'lx', 'sm', 'rx']
+    .filter((t) => row[`${t}_label`])
+    .map((t) => ({
+      type: t.toUpperCase().replace('S', 'S').replace('L', 'L'),
+      typeLabel: t === 'sx' ? 'Sx' : t === 'lx' ? 'Lx' : t === 'sm' ? 'Sm' : 'Rx',
+      label: row[`${t}_label`],
+      items: (row[`${t}_items`] || '').split('\n').map((s) => s.trim()).filter(Boolean),
+    }));
+  return {
+    version: row.version,
+    tagline: row.tagline,
+    effectiveTo: row.effective_to,
+    priorities,
+    mhx,
+    routines: [
+      { label: 'Sleep', value: row.routine_sleep },
+      { label: 'Strength', value: row.routine_strength },
+      { label: 'Cardio', value: row.routine_cardio },
+    ],
+    strategyElements,
+  };
 }
 
 export default function MyStrategyPage() {
   const [optimalSignal, setOptimalSignal] = useState(null);
-  const [rxOpen, setRxOpen] = useState(null);
   const [openPriorities, setOpenPriorities] = useState({ 1: true, 2: true, 3: true });
+  const [openWhy, setOpenWhy] = useState({});         // priority/mhx whys collapsed by default
+  const [rxOpen, setRxOpen] = useState(null);
   const togglePriority = (n) => setOpenPriorities((p) => ({ ...p, [n]: !p[n] }));
+  const toggleWhy = (key) => setOpenWhy((w) => ({ ...w, [key]: !w[key] }));
 
-  const [mhxList, setMhxList] = useState([]);
-  const [mhxState, setMhxState] = useState('loading'); // loading | empty | ready
+  const [strategy, setStrategy] = useState(null);
+  const [labRows, setLabRows] = useState([]);
+  const [relations, setRelations] = useState([]);
+  const [state, setState] = useState('loading');     // loading | empty | ready
 
   useEffect(() => {
     let cancelled = false;
     const guid = getStoredGuid();
-    if (!guid) { setMhxState('empty'); return; }
+    if (!guid) { setState('empty'); return; }
 
     (async () => {
       try {
         const where = encodeURIComponent(`member_id='${guid}'`);
-        const [asnResp, habResp] = await Promise.all([
-          fetch(`${API_BASE}/rest/v2/tables/microhabit_x_member/records?q.where=${where}&q.limit=50`),
-          fetch(`${API_BASE}/rest/v2/tables/microhabit/records?q.limit=200`),
+        const [stratResp, rrrResp, mxmResp] = await Promise.all([
+          fetch(`${API_BASE}/rest/v2/tables/mystrategy_ready_report/records?q.where=${where}&q.orderBy=effective_from DESC&q.limit=1`),
+          fetch(`${API_BASE}/rest/v2/tables/report_ready_result/records?q.where=${where}&q.limit=500`),
+          fetch(`${API_BASE}/rest/v2/tables/marker_x_marker/records?q.where=relationship_type='related'&q.limit=200`),
         ]);
-        if (!asnResp.ok || !habResp.ok) { if (!cancelled) setMhxState('empty'); return; }
-        const assignments = ((await asnResp.json()).Result || []).filter((a) => !a.end_dt);
-        const habits = (await habResp.json()).Result || [];
-        // Normalize keys — microhabit.microhabit_id is a Number,
-        // microhabit_x_member.microhabit_id is a String. Map uses strict eq.
-        const habitsById = new Map(habits.map((h) => [String(h.microhabit_id), h]));
-        const list = assignments.map((a) => buildMhxRow(a, habitsById.get(String(a.microhabit_id))));
+        if (!stratResp.ok) { if (!cancelled) setState('empty'); return; }
+        const stratRow = ((await stratResp.json()).Result || [])[0];
+        if (!stratRow) { if (!cancelled) setState('empty'); return; }
+        const rrr = (rrrResp.ok ? (await rrrResp.json()).Result : []) || [];
+        const mxm = (mxmResp.ok ? (await mxmResp.json()).Result : []) || [];
         if (cancelled) return;
-        setMhxList(list);
-        setMhxState(list.length ? 'ready' : 'empty');
+        setStrategy(unflattenRow(stratRow));
+        setLabRows(rrr);
+        setRelations(mxm);
+        setState('ready');
       } catch (e) {
-        console.error('MHx load error:', e);
-        if (!cancelled) setMhxState('empty');
+        console.error('MyStrategy load error:', e);
+        if (!cancelled) setState('empty');
       }
     })();
-
     return () => { cancelled = true; };
   }, []);
+
+  // Build chart history for a marker_code from labRows
+  function historyFor(markerCode) {
+    if (!markerCode) return null;
+    const rows = labRows
+      .filter((r) => r.marker_code === markerCode)
+      .sort((a, b) => (a.report_date || '').localeCompare(b.report_date || ''));
+    if (rows.length === 0) return null;
+    const sample = rows[0];
+    return {
+      history: rows.map((r) => ({
+        date: r.report_date ? new Date(r.report_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '',
+        value: r.marker_value,
+      })),
+      chartConfig: {
+        optimalMin: parseFloat(sample.lower_optimal),
+        optimalMax: parseFloat(sample.upper_optimal),
+        driftMin: parseFloat(sample.lower_drift),
+        driftMax: parseFloat(sample.upper_drift),
+        higherIsBetter: sample.Concern_direction === '<',
+      },
+    };
+  }
+
+  // Related markers for a primary, with their latest values
+  function relatedFor(markerCode) {
+    if (!markerCode) return [];
+    const codes = relations
+      .filter((r) => r.marker_a === markerCode)
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+      .map((r) => r.marker_b);
+    return codes.map((code) => {
+      const latest = labRows
+        .filter((r) => r.marker_code === code)
+        .sort((a, b) => (b.report_date || '').localeCompare(a.report_date || ''))[0];
+      return {
+        label: code,
+        value: latest ? `${latest.marker_value} ${latest.measurement || ''}`.trim() : '—',
+      };
+    });
+  }
+
+  if (state === 'loading') {
+    return <div style={{ padding: '40px 20px', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Loading strategy…</div>;
+  }
+  if (state === 'empty' || !strategy) {
+    return (
+      <div style={{ padding: '40px 20px', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>
+        No active strategy on file yet.
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '22px 16px 80px' }}>
@@ -154,111 +217,124 @@ export default function MyStrategyPage() {
           <em style={{ fontStyle: 'normal' }}>My</em>Strategy
         </h1>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 11, color: '#374151' }}>v{VERSION}</div>
-          <div style={{ fontSize: 12, color: '#374151' }}>renews {RENEWAL}</div>
+          <div style={{ fontSize: 11, color: '#374151' }}>v{strategy.version}</div>
+          {strategy.effectiveTo && <div style={{ fontSize: 12, color: '#374151' }}>renews {strategy.effectiveTo.slice(0, 10)}</div>}
         </div>
       </div>
-      <div style={{ fontSize: 12, color: '#374151', marginBottom: 20 }}>Two habits. Three priorities. Signal-confirmed.</div>
+      <div style={{ fontSize: 12, color: '#374151', marginBottom: 20 }}>{strategy.tagline}</div>
 
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', marginBottom: 10 }}>Priorities</div>
-      {PRIORITIES.map((p) => {
+      {strategy.priorities.map((p) => {
         const isOpen = openPriorities[p.n];
+        const hist = p.primaryMarker ? historyFor(p.primaryMarker) : null;
+        const related = relatedFor(p.primaryMarker);
         return (
-        <div key={p.n} style={{ background: CARD, borderRadius: 14, padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: 12 }}>
-          <div onClick={() => togglePriority(p.n)} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: isOpen ? 12 : 0, cursor: 'pointer' }}>
-            <div style={{ width: 24, height: 24, borderRadius: '50%', background: SLATE, color: 'white', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>P{p.n}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: SLATE, lineHeight: 1.25, marginBottom: 3 }}>{p.name}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ fontSize: 12, color: MBH_SAGE, fontWeight: 600, fontFamily: 'monospace' }}>→ {p.target}</div>
-                {p.primarySignal && OPTIMAL_AUTHORITIES[p.primarySignal] && (
-                  <button onClick={(e) => { e.stopPropagation(); setOptimalSignal(p.primarySignal); }} style={{ background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', color: MBH_SAGE, fontSize: 13, lineHeight: 1, fontWeight: 700 }}>ⓘ</button>
-                )}
-              </div>
-            </div>
-            <span style={{ fontSize: 12, color: '#9ca3af', marginTop: 6, lineHeight: 1, flexShrink: 0, transition: 'transform 0.15s', transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)', display: 'inline-block' }}>▼</span>
-          </div>
-
-          {isOpen && (<>
-            {p.kind === 'chart' && p.history && (
-              <div style={{ background: OFFWHITE, borderRadius: 10, padding: '10px 6px 6px', marginBottom: 10 }}>
-                <ZoneChart history={p.history} unit={p.unit} {...p.chartConfig} />
-                <div style={{ fontSize: 11, color: '#374151', textAlign: 'right', paddingRight: 12, marginTop: -2 }}>
-                  Latest: <strong style={{ color: SLATE, fontFamily: 'monospace' }}>{p.latest} {p.unit}</strong> · {p.latestDate}
+          <div key={p.n} style={{ background: CARD, borderRadius: 14, padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: 12 }}>
+            <div onClick={() => togglePriority(p.n)} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: isOpen ? 12 : 0, cursor: 'pointer' }}>
+              <div style={{ width: 24, height: 24, borderRadius: '50%', background: SLATE, color: 'white', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>P{p.n}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: SLATE, lineHeight: 1.25, marginBottom: 3 }}>{p.name}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ fontSize: 12, color: MBH_SAGE, fontWeight: 600, fontFamily: 'monospace' }}>{'→'} {p.target}</div>
+                  {p.primaryMarker && OPTIMAL_AUTHORITIES[p.primaryMarker] && (
+                    <button onClick={(e) => { e.stopPropagation(); setOptimalSignal(p.primaryMarker); }} style={{ background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', color: MBH_SAGE, fontSize: 13, lineHeight: 1, fontWeight: 700 }}>{'ⓘ'}</button>
+                  )}
                 </div>
               </div>
-            )}
-
-            {p.kind === 'donut' && (
-              <div style={{ background: OFFWHITE, borderRadius: 10, padding: '6px 10px 10px', marginBottom: 10 }}>
-                <TARDonut hr78={p.hr78} hr10={p.hr10} target={p.targetHr} />
-                <div style={{ fontSize: 11, color: '#374151', borderTop: `1px solid ${BORDER}`, paddingTop: 8, marginTop: 4 }}>{p.latestDate} · {p.next}</div>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginRight: 2 }}>Related:</span>
-              {p.related.map((r) => (
-                <span key={r.label} style={{ background: OFFWHITE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: '3px 10px', fontSize: 11, color: SLATE, fontWeight: 500, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                  <span style={{ fontWeight: 600 }}>{r.label}</span>
-                  <span style={{ color: '#374151' }}>{r.value}</span>
-                  {OPTIMAL_AUTHORITIES[r.label] && (
-                    <button onClick={(e) => { e.stopPropagation(); setOptimalSignal(r.label); }} style={{ background: 'none', border: 'none', padding: 0, marginLeft: 1, cursor: 'pointer', color: MBH_SAGE, fontSize: 11, lineHeight: 1, fontWeight: 700 }}>ⓘ</button>
-                  )}
-                </span>
-              ))}
-              {p.rx && (
-                <button onClick={() => setRxOpen(rxOpen === p.n ? null : p.n)} style={{ background: SAGE_BG, border: `1px solid ${MBH_SAGE}40`, borderRadius: 14, padding: '3px 10px', fontSize: 11, color: SAGE_TEXT, fontWeight: 600, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'baseline', gap: 5, cursor: 'pointer' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Rx</span>
-                  <span>{p.rx}</span>
-                  <span style={{ opacity: 0.6, fontSize: 11 }}>{rxOpen === p.n ? '▲' : '▼'}</span>
-                </button>
-              )}
+              <span style={{ fontSize: 12, color: '#9ca3af', marginTop: 6, lineHeight: 1, flexShrink: 0, transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)', display: 'inline-block' }}>{'▼'}</span>
             </div>
 
-            {p.rx && rxOpen === p.n && <RxDetail />}
-            <NotesPair />
-          </>)}
-        </div>
+            {isOpen && (<>
+              {p.kind === 'chart' && hist && hist.history.length > 0 && (
+                <div style={{ background: OFFWHITE, borderRadius: 10, padding: '10px 6px 6px', marginBottom: 10 }}>
+                  <ZoneChart history={hist.history} unit={p.unit} {...hist.chartConfig} />
+                  <div style={{ fontSize: 11, color: '#374151', textAlign: 'right', paddingRight: 12, marginTop: -2 }}>
+                    Latest: <strong style={{ color: SLATE, fontFamily: 'monospace' }}>{p.latest} {p.unit}</strong> · {p.latestDate}
+                  </div>
+                </div>
+              )}
+
+              {p.kind === 'donut' && p.hr78 != null && (
+                <div style={{ background: OFFWHITE, borderRadius: 10, padding: '6px 10px 10px', marginBottom: 10 }}>
+                  <TARDonut hr78={parseFloat(p.hr78)} hr10={parseFloat(p.hr10)} target={parseFloat(p.targetHr)} />
+                  <div style={{ fontSize: 11, color: '#374151', borderTop: `1px solid ${BORDER}`, paddingTop: 8, marginTop: 4 }}>{p.latestDate}{p.nextText ? ` · ${p.nextText}` : ''}</div>
+                </div>
+              )}
+
+              {related.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginRight: 2 }}>Related:</span>
+                  {related.map((r) => (
+                    <span key={r.label} style={{ background: OFFWHITE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: '3px 10px', fontSize: 11, color: SLATE, fontWeight: 500, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ fontWeight: 600 }}>{r.label}</span>
+                      <span style={{ color: '#374151' }}>{r.value}</span>
+                      {OPTIMAL_AUTHORITIES[r.label] && (
+                        <button onClick={(e) => { e.stopPropagation(); setOptimalSignal(r.label); }} style={{ background: 'none', border: 'none', padding: 0, marginLeft: 1, cursor: 'pointer', color: MBH_SAGE, fontSize: 11, lineHeight: 1, fontWeight: 700 }}>{'ⓘ'}</button>
+                      )}
+                    </span>
+                  ))}
+                  {p.rx && (
+                    <button onClick={() => setRxOpen(rxOpen === p.n ? null : p.n)} style={{ background: SAGE_BG, border: `1px solid ${MBH_SAGE}40`, borderRadius: 14, padding: '3px 10px', fontSize: 11, color: SAGE_TEXT, fontWeight: 600, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'baseline', gap: 5, cursor: 'pointer' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Rx</span>
+                      <span>{p.rx}</span>
+                      <span style={{ opacity: 0.6, fontSize: 11 }}>{rxOpen === p.n ? '▲' : '▼'}</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {p.rx && rxOpen === p.n && <RxDetail text={p.rx} />}
+
+              {p.why && (
+                <div style={{ marginTop: 8 }}>
+                  <button onClick={() => toggleWhy(`p${p.n}`)} style={{ background: 'none', border: `1px solid ${MBH_SAGE}50`, borderRadius: 14, padding: '3px 11px', fontSize: 11, fontWeight: 600, color: MBH_SAGE, cursor: 'pointer' }}>
+                    The Why {openWhy[`p${p.n}`] ? '▲' : '▼'}
+                  </button>
+                  {openWhy[`p${p.n}`] && <div style={{ marginTop: 8 }}><WhyBlock text={p.why} /></div>}
+                </div>
+              )}
+            </>)}
+          </div>
         );
       })}
 
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', marginBottom: 10, marginTop: 8 }}>MicroHabits (MHx)</div>
-      {mhxState === 'loading' && (
-        <div style={{ background: CARD, borderRadius: 14, padding: '14px 18px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', marginBottom: 10, fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>Loading habits…</div>
-      )}
-      {mhxState === 'empty' && (
-        <div style={{ background: CARD, borderRadius: 14, padding: '14px 18px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', marginBottom: 10, fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>No active habits assigned yet.</div>
-      )}
-      {mhxState === 'ready' && mhxList.map((mhx, i) => (
-        <div key={i} style={{ background: CARD, borderRadius: 14, padding: '14px 18px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', marginBottom: 10 }}>
+      {strategy.mhx.map((m) => (
+        <div key={m.n} style={{ background: CARD, borderRadius: 14, padding: '14px 18px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: MBH_SAGE, background: SAGE_BG, padding: '2px 8px', borderRadius: 10 }}>MHx ({i + 1})</span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: SLATE, lineHeight: 1.35 }}>{mhx.name}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: MBH_SAGE, background: SAGE_BG, padding: '2px 8px', borderRadius: 10 }}>MHx ({m.n})</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: SLATE, lineHeight: 1.35 }}>{m.name}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-            {mhx.endGameKind === 'cadence' && (<>
-              <span style={{ fontSize: 12.5, color: '#374151' }}>Start <strong style={{ color: SLATE }}>{mhx.endGameStart}</strong></span>
-              <span style={{ fontSize: 12, color: '#374151' }}>→</span>
-              <span style={{ fontSize: 12.5, color: '#374151' }}>Goal <strong style={{ color: MBH_SAGE }}>{mhx.endGameGoal}</strong></span>
+            {m.endGameKind === 'cadence' && (<>
+              <span style={{ fontSize: 12.5, color: '#374151' }}>Start <strong style={{ color: SLATE }}>{m.endGameStart}</strong></span>
+              <span style={{ fontSize: 12, color: '#374151' }}>{'→'}</span>
+              <span style={{ fontSize: 12.5, color: '#374151' }}>Goal <strong style={{ color: MBH_SAGE }}>{m.endGameGoal}</strong></span>
             </>)}
-            {mhx.endGameKind === 'steady' && (<>
-              <span style={{ fontSize: 12.5, color: SLATE, fontWeight: 600 }}>{mhx.detail}</span>
-              <span style={{ fontSize: 11, color: '#374151', fontStyle: 'italic' }}>· steady, no escalation</span>
+            {m.endGameKind === 'steady' && (<>
+              <span style={{ fontSize: 12.5, color: SLATE, fontWeight: 600 }}>{m.frequency}</span>
             </>)}
-            {mhx.endGameKind === 'signal' && (<>
-              <span style={{ fontSize: 12.5, color: SLATE, fontWeight: 600 }}>{mhx.detail}</span>
-              <span style={{ fontSize: 11, color: '#374151' }}>· until →</span>
-              <span style={{ fontSize: 11.5, color: MBH_SAGE, fontWeight: 600, background: SAGE_BG, padding: '1px 7px', borderRadius: 8 }}>{mhx.endGameSignal} settles</span>
+            {m.endGameKind === 'signal' && (<>
+              <span style={{ fontSize: 12.5, color: SLATE, fontWeight: 600 }}>{m.frequency}</span>
+              <span style={{ fontSize: 11, color: '#374151' }}>· until {'→'}</span>
+              <span style={{ fontSize: 11.5, color: MBH_SAGE, fontWeight: 600, background: SAGE_BG, padding: '1px 7px', borderRadius: 8 }}>{m.endGameSignal} settles</span>
             </>)}
           </div>
-          <div style={{ fontSize: 11, color: '#374151', fontStyle: 'italic' }}>{mhx.renew}</div>
+          {m.renew && <div style={{ fontSize: 11, color: '#374151', fontStyle: 'italic' }}>{m.renew}</div>}
+          {m.why && (
+            <div style={{ marginTop: 10 }}>
+              <button onClick={() => toggleWhy(`m${m.n}`)} style={{ background: 'none', border: `1px solid ${MBH_SAGE}50`, borderRadius: 14, padding: '3px 11px', fontSize: 11, fontWeight: 600, color: MBH_SAGE, cursor: 'pointer' }}>
+                The Why {openWhy[`m${m.n}`] ? '▲' : '▼'}
+              </button>
+              {openWhy[`m${m.n}`] && <div style={{ marginTop: 8 }}><WhyBlock text={m.why} /></div>}
+            </div>
+          )}
         </div>
       ))}
 
       <div style={{ background: CARD, borderRadius: 14, padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: 14 }}>
         <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', marginBottom: 12 }}>Routines</div>
-        {[{ label: 'Sleep', value: '7–7.5 hrs' }, { label: 'Strength', value: '2–3 / 7' }, { label: 'Cardio', value: '> 250 min/wk' }].map((r) => (
+        {strategy.routines.filter((r) => r.value).map((r) => (
           <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
             <span style={{ fontSize: 13, color: SLATE, fontWeight: 500 }}>{r.label}</span>
             <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 600, color: MBH_SAGE }}>{r.value}</span>
@@ -266,31 +342,28 @@ export default function MyStrategyPage() {
         ))}
       </div>
 
-      <div style={{ background: CARD, borderRadius: 14, padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: 14 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', marginBottom: 12 }}>Strategy Elements</div>
-        {[
-          { type: 'Sx', label: 'Medically Directed Supplements', items: ['Vitamin D daily with fat', 'Omega 3 daily', 'B12'] },
-          { type: 'Lx', label: 'Medically Directed Lifestyle Advice', items: ['CGM cycle timed to blood draw', 'Glucose rest · start 2/7 · goal 5/7'] },
-          { type: 'Sm', label: 'Member elected Supplements', items: ['AG1 daily · explains elevated B12', 'Magnesium glycinate'] },
-          { type: 'Rx', label: 'Prescriptions', items: ['None current'] },
-        ].map((e) => (
-          <div key={e.type} style={{ marginBottom: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ background: SLATE, color: 'white', fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 20 }}>{e.type}</span>
-              <span style={{ fontSize: 11, color: '#374151' }}>{e.label}</span>
-            </div>
-            {e.items.map((item) => (
-              <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: `1px solid ${BORDER}` }}>
-                <span style={{ fontSize: 12, color: '#374151' }}>·</span>
-                <span style={{ fontSize: 13, color: SLATE }}>{item}</span>
+      {strategy.strategyElements.length > 0 && (
+        <div style={{ background: CARD, borderRadius: 14, padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', marginBottom: 12 }}>Strategy Elements</div>
+          {strategy.strategyElements.map((e) => (
+            <div key={e.typeLabel} style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span style={{ background: SLATE, color: 'white', fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 20 }}>{e.typeLabel}</span>
+                <span style={{ fontSize: 11, color: '#374151' }}>{e.label}</span>
               </div>
-            ))}
-          </div>
-        ))}
-      </div>
+              {e.items.map((item) => (
+                <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: `1px solid ${BORDER}` }}>
+                  <span style={{ fontSize: 12, color: '#374151' }}>·</span>
+                  <span style={{ fontSize: 13, color: SLATE }}>{item}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div style={{ padding: '13px 16px', background: '#eeeae4', borderRadius: 10, fontSize: 12, color: '#6b7280', lineHeight: 1.6 }}>
-        <strong style={{ color: SLATE }}>About <em style={{ fontStyle: 'normal' }}>My</em>Strategy.</strong> A living plan — versioned, signal-linked, renewed on a cadence the member sets. v{VERSION} renews {RENEWAL}.
+        <strong style={{ color: SLATE }}>About <em style={{ fontStyle: 'normal' }}>My</em>Strategy.</strong> A living plan — versioned, signal-linked, renewed on a cadence the member sets.
       </div>
     </div>
   );
