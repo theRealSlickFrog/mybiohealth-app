@@ -1,5 +1,6 @@
-// MyStrategy — fully driven by mystrategy_ready_report (the materialized
-// read model). Front end is dumb: read one row by member_id, render flat.
+// MyStrategy — fully driven by mystrategy_report_ready (the materialized
+// read model, same naming convention as report_ready_result). Front end is
+// dumb: read one row by member_id, render flat.
 // Two external lookups per priority that has a primary marker:
 //   1) marker history from report_ready_result (for the chart)
 //   2) related markers from marker_x_marker (for the "Related: X" pills)
@@ -135,7 +136,7 @@ export default function MyStrategyPage() {
       try {
         const where = encodeURIComponent(`member_id='${guid}'`);
         const [stratResp, rrrResp, mxmResp] = await Promise.all([
-          fetch(`${API_BASE}/rest/v2/tables/mystrategy_ready_report/records?q.where=${where}&q.orderBy=effective_from DESC&q.limit=1`),
+          fetch(`${API_BASE}/rest/v2/tables/mystrategy_report_ready/records?q.where=${where}&q.orderBy=effective_from DESC&q.limit=1`),
           fetch(`${API_BASE}/rest/v2/tables/report_ready_result/records?q.where=${where}&q.limit=500`),
           fetch(`${API_BASE}/rest/v2/tables/marker_x_marker/records?q.where=relationship_type='related'&q.limit=200`),
         ]);
