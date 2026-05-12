@@ -37,7 +37,7 @@ function fmtDate(d, format) {
   return dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
-export default function PlotlyChart({ history, thresholds, unit, markerName }) {
+export default function PlotlyChart({ history, thresholds, unit, markerName, height = 280 }) {
   const ref = useRef(null);
   const [cfg, setCfg] = useState(null);
 
@@ -146,7 +146,7 @@ export default function PlotlyChart({ history, thresholds, unit, markerName }) {
       },
       plot_bgcolor: 'white',
       paper_bgcolor: 'transparent',
-      margin: { l: 40, r: 16, t: 16, b: 30 },
+      margin: { l: 44, r: 18, t: 20, b: 36 },
       shapes,
       showlegend: false,
       hoverlabel: { bgcolor: 'white', bordercolor: '#9ca3af', font: { color: '#1e2d3d', size: 12 } },
@@ -162,5 +162,5 @@ export default function PlotlyChart({ history, thresholds, unit, markerName }) {
   }, [cfg, history, thresholds, unit]);
 
   if (!history || history.length === 0) return null;
-  return <div ref={ref} style={{ width: '100%', height: 200 }} aria-label={`Chart for ${markerName || 'marker'}`} />;
+  return <div ref={ref} style={{ width: '100%', height }} aria-label={`Chart for ${markerName || 'marker'}`} />;
 }
