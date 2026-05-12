@@ -117,6 +117,7 @@ export default function MyStrategyPage() {
   const [strategy, setStrategy] = useState(null);
   const [labRows, setLabRows] = useState([]);
   const [relations, setRelations] = useState([]);
+  const [references, setReferences] = useState({});  // marker_code → { value, date, direction }
   const [state, setState] = useState('loading');     // loading | empty | ready
 
   useEffect(() => {
@@ -127,20 +128,35 @@ export default function MyStrategyPage() {
     (async () => {
       try {
         const where = encodeURIComponent(`member_id='${guid}'`);
-        const [stratResp, rrrResp, mxmResp] = await Promise.all([
+        const refWhere = encodeURIComponent(`member_id='${guid}' AND feature LIKE '%-reference'`);
+        const [stratResp, rrrResp, mxmResp, refResp] = await Promise.all([
           fetch(`${API_BASE}/rest/v2/tables/mystrategy_report_ready/records?q.where=${where}&q.orderBy=effective_from DESC&q.limit=1`),
           fetch(`${API_BASE}/rest/v2/tables/report_ready_result/records?q.where=${where}&q.limit=500`),
           fetch(`${API_BASE}/rest/v2/tables/marker_x_marker/records?q.where=relationship_type='related'&q.limit=200`),
+          fetch(`${API_BASE}/rest/v2/tables/member_info/records?q.where=${refWhere}&q.limit=50`),
         ]);
         if (!stratResp.ok) { if (!cancelled) setState('empty'); return; }
         const stratRow = ((await stratResp.json()).Result || [])[0];
         if (!stratRow) { if (!cancelled) setState('empty'); return; }
         const rrr = (rrrResp.ok ? (await rrrResp.json()).Result : []) || [];
         const mxm = (mxmResp.ok ? (await mxmResp.json()).Result : []) || [];
+        const refRows = (refResp.ok ? (await refResp.json()).Result : []) || [];
+        // Build refs map keyed by marker code. feature is like 'APOB-reference'
+        const refsMap = {};
+        for (const r of refRows) {
+          const m = (r.feature || '').replace(/-reference$/i, '').toUpperCase();
+          if (!m) continue;
+          refsMap[m] = {
+            value: r.number_1,
+            date: r.date_1,
+            direction: (r.text_box_1 || '').trim(),
+          };
+        }
         if (cancelled) return;
         setStrategy(unflattenRow(stratRow));
         setLabRows(rrr);
         setRelations(mxm);
+        setReferences(refsMap);
         setState('ready');
       } catch (e) {
         console.error('MyStrategy load error:', e);
@@ -244,7 +260,7 @@ export default function MyStrategyPage() {
             {isOpen && (<>
               {p.kind === 'chart' && hist && hist.history.length > 0 && (
                 <div style={{ background: OFFWHITE, borderRadius: 10, padding: '10px 6px 6px', marginBottom: 10 }}>
-                  <PlotlyChart history={hist.history} thresholds={hist.thresholds} unit={p.unit} markerName={p.primaryMarker} />
+                  <PlotlyChart history={hist.history} thresholds={hist.thresholds} reference={references[p.primaryMarker]} unit={p.unit} markerName={p.primaryMarker} />
                   <div style={{ fontSize: 11, color: '#374151', textAlign: 'right', paddingRight: 12, marginTop: -2 }}>
                     Latest: <strong style={{ color: SLATE, fontFamily: 'monospace' }}>{p.latest} {p.unit}</strong> · {p.latestDate}
                   </div>

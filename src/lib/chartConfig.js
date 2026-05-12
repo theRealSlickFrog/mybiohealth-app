@@ -31,6 +31,7 @@ const DEFAULTS = {
   },
   trendLine: { style: 'off', thickness: 2 },        // joins the dots — 'off' means dots only
   targetConnectorLine: { style: 'off', thickness: 2 },
+  dtickButtons: 'QE',   // which dtick toggle buttons to render above the chart
 };
 
 let cached = null;
@@ -79,6 +80,7 @@ export async function loadChartConfig() {
             cfg.trendLine = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1 }; break;
           case 'target_connector_line':
             cfg.targetConnectorLine = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1 }; break;
+          case 'dtick_buttons':         if (v) cfg.dtickButtons = v.toUpperCase(); break;
           default: break;
         }
       }
