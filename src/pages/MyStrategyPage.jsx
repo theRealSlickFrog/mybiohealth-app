@@ -11,7 +11,7 @@ import { OPTIMAL_AUTHORITIES } from '../lib/optimal-authorities.js';
 import { getStoredGuid } from '../lib/auth.js';
 import OptimalDrawer from '../components/OptimalDrawer.jsx';
 import WhyModal from '../components/WhyModal.jsx';
-import ZoneChart from '../components/ZoneChart.jsx';
+import PlotlyChart from '../components/PlotlyChart.jsx';
 
 const API_BASE = 'https://kenises-api-proxy.netlify.app';
 
@@ -150,25 +150,28 @@ export default function MyStrategyPage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Build chart history for a marker_code from labRows
+  // Build chart history + threshold profile for a marker_code from labRows
   function historyFor(markerCode) {
     if (!markerCode) return null;
     const rows = labRows
       .filter((r) => r.marker_code === markerCode)
       .sort((a, b) => (a.report_date || '').localeCompare(b.report_date || ''));
     if (rows.length === 0) return null;
-    const sample = rows[0];
+    const sample = rows[rows.length - 1]; // use most recent row's thresholds
     return {
       history: rows.map((r) => ({
-        date: r.report_date ? new Date(r.report_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '',
-        value: r.marker_value,
+        date: r.report_date ? r.report_date.slice(0, 10) : '',  // ISO date for Plotly's date axis
+        value: parseFloat(r.marker_value),
       })),
-      chartConfig: {
-        optimalMin: parseFloat(sample.lower_optimal),
-        optimalMax: parseFloat(sample.upper_optimal),
-        driftMin: parseFloat(sample.lower_drift),
-        driftMax: parseFloat(sample.upper_drift),
-        higherIsBetter: sample.Concern_direction === '<',
+      thresholds: {
+        display_min:       parseFloat(sample.display_min),
+        display_max:       parseFloat(sample.display_max),
+        lower_optimal:     parseFloat(sample.lower_optimal),
+        upper_optimal:     parseFloat(sample.upper_optimal),
+        lower_drift:       parseFloat(sample.lower_drift),
+        upper_drift:       parseFloat(sample.upper_drift),
+        concern_direction: sample.Concern_direction,
+        concern_threshold: parseFloat(sample.concern_threshold),
       },
     };
   }
@@ -241,7 +244,7 @@ export default function MyStrategyPage() {
             {isOpen && (<>
               {p.kind === 'chart' && hist && hist.history.length > 0 && (
                 <div style={{ background: OFFWHITE, borderRadius: 10, padding: '10px 6px 6px', marginBottom: 10 }}>
-                  <ZoneChart history={hist.history} unit={p.unit} {...hist.chartConfig} />
+                  <PlotlyChart history={hist.history} thresholds={hist.thresholds} unit={p.unit} markerName={p.primaryMarker} />
                   <div style={{ fontSize: 11, color: '#374151', textAlign: 'right', paddingRight: 12, marginTop: -2 }}>
                     Latest: <strong style={{ color: SLATE, fontFamily: 'monospace' }}>{p.latest} {p.unit}</strong> · {p.latestDate}
                   </div>
