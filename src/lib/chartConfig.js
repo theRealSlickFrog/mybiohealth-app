@@ -68,15 +68,17 @@ export async function loadChartConfig() {
           case 'emoji_concern':          if (v) cfg.emojis.concern = v; break;
           case 'emoji_below_optimal':    if (v) cfg.emojis.belowOptimal = v; break;
           case 'emoji_target':           if (v) cfg.emojis.target = v; break;
-          case 'zone_line_optimal_lower':
+          // V2 priority charts are sub-chart-sized — read the *_related parms
+          // (matching V1's smaller sub-chart styling)
+          case 'zone_line_optimal_lower_related':
             cfg.zoneLines.optimal_lower = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1 }; break;
-          case 'zone_line_optimal_upper':
+          case 'zone_line_optimal_upper_related':
             cfg.zoneLines.optimal_upper = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1 }; break;
-          case 'zone_line_drift_upper':
+          case 'zone_line_drift_upper_related':
             cfg.zoneLines.drift_upper   = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1 }; break;
-          case 'zone_line_concern':
+          case 'zone_line_concern_related':
             cfg.zoneLines.concern       = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1 }; break;
-          case 'trend_line':
+          case 'trend_line_related':
             cfg.trendLine = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1 }; break;
           case 'target_connector_line':
             cfg.targetConnectorLine = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1 }; break;

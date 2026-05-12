@@ -108,10 +108,14 @@ export default function PlotlyChart({ history, thresholds, reference, unit, mark
     }
 
     const dashFor = (style) => ({ solid: 'solid', dot: 'dot', dash: 'dash', dashdot: 'dashdot' }[style] || 'dash');
-    const lineFor = (yval, conf) => yval == null ? null : ({
-      type:'line', xref:'paper', yref:'y', x0:0, x1:1, y0:yval, y1:yval,
-      line:{ color: 'rgba(0,0,0,0.45)', width: conf?.thickness || 1, dash: dashFor(conf?.style) },
-    });
+    const lineFor = (yval, conf) => {
+      if (yval == null) return null;
+      if (!conf || conf.style === 'off' || !conf.style) return null;  // honor 'off'
+      return {
+        type:'line', xref:'paper', yref:'y', x0:0, x1:1, y0:yval, y1:yval,
+        line:{ color: '#9ca3af', width: conf.thickness || 1, dash: dashFor(conf.style) },
+      };
+    };
     [
       lineFor(t.lower_optimal, cfg.zoneLines.optimal_lower),
       lineFor(t.upper_optimal, cfg.zoneLines.optimal_upper),
