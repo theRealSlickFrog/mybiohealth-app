@@ -82,6 +82,8 @@ function unflattenRow(row) {
       endGameGoal: row[`mhx${n}_end_game_goal`],
       renew: row[`mhx${n}_renew_text`],
       why: row[`mhx${n}_why_text`],
+      linkedPriorities: (row[`mhx${n}_linked_priorities`] || '')
+        .split(',').map((s) => parseInt(s.trim(), 10)).filter((x) => x >= 1 && x <= 3),
     });
   }
   const strategyElements = ['sx', 'lx', 'sm', 'rx']
@@ -317,6 +319,21 @@ export default function MyStrategyPage() {
             <span style={{ fontSize: 11, fontWeight: 700, color: MBH_SAGE, background: SAGE_BG, padding: '2px 8px', borderRadius: 10 }}>MHx ({m.n})</span>
             <span style={{ fontSize: 14, fontWeight: 600, color: SLATE, lineHeight: 1.35 }}>{m.name}</span>
           </div>
+          {m.linkedPriorities.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', marginBottom: 6 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151' }}>Drives</span>
+              {m.linkedPriorities.map((pn) => {
+                const pri = strategy.priorities.find((p) => p.n === pn);
+                if (!pri) return null;
+                return (
+                  <span key={pn} style={{ background: OFFWHITE, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '2px 8px', fontSize: 10.5, color: SLATE, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ background: SLATE, color: 'white', fontSize: 9, fontWeight: 700, borderRadius: 8, padding: '1px 5px' }}>P{pn}</span>
+                    <span style={{ fontWeight: 500 }}>{pri.name}</span>
+                  </span>
+                );
+              })}
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
             {m.endGameKind === 'cadence' && (<>
               <span style={{ fontSize: 12.5, color: '#374151' }}>Start <strong style={{ color: SLATE }}>{m.endGameStart}</strong></span>
