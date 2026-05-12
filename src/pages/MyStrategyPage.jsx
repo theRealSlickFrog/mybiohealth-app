@@ -10,6 +10,7 @@ import { MBH_SAGE, SAGE_BG, SAGE_TEXT, AMBER, AMBER_TEXT, SLATE, OFFWHITE, CARD,
 import { OPTIMAL_AUTHORITIES } from '../lib/optimal-authorities.js';
 import { getStoredGuid } from '../lib/auth.js';
 import OptimalDrawer from '../components/OptimalDrawer.jsx';
+import WhyModal from '../components/WhyModal.jsx';
 import ZoneChart from '../components/ZoneChart.jsx';
 
 const API_BASE = 'https://kenises-api-proxy.netlify.app';
@@ -43,14 +44,6 @@ function RxDetail({ text }) {
   );
 }
 
-function WhyBlock({ text }) {
-  return (
-    <div style={{ background: SAGE_BG, borderLeft: `3px solid ${MBH_SAGE}`, borderRadius: '0 8px 8px 0', padding: '10px 14px', fontSize: 12.5, lineHeight: 1.65, color: SAGE_TEXT, marginBottom: 8 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: MBH_SAGE, marginBottom: 4 }}>The Why</div>
-      {text}
-    </div>
-  );
-}
 
 // Pull priorities/mhx/strategy_elements out of the flat row into a shape
 // the render code can map over.
@@ -117,10 +110,9 @@ function unflattenRow(row) {
 export default function MyStrategyPage() {
   const [optimalSignal, setOptimalSignal] = useState(null);
   const [openPriorities, setOpenPriorities] = useState({ 1: true, 2: true, 3: true });
-  const [openWhy, setOpenWhy] = useState({});         // priority/mhx whys collapsed by default
+  const [why, setWhy] = useState(null);   // { title, body } for the WhyModal
   const [rxOpen, setRxOpen] = useState(null);
   const togglePriority = (n) => setOpenPriorities((p) => ({ ...p, [n]: !p[n] }));
-  const toggleWhy = (key) => setOpenWhy((w) => ({ ...w, [key]: !w[key] }));
 
   const [strategy, setStrategy] = useState(null);
   const [labRows, setLabRows] = useState([]);
@@ -213,6 +205,7 @@ export default function MyStrategyPage() {
   return (
     <div style={{ padding: '22px 16px 80px' }}>
       {optimalSignal && <OptimalDrawer signalName={optimalSignal} onClose={() => setOptimalSignal(null)} />}
+      {why && <WhyModal title={why.title} body={why.body} onClose={() => setWhy(null)} />}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
         <h1 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 28, color: SLATE, fontWeight: 'normal' }}>
           <em style={{ fontStyle: 'normal' }}>My</em>Strategy
@@ -288,10 +281,9 @@ export default function MyStrategyPage() {
 
               {p.why && (
                 <div style={{ marginTop: 8 }}>
-                  <button onClick={() => toggleWhy(`p${p.n}`)} style={{ background: 'none', border: `1px solid ${MBH_SAGE}50`, borderRadius: 14, padding: '3px 11px', fontSize: 11, fontWeight: 600, color: MBH_SAGE, cursor: 'pointer' }}>
-                    The Why {openWhy[`p${p.n}`] ? '▲' : '▼'}
+                  <button onClick={() => setWhy({ title: p.name, body: p.why })} style={{ background: 'none', border: `1px solid ${MBH_SAGE}50`, borderRadius: 14, padding: '3px 11px', fontSize: 11, fontWeight: 600, color: MBH_SAGE, cursor: 'pointer' }}>
+                    The Why →
                   </button>
-                  {openWhy[`p${p.n}`] && <div style={{ marginTop: 8 }}><WhyBlock text={p.why} /></div>}
                 </div>
               )}
             </>)}
@@ -324,10 +316,9 @@ export default function MyStrategyPage() {
           {m.renew && <div style={{ fontSize: 11, color: '#374151', fontStyle: 'italic' }}>{m.renew}</div>}
           {m.why && (
             <div style={{ marginTop: 10 }}>
-              <button onClick={() => toggleWhy(`m${m.n}`)} style={{ background: 'none', border: `1px solid ${MBH_SAGE}50`, borderRadius: 14, padding: '3px 11px', fontSize: 11, fontWeight: 600, color: MBH_SAGE, cursor: 'pointer' }}>
-                The Why {openWhy[`m${m.n}`] ? '▲' : '▼'}
+              <button onClick={() => setWhy({ title: m.name, body: m.why })} style={{ background: 'none', border: `1px solid ${MBH_SAGE}50`, borderRadius: 14, padding: '3px 11px', fontSize: 11, fontWeight: 600, color: MBH_SAGE, cursor: 'pointer' }}>
+                The Why →
               </button>
-              {openWhy[`m${m.n}`] && <div style={{ marginTop: 8 }}><WhyBlock text={m.why} /></div>}
             </div>
           )}
         </div>
