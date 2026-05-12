@@ -68,17 +68,17 @@ export async function loadChartConfig() {
           case 'emoji_below_optimal':    if (v) cfg.emojis.belowOptimal = v; break;
           case 'emoji_target':           if (v) cfg.emojis.target = v; break;
           case 'zone_line_optimal_lower':
-            cfg.zoneLines.optimal_lower = { style: v.toLowerCase(), thickness: parseInt(v2) || 1 }; break;
+            cfg.zoneLines.optimal_lower = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1 }; break;
           case 'zone_line_optimal_upper':
-            cfg.zoneLines.optimal_upper = { style: v.toLowerCase(), thickness: parseInt(v2) || 1 }; break;
+            cfg.zoneLines.optimal_upper = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1 }; break;
           case 'zone_line_drift_upper':
-            cfg.zoneLines.drift_upper   = { style: v.toLowerCase(), thickness: parseInt(v2) || 1 }; break;
+            cfg.zoneLines.drift_upper   = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1 }; break;
           case 'zone_line_concern':
-            cfg.zoneLines.concern       = { style: v.toLowerCase(), thickness: parseInt(v2) || 1 }; break;
+            cfg.zoneLines.concern       = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1 }; break;
           case 'trend_line':
-            cfg.trendLine = { style: v.toLowerCase(), thickness: parseInt(v2) || 1 }; break;
+            cfg.trendLine = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1 }; break;
           case 'target_connector_line':
-            cfg.targetConnectorLine = { style: v.toLowerCase(), thickness: parseInt(v2) || 1 }; break;
+            cfg.targetConnectorLine = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1 }; break;
           default: break;
         }
       }
