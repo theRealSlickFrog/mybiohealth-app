@@ -108,11 +108,15 @@ export default function PlotlyChart({ history, thresholds, unit, markerName }) {
       return `<b>${fmtDate(dates[i], cfg.dateFormat)}</b><br>${v}${unit ? ' '+unit : ''}<br>${zlabel}`;
     });
 
+    // trend_line 'off' in system_parm means dots only — no connecting line
+    const trendOn = cfg.trendLine && cfg.trendLine.style !== 'off';
+    const dashMap = { solid: 'solid', dot: 'dot', dash: 'dash', dashdot: 'dashdot' };
+
     const traces = [
-      // Line + markers (data dots)
+      // Markers (data dots); optionally connect with the trend line
       {
-        x: dates, y: values, mode: 'lines+markers', type: 'scatter',
-        line: { color: '#1e2d3d', width: 1.5 },
+        x: dates, y: values, mode: trendOn ? 'lines+markers' : 'markers', type: 'scatter',
+        line: trendOn ? { color: '#1e2d3d', width: cfg.trendLine.thickness || 1.5, dash: dashMap[cfg.trendLine.style] || 'solid' } : undefined,
         marker: { color: '#1e2d3d', size: 6 },
         hovertext: hoverText, hoverinfo: 'text',
         showlegend: false,

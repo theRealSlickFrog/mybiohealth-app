@@ -29,6 +29,8 @@ const DEFAULTS = {
     drift_upper:   { style: 'dash', thickness: 2 },
     concern:       { style: 'dash', thickness: 2 },
   },
+  trendLine: { style: 'off', thickness: 2 },        // joins the dots — 'off' means dots only
+  targetConnectorLine: { style: 'off', thickness: 2 },
 };
 
 let cached = null;
@@ -73,6 +75,10 @@ export async function loadChartConfig() {
             cfg.zoneLines.drift_upper   = { style: v.toLowerCase(), thickness: parseInt(v2) || 1 }; break;
           case 'zone_line_concern':
             cfg.zoneLines.concern       = { style: v.toLowerCase(), thickness: parseInt(v2) || 1 }; break;
+          case 'trend_line':
+            cfg.trendLine = { style: v.toLowerCase(), thickness: parseInt(v2) || 1 }; break;
+          case 'target_connector_line':
+            cfg.targetConnectorLine = { style: v.toLowerCase(), thickness: parseInt(v2) || 1 }; break;
           default: break;
         }
       }
