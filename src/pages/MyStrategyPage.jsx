@@ -114,6 +114,9 @@ export default function MyStrategyPage() {
   const [openPriorities, setOpenPriorities] = useState({ 1: true, 2: true, 3: true });
   const [why, setWhy] = useState(null);   // { title, body } for the WhyModal
   const [rxOpen, setRxOpen] = useState(null);
+  // Per-priority note text. Keys are `${n}_member` and `${n}_mbh`.
+  // Local-only for now; load/save against member_info is a follow-on.
+  const [notes, setNotes] = useState({});
   const togglePriority = (n) => setOpenPriorities((p) => ({ ...p, [n]: !p[n] }));
 
   const [strategy, setStrategy] = useState(null);
@@ -313,6 +316,27 @@ export default function MyStrategyPage() {
                   </button>
                 </div>
               )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 12, marginTop: 12, borderTop: `1px solid ${BORDER}` }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginBottom: 4 }}>Member Note</div>
+                  <textarea
+                    value={notes[`${p.n}_member`] || ''}
+                    onChange={(e) => setNotes((prev) => ({ ...prev, [`${p.n}_member`]: e.target.value }))}
+                    placeholder="Member's notes about this priority…"
+                    style={{ width: '100%', minHeight: 50, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '8px 10px', fontSize: 12, color: SLATE, background: OFFWHITE, resize: 'vertical', lineHeight: 1.5, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: MBH_SAGE, marginBottom: 4 }}>MBH Note</div>
+                  <textarea
+                    value={notes[`${p.n}_mbh`] || ''}
+                    onChange={(e) => setNotes((prev) => ({ ...prev, [`${p.n}_mbh`]: e.target.value }))}
+                    placeholder="Notes from MyBioHealth…"
+                    style={{ width: '100%', minHeight: 50, border: `1px solid ${MBH_SAGE}30`, borderRadius: 8, padding: '8px 10px', fontSize: 12, color: SLATE, background: SAGE_BG + '60', resize: 'vertical', lineHeight: 1.5, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
             </>)}
           </div>
         );
