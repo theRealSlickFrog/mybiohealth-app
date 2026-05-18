@@ -80,7 +80,8 @@ async function logLogin(userGuid) {
         user_email: userEmail,
         user_name: userName,
         login_time: new Date().toISOString(),
-        user_agent: navigator.userAgent
+        user_agent: navigator.userAgent,
+        app_version: 'V2'
       })
     });
 
