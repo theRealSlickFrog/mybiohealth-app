@@ -9,12 +9,14 @@ const API_BASE = 'https://kenises-api-proxy.netlify.app';
 const GUID_KEY = 'mbh_user_guid';
 const LOG_ID_KEY = 'mbh_login_log_id';
 
-// Caspio Authentication login URL (e2j2rj) — hits this redirects to the
-// post-login destination (the redirector DataPage) on successful auth.
-export const CASPIO_LOGIN_URL = 'https://d2hct674.caspio.app/users/e2j2rj/login';
+// Caspio Authentication login URL (e2j2rj) — must use the vanity domain so
+// the auth cookie is set on the same origin as the destination DataPages.
+// Using the legacy d2hct674.caspio.app domain causes a cross-subdomain bounce:
+// auth succeeds, but redirect to a vanity-domain page finds no cookie there.
+export const CASPIO_LOGIN_URL = 'https://mybiohealth.caspio.app/users/e2j2rj/login';
 
-// Caspio logout URL — ends the Caspio session and bounces back to our landing.
-export const CASPIO_LOGOUT_URL = 'https://d2hct674.caspio.app/users/e2j2rj/logout?redirect=https://mybiohealth.netlify.app';
+// Caspio logout URL — must match the domain the auth cookie was set on.
+export const CASPIO_LOGOUT_URL = 'https://mybiohealth.caspio.app/users/e2j2rj/logout?redirect=https://mybiohealth.netlify.app';
 
 export async function logout() {
   await logLogout();
