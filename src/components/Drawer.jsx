@@ -59,7 +59,7 @@ export default function Drawer({ activePage, onSelect, onClose }) {
         </div>
         <div style={{ padding: '16px 20px', borderTop: `1px solid ${BORDER}`, flexShrink: 0 }}>
           <button
-            onClick={logout}
+            onClick={() => logout(activePage)}
             style={{
               width: '100%', background: 'transparent', border: `1px solid ${BORDER}`,
               borderRadius: 999, padding: '10px 16px', fontSize: 13, fontWeight: 500,

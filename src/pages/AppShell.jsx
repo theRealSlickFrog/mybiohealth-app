@@ -1,7 +1,7 @@
 // App shell — sticky top bar, hamburger drawer, page routing.
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SLATE, OFFWHITE, MBH_DROP_IMG, NAV_ITEMS } from '../lib/constants.js';
-import { captureGuidFromUrl } from '../lib/auth.js';
+import { captureGuidFromUrl, logActivity } from '../lib/auth.js';
 import Drawer from '../components/Drawer.jsx';
 import MyStrategyPage from './MyStrategyPage.jsx';
 import BioSignalsPage from './BioSignalsPage.jsx';
@@ -21,6 +21,16 @@ captureGuidFromUrl();
 export default function AppShell() {
   const [activePage, setActivePage] = useState('strategy');
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Log a view event whenever the active page changes. The first fire of the
+  // session is the 'login' (app just loaded); every change after is a 'pageview'.
+  // A session flag (not a mount-only ref) means a browser refresh logs a
+  // pageview rather than a duplicate login.
+  useEffect(() => {
+    const sessionLogged = sessionStorage.getItem('mbh_activity_session');
+    logActivity(sessionLogged ? 'pageview' : 'login', activePage);
+    sessionStorage.setItem('mbh_activity_session', '1');
+  }, [activePage]);
 
   const pageLabel = NAV_ITEMS.find((n) => n.key === activePage)?.label;
   const showLabel = activePage !== 'strategy';
