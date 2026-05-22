@@ -15,6 +15,16 @@ import PlotlyChart from '../components/PlotlyChart.jsx';
 
 const API_BASE = 'https://kenises-api-proxy.netlify.app';
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// effective_from -> "Jul 24, 2025"
+function fmtStartDate(d) {
+  if (!d) return '';
+  const s = String(d).slice(0, 10);
+  const [y, m, day] = s.split('-').map(Number);
+  if (!y || !m || !day) return s;
+  return `${MONTHS[m - 1]} ${day}, ${y}`;
+}
+
 function TARDonut({ hr78, hr10, target }) {
   const total = hr78 + hr10;
   const targetMet = total <= target;
@@ -96,6 +106,14 @@ function unflattenRow(row) {
     }));
   return {
     version: row.version,
+    // minor letter for the "Version n.x" label — prefer the dedicated column,
+    // fall back to the trailing segment of the version string (e.g. 26.05.12.c -> c)
+    minorVersion: row.minor_version || (() => {
+      const parts = String(row.version || '').split('.');
+      const last = parts[parts.length - 1];
+      return /^[a-z]+$/i.test(last) ? last : '';
+    })(),
+    effectiveFrom: row.effective_from,
     tagline: row.tagline,
     effectiveTo: row.effective_to,
     priorities,
@@ -119,7 +137,8 @@ export default function MyStrategyPage() {
   const [notes, setNotes] = useState({});
   const togglePriority = (n) => setOpenPriorities((p) => ({ ...p, [n]: !p[n] }));
 
-  const [strategy, setStrategy] = useState(null);
+  const [versions, setVersions] = useState([]);    // all strategy rows, oldest -> newest
+  const [versionIdx, setVersionIdx] = useState(0); // which version is being viewed
   const [labRows, setLabRows] = useState([]);
   const [relations, setRelations] = useState([]);
   const [references, setReferences] = useState({});  // marker_code → { value, date, direction }
@@ -135,14 +154,14 @@ export default function MyStrategyPage() {
         const where = encodeURIComponent(`member_id='${guid}'`);
         const refWhere = encodeURIComponent(`member_id='${guid}' AND feature LIKE '%-reference'`);
         const [stratResp, rrrResp, mxmResp, refResp] = await Promise.all([
-          fetch(`${API_BASE}/rest/v2/tables/mystrategy_report_ready/records?q.where=${where}&q.orderBy=effective_from DESC&q.limit=1`),
+          fetch(`${API_BASE}/rest/v2/tables/mystrategy_report_ready/records?q.where=${where}&q.orderBy=effective_from&q.limit=200`),
           fetch(`${API_BASE}/rest/v2/tables/report_ready_result/records?q.where=${where}&q.limit=500`),
           fetch(`${API_BASE}/rest/v2/tables/marker_x_marker/records?q.where=relationship_type='related'&q.limit=200`),
           fetch(`${API_BASE}/rest/v2/tables/member_info/records?q.where=${refWhere}&q.limit=50`),
         ]);
         if (!stratResp.ok) { if (!cancelled) setState('empty'); return; }
-        const stratRow = ((await stratResp.json()).Result || [])[0];
-        if (!stratRow) { if (!cancelled) setState('empty'); return; }
+        const stratRows = (await stratResp.json()).Result || [];
+        if (stratRows.length === 0) { if (!cancelled) setState('empty'); return; }
         const rrr = (rrrResp.ok ? (await rrrResp.json()).Result : []) || [];
         const mxm = (mxmResp.ok ? (await mxmResp.json()).Result : []) || [];
         const refRows = (refResp.ok ? (await refResp.json()).Result : []) || [];
@@ -158,7 +177,12 @@ export default function MyStrategyPage() {
           };
         }
         if (cancelled) return;
-        setStrategy(unflattenRow(stratRow));
+        const unflattened = stratRows.map(unflattenRow);
+        // Default to the active version (no effective_to); fall back to newest.
+        let defaultIdx = unflattened.findIndex((s) => !s.effectiveTo);
+        if (defaultIdx < 0) defaultIdx = unflattened.length - 1;
+        setVersions(unflattened);
+        setVersionIdx(defaultIdx);
         setLabRows(rrr);
         setRelations(mxm);
         setReferences(refsMap);
@@ -218,13 +242,19 @@ export default function MyStrategyPage() {
   if (state === 'loading') {
     return <div style={{ padding: '40px 20px', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Loading strategy…</div>;
   }
-  if (state === 'empty' || !strategy) {
+  if (state === 'empty' || versions.length === 0) {
     return (
       <div style={{ padding: '40px 20px', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>
         No active strategy on file yet.
       </div>
     );
   }
+
+  const strategy = versions[versionIdx];
+  const goOlder = () => setVersionIdx((i) => Math.max(0, i - 1));
+  const goNewer = () => setVersionIdx((i) => Math.min(versions.length - 1, i + 1));
+  const atOldest = versionIdx === 0;
+  const atNewest = versionIdx === versions.length - 1;
 
   return (
     <div style={{ padding: '22px 16px 80px' }}>
@@ -235,8 +265,22 @@ export default function MyStrategyPage() {
           <em style={{ fontStyle: 'normal' }}>My</em>Strategy
         </h1>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 11, color: '#374151' }}>v{strategy.version}</div>
-          {strategy.effectiveTo && <div style={{ fontSize: 12, color: '#374151' }}>renews {strategy.effectiveTo.slice(0, 10)}</div>}
+          <div style={{ fontSize: 12, color: SLATE, fontWeight: 600 }}>
+            Version {versionIdx + 1}{strategy.minorVersion ? `.${strategy.minorVersion}` : ''}
+            {strategy.effectiveFrom && <span style={{ color: '#6b7280', fontWeight: 400 }}> ({fmtStartDate(strategy.effectiveFrom)})</span>}
+          </div>
+          <div style={{ fontSize: 10, color: strategy.effectiveTo ? '#9ca3af' : MBH_SAGE, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginTop: 1 }}>
+            {strategy.effectiveTo ? 'Past version' : 'Current'}
+          </div>
+          {versions.length > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 9, marginTop: 5 }}>
+              <button onClick={goOlder} disabled={atOldest} aria-label="Older version"
+                style={{ border: `1px solid ${BORDER}`, background: atOldest ? '#f3f4f6' : CARD, color: atOldest ? '#d1d5db' : SLATE, borderRadius: 8, width: 28, height: 24, cursor: atOldest ? 'default' : 'pointer', fontSize: 14, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>‹</button>
+              <span style={{ fontSize: 11, color: '#6b7280', fontFamily: 'monospace', minWidth: 32, textAlign: 'center' }}>{versionIdx + 1} / {versions.length}</span>
+              <button onClick={goNewer} disabled={atNewest} aria-label="Newer version"
+                style={{ border: `1px solid ${BORDER}`, background: atNewest ? '#f3f4f6' : CARD, color: atNewest ? '#d1d5db' : SLATE, borderRadius: 8, width: 28, height: 24, cursor: atNewest ? 'default' : 'pointer', fontSize: 14, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>›</button>
+            </div>
+          )}
         </div>
       </div>
       <div style={{ fontSize: 12, color: '#374151', marginBottom: 20 }}>{strategy.tagline}</div>
