@@ -2,10 +2,10 @@
 // Baseline <6.3 / Normal 6.3–7.8 / Spike 7.8–10 / Strong Spike >10). Cycle
 // picker walks the member's real CGM_CYCLE records. Data via lib/glucose.js.
 import { useEffect, useState } from 'react';
-import { MBH_SAGE, AMBER, SOFT_RED, SLATE, CARD, BORDER, AMBER_BG, AMBER_TEXT } from '../lib/constants.js';
+import { MBH_SAGE, SAGE_BG, SAGE_TEXT, AMBER, SOFT_RED, SLATE, OFFWHITE, CARD, BORDER, AMBER_BG, AMBER_TEXT } from '../lib/constants.js';
 import { getStoredGuid } from '../lib/auth.js';
 import { DEV_MEMBER } from '../lib/biomarkers.js';
-import { loadGlucose } from '../lib/glucose.js';
+import { loadGlucose, loadGlucoseExtras } from '../lib/glucose.js';
 import PersonalNote from '../components/PersonalNote.jsx';
 
 const ZONE_COLOR = { baseline: '#6fa392', normal: MBH_SAGE, spike: AMBER, strong: SOFT_RED };
@@ -103,8 +103,58 @@ function CycleView({ cycle }) {
   );
 }
 
+// Collapsible side-panel dropdown — collapsed by default to avoid clutter.
+function Dropdown({ title, count, children }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div onClick={() => setOpen((o) => !o)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', background: SAGE_BG, border: '1px solid #cfc8ba', borderRadius: open ? '8px 8px 0 0' : 8, padding: '12px 16px' }}>
+        <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: SAGE_TEXT }}>{title}{count != null ? ` (${count})` : ''}</span>
+        <span style={{ fontSize: 16, fontWeight: 700, color: SLATE }}>{open ? '▲' : '▼'}</span>
+      </div>
+      {open && <div style={{ border: '1px solid #cfc8ba', borderTop: 'none', borderRadius: '0 0 8px 8px', background: CARD, overflow: 'hidden' }}>{children}</div>}
+    </div>
+  );
+}
+
+function RelatedMarkers({ items }) {
+  const cols = '1.6fr 1fr 1fr 1.2fr';
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, padding: '8px 16px', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#6b7280', borderBottom: `1px solid ${BORDER}` }}>
+        <span>Marker</span><span style={{ textAlign: 'right' }}>Latest</span><span style={{ textAlign: 'right' }}>Previous</span><span style={{ textAlign: 'right' }}>Reference</span>
+      </div>
+      {items.map((m, i) => (
+        <div key={m.code} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, padding: '9px 16px', fontSize: 12.5, alignItems: 'center', borderBottom: i < items.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
+          <span style={{ color: SLATE, fontWeight: 600 }}>{m.name}</span>
+          <span style={{ textAlign: 'right', fontFamily: 'monospace', color: SLATE }}>{m.latest ?? '—'}{m.latest && m.unit ? ` ${m.unit}` : ''}</span>
+          <span style={{ textAlign: 'right', fontFamily: 'monospace', color: '#6b7280' }}>{m.previous ?? '—'}</span>
+          <span style={{ textAlign: 'right', fontFamily: 'monospace', color: '#6b7280' }}>{m.reference}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MicroHabits({ items }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px' }}>
+      {items.map((h, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: OFFWHITE, borderRadius: 8, padding: '10px 12px', borderLeft: `3px solid ${MBH_SAGE}` }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: SLATE }}>{h.name}</div>
+            {h.category && <div style={{ fontSize: 11, color: '#6b7280' }}>{h.category}</div>}
+          </div>
+          {h.frequency && <span style={{ fontSize: 11, fontWeight: 600, color: SAGE_TEXT, background: SAGE_BG, padding: '3px 9px', borderRadius: 20, whiteSpace: 'nowrap', flexShrink: 0 }}>{h.frequency}</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function GlucoseSummaryPage() {
   const [cycles, setCycles] = useState(null);
+  const [extras, setExtras] = useState(null);
   const [error, setError] = useState(null);
   const [idx, setIdx] = useState(0); // 0 = newest
 
@@ -114,6 +164,9 @@ export default function GlucoseSummaryPage() {
     loadGlucose(member)
       .then((c) => { if (!cancelled) setCycles(c); })
       .catch((e) => { if (!cancelled) setError(e.message || 'Failed to load'); });
+    loadGlucoseExtras(member)
+      .then((x) => { if (!cancelled) setExtras(x); })
+      .catch((e) => { console.warn('Glucose extras failed:', e); });
     return () => { cancelled = true; };
   }, []);
 
@@ -148,6 +201,17 @@ export default function GlucoseSummaryPage() {
       {!cycles && !error && <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>Loading…</div>}
       {cycles && cycles.length === 0 && <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>No CGM cycles on record yet.</div>}
       {cycle && <CycleView cycle={cycle} />}
+
+      {extras && extras.relatedMarkers.length > 0 && (
+        <Dropdown title="Related Markers" count={extras.relatedMarkers.length}>
+          <RelatedMarkers items={extras.relatedMarkers} />
+        </Dropdown>
+      )}
+      {extras && extras.microHabits.length > 0 && (
+        <Dropdown title="MicroHabits" count={extras.microHabits.length}>
+          <MicroHabits items={extras.microHabits} />
+        </Dropdown>
+      )}
 
       {cycles && <PersonalNote noteKey="glucose" />}
 
