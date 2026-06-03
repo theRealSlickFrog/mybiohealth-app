@@ -177,7 +177,7 @@ export default function PlotlyChart({ history, thresholds, reference, unit, mark
     if (present.has(cfg.emojis.optimal))   legendData.push({ emoji: cfg.emojis.optimal, label: 'Optimal' });
     if (present.has(cfg.emojis.drift))     legendData.push({ emoji: cfg.emojis.drift, label: 'Drift Zone' });
     if (present.has(cfg.emojis.driftPlus)) legendData.push({ emoji: cfg.emojis.driftPlus, label: 'Drift Zone+' });
-    if (present.has(cfg.emojis.concern))   legendData.push({ emoji: cfg.emojis.concern, label: 'Concern', color: '#c0483a' });
+    if (present.has(cfg.emojis.concern))   legendData.push({ emoji: cfg.emojis.concern, label: 'Concern Zone', color: '#c0483a' });
     if (hasRef) {
       const refLabelVal = refDirection ? `${refDirection} ${refValue}` : refValue;
       legendData.push({ emoji: cfg.emojis.target, label: `Reference ${refLabelVal}${unit ? ' '+unit : ''}` });

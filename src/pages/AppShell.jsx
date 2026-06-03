@@ -4,6 +4,7 @@ import { SLATE, OFFWHITE, MBH_DROP_IMG, NAV_ITEMS } from '../lib/constants.js';
 import { captureGuidFromUrl, logActivity } from '../lib/auth.js';
 import Drawer from '../components/Drawer.jsx';
 import MyStrategyPage from './MyStrategyPage.jsx';
+import PrioritiesPage from './PrioritiesPage.jsx';
 import BioSignalsPage from './BioSignalsPage.jsx';
 import GlucoseSummaryPage from './GlucoseSummaryPage.jsx';
 import DEXAPage from './DEXAPage.jsx';
@@ -56,6 +57,7 @@ export default function AppShell() {
 
       <div style={{ maxWidth: 740, margin: '0 auto' }}>
         {activePage === 'strategy'   && <MyStrategyPage />}
+        {activePage === 'priorities' && <PrioritiesPage />}
         {activePage === 'biosignals' && <BioSignalsPage />}
         {activePage === 'glucose'    && <GlucoseSummaryPage />}
         {activePage === 'dexa'       && <DEXAPage />}

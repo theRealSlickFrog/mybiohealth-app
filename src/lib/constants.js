@@ -23,9 +23,10 @@ export const MBH_DROP_IMG = 'https://res.cloudinary.com/dai0low65/image/upload/v
 
 export const NAV_ITEMS = [
   { key: 'strategy',   label: 'MyStrategy',      icon: '🎯' },
+  { key: 'priorities', label: 'Priorities',      icon: '🎯', child: true },
   { key: 'biosignals', label: 'BioSignals',      icon: '📊' },
-  { key: 'glucose',    label: 'Glucose Summary', icon: '🍯' },
-  { key: 'dexa',       label: 'DEXA & Structural', icon: '🦴' },
+  { key: 'glucose',    label: 'Glucose Summary (CGM)', icon: '🍯' },
+  { key: 'dexa',       label: 'Structural (DEXA et al.)', icon: '🦴' },
   { key: 'vault',      label: 'MyVault',         icon: '📁' },
   { key: 'calendar',   label: 'Calendar',        icon: '📅' },
   { key: 'library',    label: 'MBH Library',     icon: '📚' },

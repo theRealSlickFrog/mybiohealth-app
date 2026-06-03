@@ -4,7 +4,7 @@ import { logout } from '../lib/auth.js';
 
 export default function Drawer({ activePage, onSelect, onClose }) {
   const groups = [
-    { label: null,     keys: ['strategy', 'biosignals', 'glucose', 'dexa'] },
+    { label: null,     keys: ['strategy', 'priorities', 'biosignals', 'glucose', 'dexa'] },
     { label: 'Member', keys: ['vault', 'calendar'] },
     { label: 'MBH',    keys: ['library', 'questions'] },
   ];
@@ -40,14 +40,14 @@ export default function Drawer({ activePage, onSelect, onClose }) {
                 const active = activePage === item.key;
                 return (
                   <button key={item.key} onClick={() => { onSelect(item.key); onClose(); }} style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 14,
-                    padding: '13px 20px', border: 'none', cursor: 'pointer',
+                    width: '100%', display: 'flex', alignItems: 'center', gap: item.child ? 10 : 14,
+                    padding: item.child ? '10px 20px 10px 42px' : '13px 20px', border: 'none', cursor: 'pointer',
                     background: active ? SAGE_BG : 'transparent',
                     borderLeft: active ? `3px solid ${MBH_SAGE}` : '3px solid transparent',
                     textAlign: 'left',
                   }}>
-                    <span style={{ fontSize: 18, lineHeight: 1 }}>{item.icon}</span>
-                    <span style={{ fontSize: 14, fontWeight: active ? 600 : 400, color: active ? SAGE_TEXT : SLATE }}>
+                    <span style={{ fontSize: item.child ? 13 : 18, lineHeight: 1, opacity: item.child ? 0.55 : 1 }}>{item.child ? '↳' : item.icon}</span>
+                    <span style={{ fontSize: item.child ? 13 : 14, fontWeight: active ? 600 : 400, color: active ? SAGE_TEXT : SLATE }}>
                       {item.label}
                     </span>
                     {active && <div style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: MBH_SAGE }} />}
