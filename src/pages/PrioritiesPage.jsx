@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { MBH_SAGE, AMBER, SAGE_TEXT, SLATE, OFFWHITE, CARD, BORDER, SOFT_RED } from '../lib/constants.js';
 import OptimalDrawer from '../components/OptimalDrawer.jsx';
 import SignalRow from '../components/SignalRow.jsx';
+import PersonalNote from '../components/PersonalNote.jsx';
 
 const PRIMARY = [
   { category: 'Metabolic Health', label: 'Insulin & Glucose Balance', signals: [
@@ -158,6 +159,8 @@ export default function PrioritiesPage() {
           </div>
         ))}
       </div>
+
+      <div style={{ marginTop: 16 }}><PersonalNote noteKey="priorities" /></div>
     </div>
   );
 }

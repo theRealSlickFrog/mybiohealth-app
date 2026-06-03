@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { MBH_SAGE, AMBER, AMBER_TEXT, SAGE_TEXT, AMBER_BG, SAGE_BG, SOFT_RED, SLATE, OFFWHITE, CARD, BORDER, TEAL } from '../lib/constants.js';
 import { SignalChip } from '../components/UI.jsx';
+import PersonalNote from '../components/PersonalNote.jsx';
 
 const BONE = '#8b7355';
 
@@ -216,6 +217,8 @@ export default function DEXAPage() {
       {activeSection === 'vat' && <VATSection />}
       {activeSection === 'lean' && <LeanSection />}
       {activeSection === 'bone' && <BoneSection />}
+
+      <div style={{ marginTop: 16 }}><PersonalNote noteKey="structural" /></div>
 
       <div style={{ marginTop: 16, padding: '13px 16px', background: '#eeeae4', borderRadius: 10, fontSize: 12, color: '#6b7280', lineHeight: 1.6 }}>
         <strong style={{ color: SLATE }}>About DEXA frequency.</strong> Annual scanning is sufficient for most members. Suggested next scan: April {DATA.nextScanYear}. Member decides.

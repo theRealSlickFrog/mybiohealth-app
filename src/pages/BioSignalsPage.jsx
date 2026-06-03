@@ -9,6 +9,7 @@ import { MBH_SAGE, SAGE_BG, SAGE_TEXT, AMBER, AMBER_BG, AMBER_TEXT, GAP_BG, GAP_
 import { getStoredGuid } from '../lib/auth.js';
 import { loadBiomarkers, markerZone, ZONE_LABEL, DEV_MEMBER } from '../lib/biomarkers.js';
 import PlotlyChart from '../components/PlotlyChart.jsx';
+import PersonalNote from '../components/PersonalNote.jsx';
 
 // Zone → chip palette. Labels come from ZONE_LABEL (V1 vocabulary).
 const ZONE_STYLE = {
@@ -175,6 +176,8 @@ export default function BioSignalsPage() {
       {!markers && !error && <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>Loading…</div>}
       {markers && markers.length === 0 && <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>No biomarker history on record yet.</div>}
       {markers && markers.map((m, i) => <MarkerCard key={m.code} marker={m} defaultOpen={i < 2} />)}
+
+      {markers && <PersonalNote noteKey="biosignals" />}
     </div>
   );
 }

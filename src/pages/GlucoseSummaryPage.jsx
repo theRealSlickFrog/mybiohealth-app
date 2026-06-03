@@ -6,6 +6,7 @@ import { MBH_SAGE, AMBER, SOFT_RED, SLATE, CARD, BORDER, AMBER_BG, AMBER_TEXT } 
 import { getStoredGuid } from '../lib/auth.js';
 import { DEV_MEMBER } from '../lib/biomarkers.js';
 import { loadGlucose } from '../lib/glucose.js';
+import PersonalNote from '../components/PersonalNote.jsx';
 
 const ZONE_COLOR = { baseline: '#6fa392', normal: MBH_SAGE, spike: AMBER, strong: SOFT_RED };
 const exposureColor = (e) => (e === 'Low' ? MBH_SAGE : e === 'Moderate' ? AMBER : SOFT_RED);
@@ -147,6 +148,8 @@ export default function GlucoseSummaryPage() {
       {!cycles && !error && <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>Loading…</div>}
       {cycles && cycles.length === 0 && <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>No CGM cycles on record yet.</div>}
       {cycle && <CycleView cycle={cycle} />}
+
+      {cycles && <PersonalNote noteKey="glucose" />}
 
       <div style={{ padding: '13px 16px', background: '#eeeae4', borderRadius: 10, fontSize: 12, color: '#6b7280', lineHeight: 1.6, marginTop: 16 }}>
         <strong style={{ color: SLATE }}>About CGM cycles.</strong> A CGM cycle is a 14-day continuous glucose snapshot. Zones: Baseline &lt; 6.3, Normal 6.3–7.8, Spike 7.8–10, Strong Spike &gt; 10 mmol/L. Time Above Range is the daily hours above 7.8 (Spike + Strong Spike).

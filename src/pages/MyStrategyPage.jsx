@@ -12,6 +12,7 @@ import { getStoredGuid } from '../lib/auth.js';
 import OptimalDrawer from '../components/OptimalDrawer.jsx';
 import WhyModal from '../components/WhyModal.jsx';
 import PlotlyChart from '../components/PlotlyChart.jsx';
+import PersonalNote from '../components/PersonalNote.jsx';
 
 const API_BASE = 'https://kenises-api-proxy.netlify.app';
 
@@ -463,6 +464,8 @@ export default function MyStrategyPage() {
           ))}
         </div>
       )}
+
+      <PersonalNote noteKey="strategy" />
 
       <div style={{ padding: '13px 16px', background: '#eeeae4', borderRadius: 10, fontSize: 12, color: '#6b7280', lineHeight: 1.6 }}>
         <strong style={{ color: SLATE }}>About <em style={{ fontStyle: 'normal' }}>My</em>Strategy.</strong> A living plan — versioned, signal-linked, renewed on a cadence the member sets.
