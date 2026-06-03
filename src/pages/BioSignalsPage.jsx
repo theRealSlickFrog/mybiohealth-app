@@ -5,7 +5,7 @@
 // thresholds and zones all come from the member's report_ready_result; related
 // markers from marker_x_marker — mirroring the V1 history page.
 import { useEffect, useState } from 'react';
-import { MBH_SAGE, SAGE_BG, SAGE_TEXT, AMBER, AMBER_BG, AMBER_TEXT, GAP_BG, GAP_TEXT, GAP_BORDER, SOFT_RED, SLATE, OFFWHITE, CARD, BORDER } from '../lib/constants.js';
+import { MBH_SAGE, SAGE_BG, SAGE_TEXT, AMBER, AMBER_BG, AMBER_TEXT, GAP_BG, GAP_TEXT, GAP_BORDER, SOFT_RED, SLATE, OFFWHITE, CARD, BORDER, TEAL } from '../lib/constants.js';
 import { getStoredGuid } from '../lib/auth.js';
 import { loadBiomarkers, markerZone, ZONE_LABEL, DEV_MEMBER } from '../lib/biomarkers.js';
 import PlotlyChart from '../components/PlotlyChart.jsx';
@@ -35,6 +35,33 @@ function ZoneChip({ zone }) {
 }
 function Trend({ dir, zone }) {
   return <span style={{ color: zoneColor(zone), fontSize: 14, fontWeight: 700, width: 14, textAlign: 'center' }}>{trendSymbol(dir)}</span>;
+}
+
+// ⓘ info icon + popup explainer (mirrors V1's marker info tooltip). Uses a
+// fixed-position popup so it isn't clipped by the card's overflow:hidden, with
+// a transparent overlay to catch outside clicks.
+function InfoButton({ text }) {
+  const [pos, setPos] = useState(null);
+  if (!text) return null;
+  const toggle = (e) => {
+    e.stopPropagation();
+    if (pos) { setPos(null); return; }
+    const r = e.currentTarget.getBoundingClientRect();
+    setPos({ top: r.bottom + 6, left: Math.max(10, Math.min(r.left, window.innerWidth - 340)) });
+  };
+  return (
+    <>
+      <span onClick={toggle} title="About this marker" style={{ cursor: 'pointer', color: TEAL, fontSize: 13, marginLeft: 6, userSelect: 'none', fontWeight: 400 }}>ⓘ</span>
+      {pos && (
+        <>
+          <div onClick={(e) => { e.stopPropagation(); setPos(null); }} style={{ position: 'fixed', inset: 0, zIndex: 9998 }} />
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, width: 320, maxWidth: '90vw', background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.18)', padding: '12px 14px', fontSize: 12.5, lineHeight: 1.55, color: '#374151', textTransform: 'none', letterSpacing: 'normal', fontWeight: 400 }}>
+            {text}
+          </div>
+        </>
+      )}
+    </>
+  );
 }
 
 function RelatedCard({ sub }) {
@@ -93,8 +120,10 @@ function MarkerCard({ marker, defaultOpen }) {
     <div style={{ background: CARD, border: '1px solid #cfc8ba', borderRadius: 14, boxShadow: '0 2px 6px rgba(30,45,61,0.07)', marginBottom: 14, overflow: 'hidden' }}>
       <div onClick={() => setOpen((o) => !o)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', cursor: 'pointer' }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#6b7280', marginBottom: 3 }}>{(marker.header || '').replace('|', ' · ')}</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: SLATE }}>{marker.name}</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: SLATE, marginBottom: 3, lineHeight: 1.25 }}>{(marker.header || '').replace('|', ' · ')}</div>
+          <div style={{ display: 'flex', alignItems: 'center', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#6b7280' }}>
+            {marker.name}<InfoButton text={marker.description} />
+          </div>
           <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>Optimal Zone {marker.optimal}{marker.unit ? ' · ' + marker.unit : ''}</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 12 }}>
@@ -111,11 +140,6 @@ function MarkerCard({ marker, defaultOpen }) {
           {marker.history && marker.history.length > 1 && (
             <div style={{ background: OFFWHITE, borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
               <PlotlyChart history={marker.history} thresholds={marker.thresholds} unit={marker.unit} markerName={marker.name} height={300} />
-            </div>
-          )}
-          {marker.description && (
-            <div style={{ background: '#f4f1ec', borderLeft: '3px solid #cfc8ba', borderRadius: '0 8px 8px 0', padding: '10px 14px', fontSize: 12.5, lineHeight: 1.6, color: '#5b5346', marginBottom: 12 }}>
-              {marker.description}
             </div>
           )}
           <Related related={marker.related} />
