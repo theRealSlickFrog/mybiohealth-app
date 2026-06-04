@@ -14,6 +14,25 @@ const NAME_KEY = 'mbh_user_name';
 const EMAIL_KEY = 'mbh_user_email';
 const SESSION_KEY = 'mbh_activity_session';
 
+// Attach the session JWT to every proxy request, in one place, so no individual
+// fetch site can be missed when the proxy enforces auth. Only proxy URLs get the
+// header; everything else (CDNs, fonts) is untouched. Harmless while enforcement
+// is off (the proxy just ignores it).
+if (typeof window !== 'undefined' && !window.__mbhFetchPatched) {
+  window.__mbhFetchPatched = true;
+  const _fetch = window.fetch.bind(window);
+  window.fetch = (input, init = {}) => {
+    try {
+      const url = typeof input === 'string' ? input : (input && input.url) || '';
+      const tok = sessionStorage.getItem(JWT_KEY);
+      if (tok && (url.startsWith('/api') || url.includes('kenises-api-proxy.netlify.app'))) {
+        init = { ...init, headers: { ...(init.headers || {}), Authorization: `Bearer ${tok}` } };
+      }
+    } catch (e) { /* never let the patch break a request */ }
+    return _fetch(input, init);
+  };
+}
+
 // Caspio Authentication login URL (e2j2rj) — must use the vanity domain so
 // the auth cookie is set on the same origin as the destination DataPages.
 // Using the legacy d2hct674.caspio.app domain causes a cross-subdomain bounce:
