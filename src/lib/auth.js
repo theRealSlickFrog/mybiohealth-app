@@ -7,8 +7,9 @@
 // tracking. V2 is an SPA, so "pageview" is driven by view changes in AppShell,
 // not document loads.
 
-const API_BASE = 'https://kenises-api-proxy.netlify.app';
+const API_BASE = import.meta.env.DEV ? '/api' : 'https://kenises-api-proxy.netlify.app';
 const GUID_KEY = 'mbh_user_guid';
+const JWT_KEY = 'mbh_jwt';
 const NAME_KEY = 'mbh_user_name';
 const EMAIL_KEY = 'mbh_user_email';
 const SESSION_KEY = 'mbh_activity_session';
@@ -27,10 +28,50 @@ export async function logout(currentPage) {
   // first; keepalive is the safety net.
   await logActivity('logout', currentPage || '', 'manual');
   clearStoredGuid();
+  sessionStorage.removeItem(JWT_KEY);
   sessionStorage.removeItem(NAME_KEY);
   sessionStorage.removeItem(EMAIL_KEY);
   sessionStorage.removeItem(SESSION_KEY);
   window.location.href = CASPIO_LOGOUT_URL;
+}
+
+// ── Token handoff (new, secure path) ──────────────────────────────────────
+// The Caspio "minter" redirects here with ?t=<one-time token>. We exchange it
+// once for a short-lived session JWT (the proxy derives the member server-side),
+// store the JWT + resolved GUID, and scrub the URL. The legacy ?guid= path
+// (captureGuidFromUrl) still works during the transition.
+export function hasHandoffToken() {
+  return new URLSearchParams(window.location.search).has('t');
+}
+
+export function getSessionToken() {
+  return sessionStorage.getItem(JWT_KEY) || null;
+}
+
+export async function exchangeHandoffToken() {
+  const t = new URLSearchParams(window.location.search).get('t');
+  if (!t) return getStoredGuid();
+  try {
+    const r = await fetch(`${API_BASE}/session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: t }),
+    });
+    if (r.ok) {
+      const d = await r.json();
+      if (d.token) sessionStorage.setItem(JWT_KEY, d.token);
+      if (d.member_id) sessionStorage.setItem(GUID_KEY, d.member_id);
+    } else {
+      console.warn(`session exchange failed: ${r.status}`);
+    }
+  } catch (e) {
+    console.error('session exchange error:', e);
+  }
+  // Scrub the one-time token from the URL so it can't be re-shared.
+  const url = new URL(window.location.href);
+  url.searchParams.delete('t');
+  window.history.replaceState({}, '', url.toString());
+  return getStoredGuid();
 }
 
 export function captureGuidFromUrl() {

@@ -1,7 +1,7 @@
 // App shell — sticky top bar, hamburger drawer, page routing.
 import { useState, useEffect } from 'react';
 import { SLATE, OFFWHITE, MBH_DROP_IMG, NAV_ITEMS } from '../lib/constants.js';
-import { captureGuidFromUrl, logActivity } from '../lib/auth.js';
+import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity } from '../lib/auth.js';
 import Drawer from '../components/Drawer.jsx';
 import MyStrategyPage from './MyStrategyPage.jsx';
 import PrioritiesPage from './PrioritiesPage.jsx';
@@ -22,19 +22,31 @@ captureGuidFromUrl();
 export default function AppShell() {
   const [activePage, setActivePage] = useState('strategy');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // If we arrived via the secure ?t= handoff, exchange it for a session before
+  // rendering pages. The legacy ?guid= path boots immediately (booting=false).
+  const [booting, setBooting] = useState(hasHandoffToken());
+
+  useEffect(() => {
+    if (hasHandoffToken()) exchangeHandoffToken().finally(() => setBooting(false));
+  }, []);
 
   // Log a view event whenever the active page changes. The first fire of the
   // session is the 'login' (app just loaded); every change after is a 'pageview'.
   // A session flag (not a mount-only ref) means a browser refresh logs a
   // pageview rather than a duplicate login.
   useEffect(() => {
+    if (booting) return;
     const sessionLogged = sessionStorage.getItem('mbh_activity_session');
     logActivity(sessionLogged ? 'pageview' : 'login', activePage);
     sessionStorage.setItem('mbh_activity_session', '1');
-  }, [activePage]);
+  }, [activePage, booting]);
 
   const pageLabel = NAV_ITEMS.find((n) => n.key === activePage)?.label;
   const showLabel = activePage !== 'strategy';
+
+  if (booting) {
+    return <div style={{ fontFamily: "'DM Sans',sans-serif", background: OFFWHITE, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280', fontSize: 14 }}>Signing you in…</div>;
+  }
 
   return (
     <div style={{ fontFamily: "'DM Sans',sans-serif", background: OFFWHITE, minHeight: '100vh', color: SLATE }}>
