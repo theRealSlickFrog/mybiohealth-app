@@ -2,7 +2,7 @@
 // latest row by date_1. Field mapping + threshold profiles ported from the V1
 // dexa_block.html so V1 and V2 stay consistent:
 //   number_1 = VAT (g)  · number_2 = LMI (kg/m²) · number_3 = Total Lean Mass (kg)
-//   number_4 = BMD (g/cm²) · number_5 = RMR (cal/day)
+//   number_4 = BMD (g/cm²) · number_5 = RMR (cal/day) · number_6 = Lean Mass (%)
 //   text_box_1 = training note · text_box_2 = VAT note
 import { DEV_MEMBER } from './biomarkers.js';
 
@@ -15,6 +15,8 @@ export const THRESHOLDS = {
   LMI: { min: 10, lowerOpt: 17, upperOpt: 22, lowerDrift: 14, upperDrift: 17, max: 25, dir: '<' },
   TLM: { min: 30, lowerOpt: 50, upperOpt: 80, lowerDrift: 40, upperDrift: 50, max: 100, dir: '<' },
   BMD: { min: 0.7, lowerOpt: 1.0, upperOpt: 1.5, lowerDrift: 0.85, upperDrift: 1.0, max: 1.6, dir: '<' },
+  // Lean Mass % — PLACEHOLDER ranges; confirm real zones with Ken before relying on the status/zone bar.
+  LMP: { min: 40, lowerOpt: 75, upperOpt: 95, lowerDrift: 65, upperDrift: 75, max: 100, dir: '<' },
 };
 
 export function pctOf(v, t) {
@@ -50,6 +52,7 @@ export async function loadStructural(member) {
     tlm: num(x.number_3),
     bmd: num(x.number_4),
     rmr: num(x.number_5),
+    lmPct: num(x.number_6),
     trainingNote: x.text_box_1 || '',
     vatNote: x.text_box_2 || '',
   };

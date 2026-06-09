@@ -93,14 +93,15 @@ function LeanSection({ d }) {
   const cells = [
     { label: 'Lean Mass Index', value: d.lmi, unit: 'kg/m²', pct: pctOf(d.lmi, T.LMI), status: statusOf(d.lmi, T.LMI) },
     { label: 'Total Lean Mass', value: d.tlm, unit: 'kg', pct: pctOf(d.tlm, T.TLM), status: statusOf(d.tlm, T.TLM) },
+    { label: 'Lean Mass %', value: d.lmPct, unit: '%', pct: pctOf(d.lmPct, T.LMP), status: statusOf(d.lmPct, T.LMP) },
   ];
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ background: CARD, borderRadius: 14, padding: '22px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: TEAL, marginBottom: 14 }}>Lean Mass — healthspan asset</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 18 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cells.length},1fr)`, gap: 16, marginBottom: 18 }}>
           {cells.map((m, i) => (
-            <div key={m.label} style={{ borderRight: i === 0 ? `1px solid ${BORDER}` : 'none', paddingRight: i === 0 ? 16 : 0 }}>
+            <div key={m.label} style={{ borderRight: i < cells.length - 1 ? `1px solid ${BORDER}` : 'none', paddingRight: i < cells.length - 1 ? 16 : 0 }}>
               <div style={{ fontSize: 11, color: '#374151', marginBottom: 3 }}>{m.label}</div>
               <div style={{ fontFamily: 'Georgia, serif', fontSize: 26, color: TEAL, lineHeight: 1 }}>
                 {m.value ?? '—'}<span style={{ fontSize: 11, color: '#374151', marginLeft: 3 }}>{m.unit}</span>
