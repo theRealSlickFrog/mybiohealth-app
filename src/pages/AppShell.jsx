@@ -8,6 +8,7 @@ import PrioritiesPage from './PrioritiesPage.jsx';
 import BioSignalsPage from './BioSignalsPage.jsx';
 import GlucoseSummaryPage from './GlucoseSummaryPage.jsx';
 import DEXAPage from './DEXAPage.jsx';
+import AccountPage from './AccountPage.jsx';
 import VaultPage from './VaultPage.jsx';
 import CalendarPage from './CalendarPage.jsx';
 import LibraryPage from './LibraryPage.jsx';
@@ -80,6 +81,7 @@ export default function AppShell() {
         {activePage === 'biosignals' && <BioSignalsPage />}
         {activePage === 'glucose'    && <GlucoseSummaryPage />}
         {activePage === 'dexa'       && <DEXAPage />}
+        {activePage === 'account'    && <AccountPage />}
         {activePage === 'vault'      && <VaultPage />}
         {activePage === 'calendar'   && <CalendarPage />}
         {activePage === 'library'    && <LibraryPage />}

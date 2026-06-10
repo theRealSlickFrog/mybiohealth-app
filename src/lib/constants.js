@@ -27,8 +27,10 @@ export const NAV_ITEMS = [
   { key: 'biosignals', label: 'BioSignals',      icon: '📊' },
   { key: 'glucose',    label: 'Glucose Summary (CGM)', icon: '🍯' },
   { key: 'dexa',       label: 'Structural (DEXA et al.)', icon: '🦴' },
-  { key: 'vault',      label: 'MyVault',         icon: '📁' },
+  // Member section — order here drives display order (Drawer filters NAV_ITEMS by key)
+  { key: 'account',    label: 'Account',         icon: '💳' },
   { key: 'calendar',   label: 'Calendar',        icon: '📅' },
+  { key: 'vault',      label: 'MyVault',         icon: '📁' },
   { key: 'library',    label: 'MBH Library',     icon: '📚' },
   { key: 'questions',  label: 'Questions',       icon: '✉️' },
 ];

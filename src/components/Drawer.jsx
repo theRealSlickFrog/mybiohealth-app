@@ -5,7 +5,7 @@ import { logout } from '../lib/auth.js';
 export default function Drawer({ activePage, onSelect, onClose }) {
   const groups = [
     { label: null,     keys: ['strategy', 'priorities', 'biosignals', 'glucose', 'dexa'] },
-    { label: 'Member', keys: ['vault', 'calendar'] },
+    { label: 'Member', keys: ['account', 'calendar', 'vault'] },
     { label: 'MBH',    keys: ['library', 'questions'] },
   ];
   return (
