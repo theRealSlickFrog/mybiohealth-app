@@ -133,6 +133,25 @@ export function impersonatingActor() {
   } catch (e) { return null; }
 }
 
+// Post-login redirector — the Caspio Flex page at /mybiohealth/alpha that routes
+// by App_Preference and, for admins with a blank preference, shows the client
+// picker. Same page Caspio sends users to after login.
+export const REDIRECTOR_URL = 'https://mybiohealth.caspio.app/mybiohealth/alpha';
+
+// True when an admin is driving this session — either logged in as an admin
+// (JWT role 'admin') or impersonating a client via "view as" (act present).
+// Gates the admin-only Redirector shortcut in the top bar.
+export function isAdminSession() {
+  try {
+    const tok = sessionStorage.getItem(JWT_KEY);
+    if (!tok) return false;
+    let b = tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    b += '='.repeat((4 - (b.length % 4)) % 4);
+    const p = JSON.parse(atob(b));
+    return p.role === 'admin' || !!p.act;
+  } catch (e) { return false; }
+}
+
 // Shared activity writer — one INSERT per event into activity_log.
 // eventType: 'login' | 'pageview' | 'logout'
 // pageName:  the active view key (strategy, biosignals, ...)

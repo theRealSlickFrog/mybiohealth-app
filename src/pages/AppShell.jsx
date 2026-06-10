@@ -1,7 +1,7 @@
 // App shell — sticky top bar, hamburger drawer, page routing.
 import { useState, useEffect } from 'react';
 import { SLATE, OFFWHITE, MBH_DROP_IMG, NAV_ITEMS } from '../lib/constants.js';
-import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity } from '../lib/auth.js';
+import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity, isAdminSession, REDIRECTOR_URL } from '../lib/auth.js';
 import Drawer from '../components/Drawer.jsx';
 import MyStrategyPage from './MyStrategyPage.jsx';
 import PrioritiesPage from './PrioritiesPage.jsx';
@@ -65,6 +65,13 @@ export default function AppShell() {
             {showLabel && <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> · {pageLabel}</span>}
           </div>
         </div>
+        {isAdminSession() && (
+          <button onClick={() => { window.location.href = REDIRECTOR_URL; }} title="Switch client / experience" style={{
+            background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', color: 'white',
+            borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            whiteSpace: 'nowrap', flexShrink: 0,
+          }}>Redirector</button>
+        )}
       </div>
 
       <div style={{ maxWidth: 740, margin: '0 auto' }}>
