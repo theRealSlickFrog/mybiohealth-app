@@ -118,6 +118,21 @@ export function clearStoredGuid() {
   sessionStorage.removeItem(GUID_KEY);
 }
 
+// True when the current session is an admin "view as client" impersonation:
+// the handoff JWT carries the acting admin in `act` (and readonly:true). Used to
+// keep the admin's impersonated pageviews OUT of the client's activity_log, so
+// the admin reports show only the client's own activity.
+export function isImpersonating() {
+  try {
+    const tok = sessionStorage.getItem(JWT_KEY);
+    if (!tok) return false;
+    let b = tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    b += '='.repeat((4 - (b.length % 4)) % 4);
+    const payload = JSON.parse(atob(b));
+    return !!payload.act || payload.readonly === true;
+  } catch (e) { return false; }
+}
+
 // Shared activity writer — one INSERT per event into activity_log.
 // eventType: 'login' | 'pageview' | 'logout'
 // pageName:  the active view key (strategy, biosignals, ...)
@@ -125,6 +140,9 @@ export function clearStoredGuid() {
 export async function logActivity(eventType, pageName, eventDetail) {
   const userGuid = getStoredGuid();
   if (!userGuid) return;
+  // Don't record an admin's "view as client" actions under the client — it would
+  // pollute the client's activity_log and the admin reports built on it.
+  if (isImpersonating()) return;
 
   // Resolve user name + email once per session, then cache (no lookup per view)
   let userName = sessionStorage.getItem(NAME_KEY);
