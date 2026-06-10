@@ -133,10 +133,9 @@ export function impersonatingActor() {
   } catch (e) { return null; }
 }
 
-// Post-login redirector — the Caspio Flex page at /mybiohealth/alpha that routes
-// by App_Preference and, for admins with a blank preference, shows the client
-// picker. Same page Caspio sends users to after login.
-export const REDIRECTOR_URL = 'https://mybiohealth.caspio.app/mybiohealth/alpha';
+// Post-login redirector — the Caspio Flex page that routes by App_Preference
+// and, for admins with a blank preference, shows the client picker.
+export const REDIRECTOR_URL = 'https://mybiohealth.caspio.app/mybiohealth/patient/redirector';
 
 // True when an admin is driving this session — either logged in as an admin
 // (JWT role 'admin') or impersonating a client via "view as" (act present).
