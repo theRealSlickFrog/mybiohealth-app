@@ -118,19 +118,19 @@ export function clearStoredGuid() {
   sessionStorage.removeItem(GUID_KEY);
 }
 
-// True when the current session is an admin "view as client" impersonation:
-// the handoff JWT carries the acting admin in `act` (and readonly:true). Used to
-// keep the admin's impersonated pageviews OUT of the client's activity_log, so
-// the admin reports show only the client's own activity.
-export function isImpersonating() {
+// Returns the acting admin's GUID when this is an admin "view as client"
+// impersonation session (the handoff JWT carries the actor in `act`), else null.
+// Used to attribute impersonated activity to the admin (as an 'admin_view'
+// event) instead of polluting the client's own activity_log.
+export function impersonatingActor() {
   try {
     const tok = sessionStorage.getItem(JWT_KEY);
-    if (!tok) return false;
+    if (!tok) return null;
     let b = tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
     b += '='.repeat((4 - (b.length % 4)) % 4);
     const payload = JSON.parse(atob(b));
-    return !!payload.act || payload.readonly === true;
-  } catch (e) { return false; }
+    return payload.act || null;
+  } catch (e) { return null; }
 }
 
 // Shared activity writer — one INSERT per event into activity_log.
@@ -138,13 +138,19 @@ export function isImpersonating() {
 // pageName:  the active view key (strategy, biosignals, ...)
 // eventDetail: logout reason ('manual' / 'forced' / 'timeout'), else omitted
 export async function logActivity(eventType, pageName, eventDetail) {
-  const userGuid = getStoredGuid();
-  if (!userGuid) return;
-  // Don't record an admin's "view as client" actions under the client — it would
-  // pollute the client's activity_log and the admin reports built on it.
-  if (isImpersonating()) return;
+  const memberGuid = getStoredGuid();
+  if (!memberGuid) return;
 
-  // Resolve user name + email once per session, then cache (no lookup per view)
+  // Admin "view as client": attribute the row to the acting admin (the subject),
+  // as an 'admin_view' event tagged with the client viewed (as:<clientGuid>).
+  // This keeps the client's own activity_log clean while still recording who
+  // viewed whom. Normal sessions log as themselves, unchanged.
+  const actor = impersonatingActor();
+  const subjectGuid = actor || memberGuid;
+  const evType = actor ? 'admin_view' : eventType;
+  const evDetail = actor ? `as:${memberGuid}` : (eventDetail || '');
+
+  // Resolve subject name + email once per session, then cache (no lookup per view)
   let userName = sessionStorage.getItem(NAME_KEY);
   let userEmail = sessionStorage.getItem(EMAIL_KEY);
   if (userName === null || userEmail === null) {
@@ -152,7 +158,7 @@ export async function logActivity(eventType, pageName, eventDetail) {
     userEmail = '';
     try {
       const r = await fetch(
-        `${API_BASE}/rest/v2/tables/legal_entity/records?q.select=First_Name,Last_Name,Email&q.where=UserGUID='${userGuid}'`
+        `${API_BASE}/rest/v2/tables/legal_entity/records?q.select=First_Name,Last_Name,Email&q.where=UserGUID='${subjectGuid}'`
       );
       if (r.ok) {
         const d = await r.json();
@@ -168,13 +174,13 @@ export async function logActivity(eventType, pageName, eventDetail) {
   }
 
   const payload = {
-    legal_entity_id: userGuid,
+    legal_entity_id: subjectGuid,
     user_email: userEmail,
     user_name: userName,
-    event_type: eventType,
+    event_type: evType,
     event_time: new Date().toISOString(),
     page_name: pageName || '',
-    event_detail: eventDetail || '',
+    event_detail: evDetail,
     user_agent: navigator.userAgent,
     app_version: 'V2'
   };
