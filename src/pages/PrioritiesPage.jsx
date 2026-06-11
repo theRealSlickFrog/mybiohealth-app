@@ -96,7 +96,9 @@ export default function PrioritiesPage() {
   return (
     <div style={{ padding: '22px 16px 80px' }}>
       {openOptimal && <OptimalDrawer signalName={openOptimal} onClose={() => setOpenOptimal(null)} />}
-      <h1 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 28, color: SLATE, marginBottom: 4, fontWeight: 'normal' }}>Priorities</h1>
+      <h1 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 28, color: SLATE, marginBottom: 4, fontWeight: 'normal' }}>
+        Priorities <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 600, color: AMBER }}>( Sample Only - Not Your Data )</span>
+      </h1>
       <div style={{ fontSize: 12, color: '#374151', marginBottom: 18 }}>Signal Registry · Jan 2025 draw · tap any signal to expand</div>
 
       <div style={{ background: '#fff7ed', borderRadius: 12, padding: '14px 18px', marginBottom: 16, borderLeft: `3px solid ${AMBER}` }}>
