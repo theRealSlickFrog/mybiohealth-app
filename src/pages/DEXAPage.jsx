@@ -211,14 +211,14 @@ export default function DEXAPage() {
               { label: 'Bone Density', value: d.bmd, unit: 'g/cm²', status: statusOf(d.bmd, T.BMD), sub: 'Goal: Maintain' },
             ].map((m, i) => (
               <div key={m.label} style={{ borderRight: i < 2 ? '1px solid rgba(255,255,255,0.08)' : 'none', paddingRight: i < 2 ? 12 : 0 }}>
-                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.38)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 4 }}>{m.label}</div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.9)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 4 }}>{m.label}</div>
                 <div style={{ fontFamily: 'Georgia, serif', fontSize: 20, color: 'white', lineHeight: 1 }}>
                   {m.value == null ? '—' : m.value.toLocaleString()}
-                  <span style={{ fontSize: 9, fontWeight: 300, color: 'rgba(255,255,255,0.3)', marginLeft: 2 }}>{m.unit}</span>
+                  <span style={{ fontSize: 9, fontWeight: 300, color: 'rgba(255,255,255,0.75)', marginLeft: 2 }}>{m.unit}</span>
                 </div>
                 <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <SignalChip status={m.status} />
-                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>{m.sub}</span>
+                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.75)' }}>{m.sub}</span>
                 </div>
               </div>
             ))}

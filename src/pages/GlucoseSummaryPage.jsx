@@ -40,7 +40,7 @@ function CycleView({ cycle }) {
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 16 }}>
           <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 52, color: 'white', lineHeight: 1, letterSpacing: '-2px' }}>{fmtNum(cycle.tarHours)}</div>
           <div style={{ paddingBottom: 6 }}>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.3 }}>hrs / day</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.9)', lineHeight: 1.3 }}>hrs / day</div>
             <div style={{ fontSize: 11, color: exposureColor(cycle.exposure), marginTop: 3, fontWeight: 600 }}>above 7.8 mmol/L · optimal &lt; 1 hr</div>
           </div>
         </div>
@@ -49,8 +49,8 @@ function CycleView({ cycle }) {
           {cycle.zones.map((z) => (
             <div key={z.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: ZONE_COLOR[z.key], flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{z.label}</span>
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>{z.pct != null ? z.pct + '%' : '—'}</span>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.9)' }}>{z.label}</span>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>{z.pct != null ? z.pct + '%' : '—'}</span>
             </div>
           ))}
         </div>
