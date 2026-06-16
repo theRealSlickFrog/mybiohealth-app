@@ -68,7 +68,7 @@ function InfoButton({ text }) {
 function RelatedCard({ sub }) {
   const [open, setOpen] = useState(false);
   const zone = markerZone(sub.latest, sub.thresholds, sub.history);
-  const hasChart = sub.history && sub.history.length > 1;
+  const hasChart = sub.history && sub.history.length >= 1;
   return (
     <div style={{ background: OFFWHITE, borderRadius: 10, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
       <div onClick={() => setOpen((o) => !o)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', cursor: 'pointer' }}>
@@ -138,7 +138,7 @@ function MarkerCard({ marker, defaultOpen }) {
       </div>
       {open && (
         <div style={{ padding: '0 20px 18px' }}>
-          {marker.history && marker.history.length > 1 && (
+          {marker.history && marker.history.length >= 1 && (
             <div style={{ background: OFFWHITE, borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
               <PlotlyChart history={marker.history} thresholds={marker.thresholds} unit={marker.unit} markerName={marker.name} height={300} />
             </div>
