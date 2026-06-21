@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, AMBER, AMBER_TEXT, SLATE, OFFWHITE, CARD, BORDER } from '../lib/constants.js';
 import { OPTIMAL_AUTHORITIES } from '../lib/optimal-authorities.js';
 import { getStoredGuid } from '../lib/auth.js';
+import { loadStrategyConfig, DEFAULTS as STRATEGY_CFG_DEFAULTS } from '../lib/strategyConfig.js';
 import OptimalDrawer from '../components/OptimalDrawer.jsx';
 import WhyModal from '../components/WhyModal.jsx';
 import PlotlyChart from '../components/PlotlyChart.jsx';
@@ -143,7 +144,14 @@ export default function MyStrategyPage() {
   const [labRows, setLabRows] = useState([]);
   const [relations, setRelations] = useState([]);
   const [references, setReferences] = useState({});  // marker_code → { value, date, direction }
+  const [cfg, setCfg] = useState(STRATEGY_CFG_DEFAULTS);  // mystrategy_page system_parm look config
   const [state, setState] = useState('loading');     // loading | empty | ready
+
+  useEffect(() => {
+    let alive = true;
+    loadStrategyConfig().then((c) => { if (alive) setCfg(c); });
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -284,7 +292,7 @@ export default function MyStrategyPage() {
           )}
         </div>
       </div>
-      <div style={{ fontSize: 12, color: '#374151', marginBottom: 20 }}>{strategy.tagline}</div>
+      <div style={{ fontSize: 12, color: '#374151', marginBottom: 20 }}>{cfg.subtitle || strategy.tagline}</div>
 
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', marginBottom: 10 }}>Priorities</div>
       {strategy.priorities.map((p) => {
@@ -298,7 +306,7 @@ export default function MyStrategyPage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: SLATE, lineHeight: 1.25, marginBottom: 3 }}>{p.name}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ fontSize: 12, color: MBH_SAGE, fontWeight: 600, fontFamily: 'monospace' }}>{'→'} {p.target}</div>
+                  <div style={{ fontSize: 12, color: cfg.priorityTargetColour, fontWeight: 600, fontFamily: 'monospace' }}>{'→'} {p.target}</div>
                   {p.primaryMarker && OPTIMAL_AUTHORITIES[p.primaryMarker] && (
                     <button onClick={(e) => { e.stopPropagation(); setOptimalSignal(p.primaryMarker); }} style={{ background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', color: MBH_SAGE, fontSize: 13, lineHeight: 1, fontWeight: 700 }}>{'ⓘ'}</button>
                   )}
