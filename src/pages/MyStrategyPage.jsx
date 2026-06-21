@@ -193,6 +193,7 @@ export default function MyStrategyPage() {
   const [labRows, setLabRows] = useState([]);
   const [relations, setRelations] = useState([]);
   const [references, setReferences] = useState({});  // marker_code → { value, date, direction }
+  const [markerNames, setMarkerNames] = useState({});  // marker_code → friendly display_name
   const [cfg, setCfg] = useState(STRATEGY_CFG_DEFAULTS);  // mystrategy_page system_parm look config
   const [state, setState] = useState('loading');     // loading | empty | ready
 
@@ -211,11 +212,12 @@ export default function MyStrategyPage() {
       try {
         const where = encodeURIComponent(`member_id='${guid}'`);
         const refWhere = encodeURIComponent(`member_id='${guid}' AND feature LIKE '%-reference'`);
-        const [stratResp, rrrResp, mxmResp, refResp] = await Promise.all([
+        const [stratResp, rrrResp, mxmResp, refResp, rcdResp] = await Promise.all([
           fetch(`${API_BASE}/rest/v2/tables/mystrategy_report_ready/records?q.where=${where}&q.orderBy=effective_from&q.limit=200`),
           fetch(`${API_BASE}/rest/v2/tables/report_ready_result/records?q.where=${where}&q.limit=500`),
           fetch(`${API_BASE}/rest/v2/tables/marker_x_marker/records?q.where=relationship_type='related'&q.limit=200`),
           fetch(`${API_BASE}/rest/v2/tables/member_info/records?q.where=${refWhere}&q.limit=50`),
+          fetch(`${API_BASE}/rest/v2/tables/reference_code_desc/records?q.where=domain='MARKERS'&q.select=code,display_name&q.limit=500`),
         ]);
         if (!stratResp.ok) { if (!cancelled) setState('empty'); return; }
         const stratRows = (await stratResp.json()).Result || [];
@@ -234,6 +236,13 @@ export default function MyStrategyPage() {
             direction: (r.text_box_1 || '').trim(),
           };
         }
+        // Friendly marker names (code → display_name) for the related-marker rows.
+        const rcd = (rcdResp.ok ? (await rcdResp.json()).Result : []) || [];
+        const namesMap = {};
+        for (const n of rcd) {
+          const c = (n.code || '').trim().toUpperCase();
+          if (c) namesMap[c] = n.display_name || c;
+        }
         if (cancelled) return;
         const unflattened = stratRows.map(unflattenRow);
         // Default to the active version (no effective_to); fall back to newest.
@@ -244,6 +253,7 @@ export default function MyStrategyPage() {
         setLabRows(rrr);
         setRelations(mxm);
         setReferences(refsMap);
+        setMarkerNames(namesMap);
         setState('ready');
       } catch (e) {
         console.error('MyStrategy load error:', e);
@@ -292,7 +302,8 @@ export default function MyStrategyPage() {
         .sort((a, b) => (b.report_date || '').localeCompare(a.report_date || ''))[0];
       const t = latest ? thresholdsFromRow(latest) : null;
       return {
-        label: code,
+        code,
+        name: markerNames[code] || code,  // friendly name from reference_code_desc
         value: latest ? `${latest.marker_value} ${latest.measurement || ''}`.trim() : '—',
         optimal: t ? optimalText(t) : '—',  // "current → optimal", design-style
       };
@@ -417,13 +428,13 @@ export default function MyStrategyPage() {
                   <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginBottom: 4, textDecoration: 'underline', textUnderlineOffset: '3px' }}>Related Blood Markers</div>
                   {/* Design-style signal cluster: name · current → optimal (one row each) */}
                   {related.map((r, i) => (
-                    <div key={r.label} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 0', borderBottom: i < related.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: SLATE, minWidth: 96, flexShrink: 0 }}>{r.label}</div>
+                    <div key={r.code} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 0', borderBottom: i < related.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: SLATE, minWidth: 96, flexShrink: 0 }}>{r.name}</div>
                       <div style={{ flex: 1, minWidth: 0, fontFamily: 'monospace', fontSize: 12, color: SLATE }}>
                         {r.value} <span style={{ color: '#9ca3af' }}>{'→'}</span> <span style={{ color: MBH_SAGE, fontWeight: 600 }}>{r.optimal}</span>
                       </div>
-                      {OPTIMAL_AUTHORITIES[r.label] && (
-                        <button onClick={(e) => { e.stopPropagation(); setOptimalSignal(r.label); }} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: MBH_SAGE, fontSize: 12, lineHeight: 1, fontWeight: 700, flexShrink: 0 }}>{'ⓘ'}</button>
+                      {OPTIMAL_AUTHORITIES[r.code] && (
+                        <button onClick={(e) => { e.stopPropagation(); setOptimalSignal(r.code); }} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: MBH_SAGE, fontSize: 12, lineHeight: 1, fontWeight: 700, flexShrink: 0 }}>{'ⓘ'}</button>
                       )}
                     </div>
                   ))}
