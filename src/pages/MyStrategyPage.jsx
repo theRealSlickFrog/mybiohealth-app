@@ -8,7 +8,7 @@
 import { useState, useEffect } from 'react';
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, AMBER, AMBER_BG, AMBER_TEXT, SOFT_RED, GAP_BG, GAP_TEXT, GAP_BORDER, SLATE, OFFWHITE, CARD, BORDER } from '../lib/constants.js';
 import { OPTIMAL_AUTHORITIES } from '../lib/optimal-authorities.js';
-import { markerZone, ZONE_LABEL } from '../lib/biomarkers.js';
+import { markerZone, ZONE_LABEL, thresholdsFromRow, optimalText } from '../lib/biomarkers.js';
 import { getStoredGuid } from '../lib/auth.js';
 import { loadStrategyConfig, DEFAULTS as STRATEGY_CFG_DEFAULTS } from '../lib/strategyConfig.js';
 import OptimalDrawer from '../components/OptimalDrawer.jsx';
@@ -278,9 +278,11 @@ export default function MyStrategyPage() {
       const latest = labRows
         .filter((r) => r.marker_code === code)
         .sort((a, b) => (b.report_date || '').localeCompare(a.report_date || ''))[0];
+      const t = latest ? thresholdsFromRow(latest) : null;
       return {
         label: code,
         value: latest ? `${latest.marker_value} ${latest.measurement || ''}`.trim() : '—',
+        optimal: t ? optimalText(t) : '—',  // "current → optimal", design-style
       };
     });
   }
@@ -400,18 +402,19 @@ export default function MyStrategyPage() {
 
               {related.length > 0 && (
                 <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginBottom: 6 }}>Related Blood Markers</div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
-                    {related.map((r) => (
-                      <span key={r.label} style={{ background: OFFWHITE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: '3px 10px', fontSize: 11, color: SLATE, fontWeight: 500, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                        <span style={{ fontWeight: 600 }}>{r.label}</span>
-                        <span style={{ color: '#374151' }}>{r.value}</span>
-                        {OPTIMAL_AUTHORITIES[r.label] && (
-                          <button onClick={(e) => { e.stopPropagation(); setOptimalSignal(r.label); }} style={{ background: 'none', border: 'none', padding: 0, marginLeft: 1, cursor: 'pointer', color: MBH_SAGE, fontSize: 11, lineHeight: 1, fontWeight: 700 }}>{'ⓘ'}</button>
-                        )}
-                      </span>
-                    ))}
-                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginBottom: 4 }}>Related Blood Markers</div>
+                  {/* Design-style signal cluster: name · current → optimal (one row each) */}
+                  {related.map((r, i) => (
+                    <div key={r.label} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 0', borderBottom: i < related.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: SLATE, minWidth: 96, flexShrink: 0 }}>{r.label}</div>
+                      <div style={{ flex: 1, minWidth: 0, fontFamily: 'monospace', fontSize: 12, color: SLATE }}>
+                        {r.value} <span style={{ color: '#9ca3af' }}>{'→'}</span> <span style={{ color: MBH_SAGE, fontWeight: 600 }}>{r.optimal}</span>
+                      </div>
+                      {OPTIMAL_AUTHORITIES[r.label] && (
+                        <button onClick={(e) => { e.stopPropagation(); setOptimalSignal(r.label); }} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: MBH_SAGE, fontSize: 12, lineHeight: 1, fontWeight: 700, flexShrink: 0 }}>{'ⓘ'}</button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
 
