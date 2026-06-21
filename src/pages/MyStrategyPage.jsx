@@ -6,8 +6,9 @@
 //   2) related markers from marker_x_marker (for the "Related: X" pills)
 // Both are derived from a single bulk fetch each at load time.
 import { useState, useEffect } from 'react';
-import { MBH_SAGE, SAGE_BG, SAGE_TEXT, AMBER, AMBER_TEXT, SLATE, OFFWHITE, CARD, BORDER } from '../lib/constants.js';
+import { MBH_SAGE, SAGE_BG, SAGE_TEXT, AMBER, AMBER_BG, AMBER_TEXT, SOFT_RED, GAP_BG, GAP_TEXT, GAP_BORDER, SLATE, OFFWHITE, CARD, BORDER } from '../lib/constants.js';
 import { OPTIMAL_AUTHORITIES } from '../lib/optimal-authorities.js';
+import { markerZone, ZONE_LABEL } from '../lib/biomarkers.js';
 import { getStoredGuid } from '../lib/auth.js';
 import { loadStrategyConfig, DEFAULTS as STRATEGY_CFG_DEFAULTS } from '../lib/strategyConfig.js';
 import OptimalDrawer from '../components/OptimalDrawer.jsx';
@@ -26,6 +27,41 @@ function fmtStartDate(d) {
   const [y, m, day] = s.split('-').map(Number);
   if (!y || !m || !day) return s;
   return `${MONTHS[m - 1]} ${day}, ${y}`;
+}
+
+// Zone chip + trend arrow — mirrors the right-side cluster on BioSignals'
+// MarkerCard (value · trend · zone chip), so a priority shows the same
+// at-a-glance state as the same marker does on the BioSignals page.
+const ZONE_STYLE = {
+  optimal:      { bg: SAGE_BG,   color: SAGE_TEXT },
+  drift:        { bg: AMBER_BG,  color: AMBER_TEXT },
+  driftPlus:    { bg: AMBER_BG,  color: AMBER_TEXT },
+  belowOptimal: { bg: AMBER_BG,  color: AMBER_TEXT },
+  concern:      { bg: '#fdecea', color: '#b3261e' },
+  nodata:       { bg: GAP_BG,    color: GAP_TEXT },
+};
+function zoneColor(zone) {
+  return zone === 'optimal' ? MBH_SAGE : zone === 'concern' ? SOFT_RED : zone === 'nodata' ? GAP_BORDER : AMBER;
+}
+function trendSymbol(dir) { return dir === 'up' ? '↗' : dir === 'down' ? '↘' : dir === 'flat' ? '→' : '·'; }
+function ZoneChip({ zone }) {
+  const s = ZONE_STYLE[zone] || ZONE_STYLE.nodata;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: s.bg, color: s.color, padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.color }} />
+      {ZONE_LABEL[zone]}
+    </span>
+  );
+}
+function Trend({ dir, zone }) {
+  return <span style={{ color: zoneColor(zone), fontSize: 14, fontWeight: 700, width: 14, textAlign: 'center' }}>{trendSymbol(dir)}</span>;
+}
+function trendFromHistory(history) {
+  if (!history || history.length < 2) return 'none';
+  const a = parseFloat(history[history.length - 2].value);
+  const b = parseFloat(history[history.length - 1].value);
+  if (isNaN(a) || isNaN(b)) return 'none';
+  return b > a ? 'up' : b < a ? 'down' : 'flat';
 }
 
 function TARDonut({ hr78, hr10, target }) {
@@ -302,6 +338,28 @@ export default function MyStrategyPage() {
         const isOpen = openPriorities[p.n];
         const hist = p.primaryMarker ? historyFor(p.primaryMarker) : null;
         const related = relatedFor(p.primaryMarker);
+
+        // Zone the latest value sits in (same rules as BioSignals). Donut/TAR
+        // has no marker thresholds, so derive optimal-vs-drift from its target.
+        let zone;
+        if (p.kind === 'donut') {
+          const total = parseFloat(p.latest), target = parseFloat(p.targetHr);
+          zone = (isNaN(total) || isNaN(target)) ? 'nodata' : total <= target ? 'optimal' : 'drift';
+        } else {
+          zone = markerZone(p.latest, hist ? hist.thresholds : null, hist ? hist.history : null);
+        }
+        // Trend: prefer the marker's own history; otherwise fall back to the
+        // prior strategy version's value for this priority (covers TAR/donut).
+        let trendDir = hist ? trendFromHistory(hist.history) : 'none';
+        if (trendDir === 'none' && versionIdx > 0) {
+          const prevP = (versions[versionIdx - 1].priorities || []).find((x) => x.n === p.n);
+          if (prevP && prevP.latest != null && p.latest != null) {
+            const a = parseFloat(prevP.latest), b = parseFloat(p.latest);
+            if (!isNaN(a) && !isNaN(b)) trendDir = b > a ? 'up' : b < a ? 'down' : 'flat';
+          }
+        }
+        const valueText = (p.latest != null && p.latest !== '')
+          ? `${p.latest}${p.unit ? ' ' + p.unit : ''}` : '—';
         return (
           <div key={p.n} style={{ background: CARD, borderRadius: 14, padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: 12 }}>
             <div onClick={() => togglePriority(p.n)} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: isOpen ? 12 : 0, cursor: 'pointer' }}>
@@ -314,6 +372,11 @@ export default function MyStrategyPage() {
                     <button onClick={(e) => { e.stopPropagation(); setOptimalSignal(p.primaryMarker); }} style={{ background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', color: MBH_SAGE, fontSize: 13, lineHeight: 1, fontWeight: 700 }}>{'ⓘ'}</button>
                   )}
                 </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 8, marginTop: 1 }}>
+                <span style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 600, color: zone === 'concern' ? SOFT_RED : SLATE }}>{valueText}</span>
+                <Trend dir={trendDir} zone={zone} />
+                <ZoneChip zone={zone} />
               </div>
               <span style={{ fontSize: 12, color: '#9ca3af', marginTop: 6, lineHeight: 1, flexShrink: 0, transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)', display: 'inline-block' }}>{'▼'}</span>
             </div>
