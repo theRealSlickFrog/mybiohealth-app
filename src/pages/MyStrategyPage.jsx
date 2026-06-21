@@ -56,6 +56,17 @@ function ZoneChip({ zone }) {
 function Trend({ dir, zone }) {
   return <span style={{ color: zoneColor(zone), fontSize: 14, fontWeight: 700, width: 14, textAlign: 'center' }}>{trendSymbol(dir)}</span>;
 }
+// Other (non-blood) related markers for a priority — DEXA/vital signals like
+// Visceral fat, Resting heart rate, Lean mass. Stored inline on
+// mystrategy_report_ready (p{n}_other_markers), one per line as
+// "Name|current value|optimal", so the page renders them with no extra join.
+function parseOtherMarkers(raw) {
+  return (raw || '').split('\n').map((line) => {
+    const [name, value, optimal] = line.split('|').map((x) => (x || '').trim());
+    return { name, value: value || '—', optimal: optimal || '' };
+  }).filter((o) => o.name);
+}
+
 function trendFromHistory(history) {
   if (!history || history.length < 2) return 'none';
   const a = parseFloat(history[history.length - 2].value);
@@ -116,6 +127,7 @@ function unflattenRow(row) {
       hr78: row[`p${n}_donut_hr78`],
       hr10: row[`p${n}_donut_hr10`],
       targetHr: row[`p${n}_donut_target_hr`],
+      otherMarkers: parseOtherMarkers(row[`p${n}_other_markers`]),
     });
   }
   const mhx = [];
@@ -413,6 +425,20 @@ export default function MyStrategyPage() {
                       {OPTIMAL_AUTHORITIES[r.label] && (
                         <button onClick={(e) => { e.stopPropagation(); setOptimalSignal(r.label); }} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: MBH_SAGE, fontSize: 12, lineHeight: 1, fontWeight: 700, flexShrink: 0 }}>{'ⓘ'}</button>
                       )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {p.otherMarkers && p.otherMarkers.length > 0 && (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginBottom: 4 }}>Related Other Markers</div>
+                  {p.otherMarkers.map((r, i) => (
+                    <div key={r.name} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 0', borderBottom: i < p.otherMarkers.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: SLATE, minWidth: 96, flexShrink: 0 }}>{r.name}</div>
+                      <div style={{ flex: 1, minWidth: 0, fontFamily: 'monospace', fontSize: 12, color: SLATE }}>
+                        {r.value}{r.optimal ? <> <span style={{ color: '#9ca3af' }}>{'→'}</span> <span style={{ color: MBH_SAGE, fontWeight: 600 }}>{r.optimal}</span></> : null}
+                      </div>
                     </div>
                   ))}
                 </div>
