@@ -56,6 +56,28 @@ function ZoneChip({ zone }) {
 function Trend({ dir, zone }) {
   return <span style={{ color: zoneColor(zone), fontSize: 14, fontWeight: 700, width: 14, textAlign: 'center' }}>{trendSymbol(dir)}</span>;
 }
+
+// Lever chip for the "Served by" cluster — Rx (prescription), Sx (supplement),
+// MHx (microhabit). Colours mirror the June 20 design: Rx blue, Sx purple,
+// MHx green with a 🌱.
+const LEVER_STYLE = {
+  Rx:  { bg: '#eef2fb', color: '#33508f' },
+  Sx:  { bg: '#f3eefb', color: '#5b3f8c' },
+  MHx: { bg: SAGE_BG,   color: SAGE_TEXT },
+};
+function LeverChip({ type, name, serves }) {
+  const s = LEVER_STYLE[type] || LEVER_STYLE.MHx;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: s.bg, color: s.color, borderRadius: 9, padding: '7px 11px', margin: '0 7px 7px 0', fontSize: 12.5, fontWeight: 600 }}>
+      {type === 'MHx' ? <span>🌱</span> : null}
+      <span>{name}</span>
+      <span style={{ fontSize: 8.5, fontWeight: 700, background: 'rgba(0,0,0,.06)', borderRadius: 10, padding: '2px 6px' }}>{type}</span>
+      {serves && serves.length > 1 && (
+        <span style={{ fontSize: 8.5, fontWeight: 700, color: SLATE, background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 10, padding: '2px 6px' }}>Serves {serves.join(' & ')}</span>
+      )}
+    </span>
+  );
+}
 // Other (non-blood) related markers for a priority — DEXA/vital signals like
 // Visceral fat, Resting heart rate, Lean mass. Stored inline on
 // mystrategy_report_ready (p{n}_other_markers), one per line as
@@ -95,15 +117,6 @@ function TARDonut({ hr78, hr10, target }) {
     </div>
   );
 }
-
-function RxDetail({ text }) {
-  return (
-    <div style={{ background: OFFWHITE, borderRadius: 10, padding: '10px 14px', marginBottom: 10, fontSize: 12.5, color: '#374151', lineHeight: 1.6 }}>
-      <strong style={{ color: SLATE }}>{text}.</strong>
-    </div>
-  );
-}
-
 
 // Pull priorities/mhx/strategy_elements out of the flat row into a shape
 // the render code can map over.
@@ -182,7 +195,6 @@ export default function MyStrategyPage() {
   const [optimalSignal, setOptimalSignal] = useState(null);
   const [openPriorities, setOpenPriorities] = useState({ 1: true, 2: true, 3: true });
   const [why, setWhy] = useState(null);   // { title, body } for the WhyModal
-  const [rxOpen, setRxOpen] = useState(null);
   // Per-priority note text. Keys are `${n}_member` and `${n}_mbh`.
   // Local-only for now; load/save against member_info is a follow-on.
   const [notes, setNotes] = useState({});
@@ -385,6 +397,16 @@ export default function MyStrategyPage() {
         }
         const valueText = (p.latest != null && p.latest !== '')
           ? `${p.latest}${p.unit ? ' ' + p.unit : ''}` : '—';
+        // "Served by" levers for this priority: its prescription (Rx) + the
+        // microhabits linked to it (MHx). Sx supplements aren't linked to
+        // priorities in the data yet, so none appear here until that exists.
+        const servedBy = [];
+        if (p.rx) servedBy.push({ type: 'Rx', name: p.rx });
+        strategy.mhx.forEach((m) => {
+          if (m.linkedPriorities && m.linkedPriorities.includes(p.n)) {
+            servedBy.push({ type: 'MHx', name: m.name, serves: m.linkedPriorities });
+          }
+        });
         return (
           <div key={p.n} style={{ background: CARD, borderRadius: 14, padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: 12 }}>
             <div onClick={() => togglePriority(p.n)} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: isOpen ? 12 : 0, cursor: 'pointer' }}>
@@ -455,18 +477,14 @@ export default function MyStrategyPage() {
                 </div>
               )}
 
-              {p.rx && (
-                <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginBottom: 6 }}>Prescriptions</div>
-                  <button onClick={() => setRxOpen(rxOpen === p.n ? null : p.n)} style={{ background: SAGE_BG, border: `1px solid ${MBH_SAGE}40`, borderRadius: 14, padding: '3px 10px', fontSize: 11, color: SAGE_TEXT, fontWeight: 600, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'baseline', gap: 5, cursor: 'pointer' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Rx</span>
-                    <span>{p.rx}</span>
-                    <span style={{ opacity: 0.6, fontSize: 11 }}>{rxOpen === p.n ? '▲' : '▼'}</span>
-                  </button>
+              {servedBy.length > 0 && (
+                <div style={{ marginBottom: 10, borderTop: `1px solid ${BORDER}`, paddingTop: 12 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#9ca3af', marginBottom: 9 }}>Served by — derived from shared signals</div>
+                  <div>
+                    {servedBy.map((lv, i) => <LeverChip key={i} type={lv.type} name={lv.name} serves={lv.serves} />)}
+                  </div>
                 </div>
               )}
-
-              {p.rx && rxOpen === p.n && <RxDetail text={p.rx} />}
 
               {p.why && (
                 <div style={{ marginTop: 8 }}>
