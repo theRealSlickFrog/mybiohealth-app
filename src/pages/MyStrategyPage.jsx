@@ -14,6 +14,7 @@ import OptimalDrawer from '../components/OptimalDrawer.jsx';
 import WhyModal from '../components/WhyModal.jsx';
 import PlotlyChart from '../components/PlotlyChart.jsx';
 import PersonalNote from '../components/PersonalNote.jsx';
+import WhyImHere from '../components/WhyImHere.jsx';
 
 const API_BASE = 'https://kenises-api-proxy.netlify.app';
 
@@ -293,6 +294,8 @@ export default function MyStrategyPage() {
         </div>
       </div>
       <div style={{ fontSize: 12, color: '#374151', marginBottom: 20 }}>{cfg.subtitle || strategy.tagline}</div>
+
+      <WhyImHere heading={cfg.whyHeading} caption={cfg.whyCaption} />
 
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', marginBottom: 10 }}>Priorities</div>
       {strategy.priorities.map((p) => {
