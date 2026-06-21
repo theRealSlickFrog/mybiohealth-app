@@ -58,15 +58,10 @@ function Trend({ dir, zone }) {
 }
 
 // Lever chip for the "Served by" cluster — Rx (prescription), Sx (supplement),
-// MHx (microhabit). Colours mirror the June 20 design: Rx blue, Sx purple,
-// MHx green with a 🌱.
-const LEVER_STYLE = {
-  Rx:  { bg: '#eef2fb', color: '#33508f' },
-  Sx:  { bg: '#f3eefb', color: '#5b3f8c' },
-  MHx: { bg: SAGE_BG,   color: SAGE_TEXT },
-};
-function LeverChip({ type, name, serves }) {
-  const s = LEVER_STYLE[type] || LEVER_STYLE.MHx;
+// MHx (microhabit). Colours come from system_parm (cfg.leverColours), defaulting
+// to the June 20 design hues: Rx blue, Sx purple, MHx green with a 🌱.
+function LeverChip({ type, name, serves, colours }) {
+  const s = colours || { bg: SAGE_BG, color: SAGE_TEXT };
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: s.bg, color: s.color, borderRadius: 9, padding: '7px 11px', margin: '0 7px 7px 0', fontSize: 12.5, fontWeight: 600 }}>
       {type === 'MHx' ? <span>🌱</span> : null}
@@ -486,7 +481,7 @@ export default function MyStrategyPage() {
                 <div style={{ marginBottom: 10 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginBottom: 6, textDecoration: 'underline', textUnderlineOffset: '3px' }}>Served by — derived from shared signals</div>
                   <div>
-                    {servedBy.map((lv, i) => <LeverChip key={i} type={lv.type} name={lv.name} serves={lv.serves} />)}
+                    {servedBy.map((lv, i) => <LeverChip key={i} type={lv.type} name={lv.name} serves={lv.serves} colours={cfg.leverColours[lv.type] || cfg.leverColours.MHx} />)}
                   </div>
                 </div>
               )}
