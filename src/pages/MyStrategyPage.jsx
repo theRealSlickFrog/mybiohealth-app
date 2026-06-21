@@ -414,7 +414,7 @@ export default function MyStrategyPage() {
 
               {related.length > 0 && (
                 <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginBottom: 4 }}>Related Blood Markers</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginBottom: 4, textDecoration: 'underline', textUnderlineOffset: '3px' }}>Related Blood Markers</div>
                   {/* Design-style signal cluster: name · current → optimal (one row each) */}
                   {related.map((r, i) => (
                     <div key={r.label} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 0', borderBottom: i < related.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
@@ -432,7 +432,7 @@ export default function MyStrategyPage() {
 
               {p.otherMarkers && p.otherMarkers.length > 0 && (
                 <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginBottom: 4 }}>Related Other Markers</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginBottom: 4, textDecoration: 'underline', textUnderlineOffset: '3px' }}>Related Other Markers</div>
                   {p.otherMarkers.map((r, i) => (
                     <div key={r.name} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 0', borderBottom: i < p.otherMarkers.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
                       <div style={{ fontSize: 12.5, fontWeight: 600, color: SLATE, minWidth: 96, flexShrink: 0 }}>{r.name}</div>
