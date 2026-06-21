@@ -42,7 +42,7 @@ export default function WhyImHere({ heading, caption }) {
   return (
     <div style={{ background: SLATE, borderRadius: 16, padding: 22, margin: '16px 0 20px', color: '#fff' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,.45)' }}>{heading}</div>
+        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#fff', textDecoration: 'underline', textUnderlineOffset: '3px', textDecorationColor: 'rgba(255,255,255,.5)' }}>{heading}</div>
         {!editing && note.loaded && (
           <button onClick={startEdit} style={{ background: 'rgba(255,255,255,.12)', color: '#fff', border: 'none', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {note.text ? 'Edit' : '+ Add'}
@@ -66,7 +66,7 @@ export default function WhyImHere({ heading, caption }) {
         {note.text
           ? <p style={{ fontFamily: SERIF, fontSize: 18, lineHeight: 1.55, color: '#fff' }}>{note.text}</p>
           : <p style={{ fontFamily: SERIF, fontSize: 18, lineHeight: 1.55, color: 'rgba(255,255,255,.5)' }}>{note.loaded ? 'Add a few words about what brings you here.' : 'Loading…'}</p>}
-        {caption && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', marginTop: 12 }}>{caption}</div>}
+        {caption && <div style={{ fontSize: 11, color: '#fff', fontStyle: 'italic', marginTop: 14, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.15)' }}>{caption}</div>}
       </>)}
 
       {error && <div style={{ fontSize: 11, color: SOFT_RED, marginTop: 8 }}>Couldn’t save your note ({error}). Try again.</div>}
