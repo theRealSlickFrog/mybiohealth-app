@@ -1,19 +1,17 @@
-// "Your habits this week" — weekly micro-habit check-in. Mechanic copied from
-// the V1 weekly check-in: active assignments from microhabit_x_member (+ the
-// microhabit catalog for names), one completed day = one row in
-// microhabit_x_member_log. Look follows the June 20 design (per-day toggles +
-// vote count), restyled for V2. Week navigation; a Save writes the diff
-// (POST new days / DELETE un-checked days). Replaces the old MicroHabits list.
+// "Your habits this week" — weekly micro-habit check-in, V1 mechanic & look.
+// Each active assignment (microhabit_x_member + microhabit catalog) is a row:
+// name, Intended Weekly Frequency, and an Actual Weekly Frequency −/＋ count
+// stepper (0–7). Save diffs the entered count against the week's rows in
+// microhabit_x_member_log — POSTing logs on un-logged days / DELETing from the
+// end — exactly like the V1 weekly check-in, restyled for V2. Week navigation.
 import { useEffect, useState } from 'react';
-import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, CARD, BORDER, OFFWHITE, SOFT_RED } from '../lib/constants.js';
+import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, CARD, BORDER, SOFT_RED } from '../lib/constants.js';
 import { getStoredGuid } from '../lib/auth.js';
 import { DEV_MEMBER } from '../lib/biomarkers.js';
 
 const API_BASE = 'https://kenises-api-proxy.netlify.app';
-const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-// Monday of the week containing d (local time, midnight).
 function weekStartOf(d) {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
@@ -22,6 +20,7 @@ function weekStartOf(d) {
   return x;
 }
 const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const weekDays = (ws) => Array.from({ length: 7 }, (_, i) => { const d = new Date(ws); d.setDate(ws.getDate() + i); return d; });
 // "3/7" -> 3 ; "daily" -> 7 ; "weekly" -> 1 ; else null
 function freqTarget(freq) {
   const m = String(freq || '').match(/^(\d+)\s*\/\s*7$/);
@@ -31,6 +30,13 @@ function freqTarget(freq) {
   if (f.includes('weekly')) return 1;
   return null;
 }
+function freqText(freq) {
+  const t = freqTarget(freq);
+  if (t === 7) return 'Daily';
+  if (t === 1) return 'Weekly';
+  if (t != null) return `${t}× / week`;
+  return freq || '—';
+}
 
 async function fetchLogs(habits) {
   if (!habits.length) return [];
@@ -38,13 +44,17 @@ async function fetchLogs(habits) {
   const r = await fetch(`${API_BASE}/rest/v2/tables/microhabit_x_member_log/records?q.where=${encodeURIComponent(where)}&q.limit=2000`);
   return (r.ok ? (await r.json()).Result : []) || [];
 }
+const logsForWeek = (logs, aid, days) => {
+  const isoSet = days.map(isoDate);
+  return logs.filter((l) => String(l.microhabit_x_member_id) === String(aid) && l.log_dt && isoSet.includes(String(l.log_dt).slice(0, 10)));
+};
 
-export default function WeeklyCheckin({ habitLinks = [] }) {
+export default function WeeklyCheckin() {
   const member = getStoredGuid() || DEV_MEMBER;
   const [habits, setHabits] = useState(null);   // [{assignmentId, microhabitId, name, frequency, target}]
-  const [logs, setLogs] = useState([]);          // raw microhabit_x_member_log rows
+  const [logs, setLogs] = useState([]);
   const [weekStart, setWeekStart] = useState(() => weekStartOf(new Date()));
-  const [pending, setPending] = useState({});    // `${aid}|${iso}` -> desired boolean (override)
+  const [counts, setCounts] = useState({});      // assignmentId -> current stepper value
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -74,7 +84,7 @@ export default function WeeklyCheckin({ habitLinks = [] }) {
     return () => { cancelled = true; };
   }, [member]);
 
-  // Load logs once habits are known.
+  // Load logs once habits known.
   useEffect(() => {
     if (!habits) return;
     let cancelled = false;
@@ -82,53 +92,67 @@ export default function WeeklyCheckin({ habitLinks = [] }) {
     return () => { cancelled = true; };
   }, [habits]);
 
-  if (habits === null) {
-    return <div style={{ padding: '20px 4px', color: '#9ca3af', fontSize: 13 }}>Loading habits…</div>;
-  }
-  if (habits.length === 0) {
-    return <div style={{ padding: '16px 4px', color: '#9ca3af', fontSize: 13 }}>No active micro-habits assigned yet.</div>;
-  }
+  // (Re)seed the stepper values from this week's logs whenever week/logs change.
+  // V1 behaviour: show the logged count; if none yet, pre-fill the intended target.
+  useEffect(() => {
+    if (!habits) return;
+    const days = weekDays(weekStart);
+    const next = {};
+    habits.forEach((h) => {
+      const logged = logsForWeek(logs, h.assignmentId, days).length;
+      next[h.assignmentId] = logged > 0 ? logged : (h.target != null ? h.target : 0);
+    });
+    setCounts(next);
+  }, [habits, logs, weekStart]);
 
-  const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(weekStart); d.setDate(weekStart.getDate() + i); return d; });
+  if (habits === null) return <div style={{ padding: '20px 4px', color: '#9ca3af', fontSize: 13 }}>Loading habits…</div>;
+  if (habits.length === 0) return <div style={{ padding: '16px 4px', color: '#9ca3af', fontSize: 13 }}>No active micro-habits assigned yet.</div>;
+
+  const days = weekDays(weekStart);
   const weekEnd = days[6];
-  const key = (aid, iso) => `${aid}|${iso}`;
-  const existingLog = (aid, iso) => logs.find((l) => String(l.microhabit_x_member_id) === String(aid) && l.log_dt && String(l.log_dt).slice(0, 10) === iso);
-  const isOn = (aid, iso) => { const k = key(aid, iso); return k in pending ? pending[k] : !!existingLog(aid, iso); };
-  const toggle = (aid, iso) => { const k = key(aid, iso); setPending((p) => ({ ...p, [k]: !isOn(aid, iso) })); };
-  const linkedFor = (name) => (habitLinks.find((h) => h.name === name) || {}).linked || [];
-
   const weekLabel = weekEnd.getMonth() === weekStart.getMonth()
     ? `${MONTHS[weekStart.getMonth()]} ${weekStart.getDate()}–${weekEnd.getDate()}`
     : `${MONTHS[weekStart.getMonth()]} ${weekStart.getDate()} – ${MONTHS[weekEnd.getMonth()]} ${weekEnd.getDate()}`;
-  const shiftWeek = (dir) => { const d = new Date(weekStart); d.setDate(weekStart.getDate() + dir * 7); setWeekStart(d); setPending({}); };
-  const dirty = Object.keys(pending).some((k) => {
-    const [aid, iso] = k.split('|');
-    return pending[k] !== !!existingLog(aid, iso);
-  });
+  const loggedCount = (aid) => logsForWeek(logs, aid, days).length;
+  const setCount = (aid, v) => setCounts((c) => ({ ...c, [aid]: Math.max(0, Math.min(7, v)) }));
+  const dirty = habits.some((h) => (counts[h.assignmentId] ?? 0) !== loggedCount(h.assignmentId));
+  const shiftWeek = (dir) => { const d = new Date(weekStart); d.setDate(weekStart.getDate() + dir * 7); setWeekStart(d); };
 
   async function save() {
     setSaving(true); setError(null);
     try {
       const ops = [];
-      for (const [k, want] of Object.entries(pending)) {
-        const [aid, iso] = k.split('|');
-        const ex = existingLog(aid, iso);
-        if (want && !ex) {
-          const habit = habits.find((h) => String(h.assignmentId) === String(aid));
-          ops.push(fetch(`${API_BASE}/rest/v2/tables/microhabit_x_member_log/records`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ microhabit_x_member_id: Number(aid), member_id: member, microhabit_id: habit ? habit.microhabitId : null, log_dt: iso, completion_dt: iso, completion_status: 'completed', notes: 'Weekly check-in' }),
-          }));
-        } else if (!want && ex) {
-          ops.push(fetch(`${API_BASE}/rest/v2/tables/microhabit_x_member_log/records?q.where=microhabit_x_member_log_id=${ex.microhabit_x_member_log_id}`, { method: 'DELETE' }));
+      for (const h of habits) {
+        const aid = h.assignmentId;
+        const existing = logsForWeek(logs, aid, days);
+        const have = existing.length;
+        const want = counts[aid] ?? 0;
+        if (want > have) {
+          const loggedIso = new Set(existing.map((l) => String(l.log_dt).slice(0, 10)));
+          let toAdd = want - have;
+          for (let i = 0; i < 7 && toAdd > 0; i++) {
+            const iso = isoDate(days[i]);
+            if (loggedIso.has(iso)) continue;
+            ops.push(fetch(`${API_BASE}/rest/v2/tables/microhabit_x_member_log/records`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ microhabit_x_member_id: Number(aid), member_id: member, microhabit_id: h.microhabitId, log_dt: iso, completion_dt: iso, completion_status: 'completed', notes: 'Weekly check-in' }),
+            }));
+            toAdd--;
+          }
+        } else if (want < have) {
+          const sorted = [...existing].sort((a, b) => String(b.log_dt).localeCompare(String(a.log_dt)));
+          for (let i = 0; i < have - want; i++) {
+            ops.push(fetch(`${API_BASE}/rest/v2/tables/microhabit_x_member_log/records?q.where=microhabit_x_member_log_id=${sorted[i].microhabit_x_member_log_id}`, { method: 'DELETE' }));
+          }
         }
       }
       await Promise.all(ops);
       setLogs(await fetchLogs(habits));
-      setPending({});
     } catch (e) { setError(e.message); }
     finally { setSaving(false); }
   }
+
+  const stepBtn = { width: 28, height: 28, border: `1px solid ${BORDER}`, borderRadius: 6, background: '#f7f5f0', color: SLATE, cursor: 'pointer', fontSize: 16, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 };
 
   return (
     <div>
@@ -141,40 +165,29 @@ export default function WeeklyCheckin({ habitLinks = [] }) {
         </div>
       </div>
 
-      {habits.map((h) => {
-        const serves = linkedFor(h.name);
-        const count = days.reduce((n, d) => n + (isOn(h.assignmentId, isoDate(d)) ? 1 : 0), 0);
-        const met = h.target != null && count >= h.target;
-        return (
-          <div key={h.assignmentId} style={{ background: CARD, borderRadius: 14, padding: '14px 18px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', marginBottom: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: SLATE, lineHeight: 1.35 }}>🌱 {h.name}</span>
+      <div style={{ background: CARD, borderRadius: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+        {habits.map((h, i) => {
+          const logged = loggedCount(h.assignmentId);
+          const val = counts[h.assignmentId] ?? 0;
+          const saved = logged > 0 && val === logged;
+          return (
+            <div key={h.assignmentId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderBottom: i < habits.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: SLATE, lineHeight: 1.3 }}>{h.name}</div>
+                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>Intended: {freqText(h.frequency)}</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                <button onClick={() => setCount(h.assignmentId, val - 1)} style={stepBtn} aria-label="Decrease">−</button>
+                <span style={{ width: 26, textAlign: 'center', fontFamily: 'monospace', fontSize: 15, fontWeight: 700, color: saved ? SLATE : '#9ca3af', fontStyle: saved ? 'normal' : 'italic' }}>{val}</span>
+                <button onClick={() => setCount(h.assignmentId, val + 1)} style={stepBtn} aria-label="Increase">+</button>
+                {saved && <span style={{ fontSize: 10, fontWeight: 700, color: MBH_SAGE, background: SAGE_BG, borderRadius: 10, padding: '2px 7px' }}>Saved</span>}
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-              {h.target != null && <span style={{ fontSize: 10.5, fontWeight: 700, color: SAGE_TEXT, background: SAGE_BG, borderRadius: 10, padding: '2px 8px' }}>Aim {h.target}/7</span>}
-              {serves.length > 0 && <span style={{ fontSize: 10.5, fontWeight: 600, color: '#374151' }}>Serves {serves.length > 1 ? 'priorities' : 'priority'} {serves.join(' & ')}</span>}
-            </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {days.map((d, i) => {
-                const on = isOn(h.assignmentId, isoDate(d));
-                return (
-                  <button key={i} onClick={() => toggle(h.assignmentId, isoDate(d))}
-                    style={{ flex: 1, height: 38, borderRadius: 8, border: `1.5px solid ${on ? MBH_SAGE : BORDER}`, background: on ? MBH_SAGE : CARD, color: on ? '#fff' : '#9ca3af', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                    <span>{DAY_LABELS[i]}</span>
-                    {on && <span style={{ fontSize: 8 }}>✓</span>}
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 9 }}>
-              <span style={{ fontSize: 11, color: '#9ca3af' }}>{met ? 'This week leaned yes — a vote for who you’re becoming' : (h.target != null ? `Aiming for ${h.target} · ${Math.max(0, h.target - count)} to go` : 'Tap the days you did it')}</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: met ? MBH_SAGE : count > 0 ? '#d97706' : '#9ca3af' }}>{count} / 7</span>
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
         {error && <span style={{ fontSize: 11, color: SOFT_RED }}>Couldn’t save ({error}).</span>}
         <button onClick={save} disabled={!dirty || saving}
           style={{ padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: 'inherit', border: 'none', cursor: dirty && !saving ? 'pointer' : 'default', background: dirty && !saving ? MBH_SAGE : '#e5e7eb', color: dirty && !saving ? '#fff' : '#9ca3af' }}>

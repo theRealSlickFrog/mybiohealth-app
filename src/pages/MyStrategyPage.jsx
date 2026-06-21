@@ -513,7 +513,7 @@ export default function MyStrategyPage() {
       })}
 
       <div style={{ marginTop: 8, marginBottom: 14 }}>
-        <WeeklyCheckin habitLinks={strategy.mhx.map((m) => ({ name: m.name, linked: m.linkedPriorities }))} />
+        <WeeklyCheckin />
       </div>
 
       <div style={{ background: CARD, borderRadius: 14, padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: 14 }}>
