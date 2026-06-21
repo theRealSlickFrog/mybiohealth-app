@@ -4,7 +4,10 @@ import { logout } from '../lib/auth.js';
 
 export default function Drawer({ activePage, onSelect, onClose }) {
   const groups = [
-    { label: null,     keys: ['strategy', 'biosignals', 'glucose', 'dexa'] }, // 'priorities' hidden — hardcoded, to be fixed
+    // 'priorities' is hardcoded/unfinished — show it only in the local dev server
+    // (`npm run dev`). import.meta.env.DEV is false in production builds, so Vite
+    // dead-code-eliminates it and members never see the menu item.
+    { label: null,     keys: ['strategy', ...(import.meta.env.DEV ? ['priorities'] : []), 'biosignals', 'glucose', 'dexa'] },
     { label: 'Member', keys: ['account', 'calendar', 'vault'] },
     { label: 'MBH',    keys: ['library', 'questions'] },
   ];
