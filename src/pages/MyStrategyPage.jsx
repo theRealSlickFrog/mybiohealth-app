@@ -419,6 +419,11 @@ export default function MyStrategyPage() {
                     <button onClick={(e) => { e.stopPropagation(); setOptimalSignal(p.primaryMarker); }} style={{ background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', color: MBH_SAGE, fontSize: 13, lineHeight: 1, fontWeight: 700 }}>{'ⓘ'}</button>
                   )}
                 </div>
+                {p.why && (
+                  <button onClick={(e) => { e.stopPropagation(); setWhy({ title: p.name, body: p.why }); }} style={{ marginTop: 8, background: 'none', border: `1px solid ${MBH_SAGE}50`, borderRadius: 14, padding: '3px 11px', fontSize: 11, fontWeight: 600, color: MBH_SAGE, cursor: 'pointer' }}>
+                    The Why →
+                  </button>
+                )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 8, marginTop: 1 }}>
                 <span style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 600, color: zone === 'concern' ? SOFT_RED : SLATE }}>{valueText}</span>
@@ -478,19 +483,11 @@ export default function MyStrategyPage() {
               )}
 
               {servedBy.length > 0 && (
-                <div style={{ marginBottom: 10, borderTop: `1px solid ${BORDER}`, paddingTop: 12 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#9ca3af', marginBottom: 9 }}>Served by — derived from shared signals</div>
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginBottom: 6, textDecoration: 'underline', textUnderlineOffset: '3px' }}>Served by — derived from shared signals</div>
                   <div>
                     {servedBy.map((lv, i) => <LeverChip key={i} type={lv.type} name={lv.name} serves={lv.serves} />)}
                   </div>
-                </div>
-              )}
-
-              {p.why && (
-                <div style={{ marginTop: 8 }}>
-                  <button onClick={() => setWhy({ title: p.name, body: p.why })} style={{ background: 'none', border: `1px solid ${MBH_SAGE}50`, borderRadius: 14, padding: '3px 11px', fontSize: 11, fontWeight: 600, color: MBH_SAGE, cursor: 'pointer' }}>
-                    The Why →
-                  </button>
                 </div>
               )}
 
