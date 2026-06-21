@@ -30,8 +30,9 @@ const DEFAULTS = {
     concern:       { style: 'dash', thickness: 2 },
   },
   trendLine: { style: 'off', thickness: 2 },        // joins the dots — 'off' means dots only
-  targetConnectorLine: { style: 'off', thickness: 2 },
+  targetConnectorLine: { style: 'off', thickness: 2, color: '#4a7c6f' }, // last value → reference
   dtickButtons: 'QE',   // which dtick toggle buttons to render above the chart
+  referenceLabel: 'Reference',  // label for the target/reference point (legend + hover)
 };
 
 let cached = null;
@@ -51,6 +52,7 @@ export async function loadChartConfig() {
         const k = row.parm_name;
         const v = (row.main_value || '').trim();
         const v2 = (row.value_two || '').trim();
+        const v3 = (row.value_three || '').trim();
         switch (k) {
           case 'optimal_colour':         if (v) cfg.optimalColor = v; break;
           case 'optimal_colour_future':  if (v) cfg.optimalColorFuture = v; break;
@@ -81,8 +83,9 @@ export async function loadChartConfig() {
           case 'trend_line_related':
             cfg.trendLine = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1 }; break;
           case 'target_connector_line':
-            cfg.targetConnectorLine = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1 }; break;
+            cfg.targetConnectorLine = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1, color: v3 || cfg.targetConnectorLine.color }; break;
           case 'dtick_buttons':         if (v) cfg.dtickButtons = v.toUpperCase(); break;
+          case 'reference_label':       if (v) cfg.referenceLabel = v; break;
           default: break;
         }
       }

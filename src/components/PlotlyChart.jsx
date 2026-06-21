@@ -159,14 +159,14 @@ export default function PlotlyChart({ history, thresholds, reference, unit, mark
         traces.push({
           x: [dates[dates.length - 1], refDate], y: [values[values.length - 1], refValue],
           mode: 'lines', type: 'scatter',
-          line: { color: 'orange', width: cfg.targetConnectorLine.thickness || 2, dash: dashFor(cfg.targetConnectorLine.style) },
+          line: { color: cfg.targetConnectorLine.color || 'orange', width: cfg.targetConnectorLine.thickness || 2, dash: dashFor(cfg.targetConnectorLine.style) },
           hoverinfo: 'skip', showlegend: false,
         });
       }
       traces.push({
         x: [refDate], y: [refValue], mode: 'text', type: 'scatter',
         text: [cfg.emojis.target], textfont: { size: 16 }, textposition: 'middle center',
-        hovertext: [`<b>Reference</b><br>${refValue}${unit ? ' '+unit : ''}`],
+        hovertext: [`<b>${cfg.referenceLabel}</b><br>${refValue}${unit ? ' '+unit : ''}`],
         hoverinfo: 'text', showlegend: false,
       });
     }
@@ -180,7 +180,7 @@ export default function PlotlyChart({ history, thresholds, reference, unit, mark
     if (present.has(cfg.emojis.concern))   legendData.push({ emoji: cfg.emojis.concern, label: 'Concern Zone', color: '#c0483a' });
     if (hasRef) {
       const refLabelVal = refDirection ? `${refDirection} ${refValue}` : refValue;
-      legendData.push({ emoji: cfg.emojis.target, label: `Reference ${refLabelVal}${unit ? ' '+unit : ''}` });
+      legendData.push({ emoji: cfg.emojis.target, label: `${cfg.referenceLabel} ${refLabelVal}${unit ? ' '+unit : ''}` });
     }
     setLegend(legendData);
 
