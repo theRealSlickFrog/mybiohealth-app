@@ -16,6 +16,17 @@ const VIEW_DATAPAGE_URL = 'https://mybiohealth.caspio.app/mybiohealth/data-vault
 
 const ALL = '__all__';
 
+// Categories offered in the UPLOADER from now on — Ken's decision (Meeting Notes
+// & To-Dos, action #3: "Restrict Vault categories to Lab Results, Medical Reports,
+// Other"). This only limits NEW uploads; existing documents in other categories
+// (Imaging, Prescriptions, etc.) stay in the DB and still display + filter.
+// Display labels come from the DOC_CATEGORY reference when present (fallback here).
+const UPLOAD_CATEGORIES = [
+  { code: 'LAB_RESULTS', display: 'Lab Results' },
+  { code: 'MEDICAL_REPORTS', display: 'Medical Reports' },
+  { code: 'OTHER', display: 'Other' },
+];
+
 export default function VaultPage() {
   const [member] = useState(() => getStoredGuid() || DEV_MEMBER);
   const [docs, setDocs] = useState(undefined);   // undefined=loading, null=error, []=empty, [..]=data
@@ -184,7 +195,10 @@ export default function VaultPage() {
                 Category
                 <select value={upCategory} onChange={(e) => setUpCategory(e.target.value)} style={inputStyle}>
                   <option value="">— Select a category —</option>
-                  {cats.map((c) => <option key={c.code} value={c.code}>{c.display}</option>)}
+                  {UPLOAD_CATEGORIES.map((u) => {
+                    const ref = cats.find((c) => c.code === u.code);
+                    return <option key={u.code} value={u.code}>{ref?.display || u.display}</option>;
+                  })}
                 </select>
               </label>
 
