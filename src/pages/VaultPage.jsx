@@ -74,6 +74,11 @@ export default function VaultPage() {
   ];
   const visible = (docs || []).filter((d) => filter === ALL || d.category === filter);
 
+  // Viewer-derived: friendly category label (map code→display when possible) and
+  // whether the file type can render inline.
+  const viewCatLabel = viewDoc ? (cats.find((c) => c.code === viewDoc.category)?.display || viewDoc.category) : '';
+  const viewPreviewable = !!viewDoc && (viewDoc.fileType === 'img' || viewDoc.fileType === 'pdf');
+
   async function handleDelete(doc) {
     if (!window.confirm(`Remove "${doc.fileName}" from your vault?`)) return;
     setBusyId(doc.id);
@@ -244,26 +249,30 @@ export default function VaultPage() {
               <span style={{ fontSize: 15, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{viewDoc.fileName}</span>
               <button onClick={() => setViewDoc(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', width: 30, height: 30, borderRadius: '50%', cursor: 'pointer', fontSize: 16, flexShrink: 0 }}>×</button>
             </div>
-            <div style={{ flex: 1, minHeight: 320, maxHeight: '74vh', overflow: 'auto', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
-              {viewError && <div style={{ fontSize: 13, color: SOFT_RED, padding: 40, textAlign: 'center' }}>{viewError}</div>}
-              {!viewError && !viewUrl && <div style={{ fontSize: 13, color: '#6b7280', padding: 40 }}>Loading…</div>}
-              {!viewError && viewUrl && viewDoc.fileType === 'img' && (
-                <img src={viewUrl} alt={viewDoc.fileName} style={{ maxWidth: '100%', maxHeight: '72vh', objectFit: 'contain', display: 'block' }} />
-              )}
-              {!viewError && viewUrl && viewDoc.fileType === 'pdf' && (
-                <iframe title="View document" src={viewUrl} style={{ width: '100%', height: '72vh', border: 'none' }} />
-              )}
-              {!viewError && viewUrl && viewDoc.fileType !== 'img' && viewDoc.fileType !== 'pdf' && (
-                <div style={{ textAlign: 'center', padding: 40 }}>
-                  <div style={{ fontSize: 40, marginBottom: 10 }}>{viewDoc.icon}</div>
-                  <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>This file type can’t be previewed here.</div>
-                  <a href={viewUrl} download={viewDoc.fileName} style={{ background: MBH_SAGE, color: 'white', textDecoration: 'none', borderRadius: 20, padding: '8px 20px', fontSize: 13, fontWeight: 600 }}>Download</a>
-                </div>
-              )}
+            {/* Name · date · category (+ description) */}
+            <div style={{ padding: '10px 20px', borderBottom: `1px solid ${BORDER}`, fontSize: 12, color: '#374151', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {viewCatLabel && <span style={{ fontWeight: 600 }}>{viewCatLabel}</span>}
+              {viewCatLabel && <span style={{ color: '#cbd5e1' }}>·</span>}
+              <span>{viewDoc.uploadDateLabel}</span>
+              {viewDoc.description && <><span style={{ color: '#cbd5e1' }}>·</span><span>{viewDoc.description}</span></>}
             </div>
-            {!viewError && viewUrl && (viewDoc.fileType === 'img' || viewDoc.fileType === 'pdf') && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 20px', borderTop: `1px solid ${BORDER}` }}>
-                <a href={viewUrl} download={viewDoc.fileName} style={{ color: MBH_SAGE, fontSize: 12.5, fontWeight: 600, textDecoration: 'none' }}>⤓ Download</a>
+            {/* Preview area — only for types we can render inline (or while loading them / on error) */}
+            {(viewPreviewable || viewError) && (
+              <div style={{ flex: 1, minHeight: 320, maxHeight: '74vh', overflow: 'auto', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
+                {viewError && <div style={{ fontSize: 13, color: SOFT_RED, padding: 40, textAlign: 'center' }}>{viewError}</div>}
+                {!viewError && !viewUrl && <div style={{ fontSize: 13, color: '#6b7280', padding: 40 }}>Loading…</div>}
+                {!viewError && viewUrl && viewDoc.fileType === 'img' && (
+                  <img src={viewUrl} alt={viewDoc.fileName} style={{ maxWidth: '100%', maxHeight: '72vh', objectFit: 'contain', display: 'block' }} />
+                )}
+                {!viewError && viewUrl && viewDoc.fileType === 'pdf' && (
+                  <iframe title="View document" src={viewUrl} style={{ width: '100%', height: '72vh', border: 'none' }} />
+                )}
+              </div>
+            )}
+            {/* Download — available for every file type once the blob is ready */}
+            {!viewError && viewUrl && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 20px', borderTop: viewPreviewable ? `1px solid ${BORDER}` : 'none' }}>
+                <a href={viewUrl} download={viewDoc.fileName} style={{ color: MBH_SAGE, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>⤓ Download</a>
               </div>
             )}
           </div>
