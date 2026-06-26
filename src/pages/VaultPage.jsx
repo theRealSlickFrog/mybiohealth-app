@@ -1,16 +1,15 @@
 // MyVault — the member's uploaded documents, live from user_document via
 // lib/vault.js. Categories come from DOC_CATEGORY (single source of truth).
-// Upload uses the Caspio DataPage in an iframe: Caspio attachment fields are
-// read-only over REST, so the actual file write has to go through Caspio. The
-// hardcoded files + message log from the v1 prototype are gone.
+// Upload is a native form posting to the proxy's /upload route: the proxy stamps
+// legal_entity_id from the session JWT (server-side, unspoofable) and writes the
+// file to user_document's ATTACHMENT field. This replaces the old Caspio upload
+// DataPage iframe, which dropped legal_entity_id (no Caspio auth in V2) and put
+// the raw member GUID in a URL. View still uses a Caspio DataPage (by document_id).
 import { useEffect, useState, useCallback } from 'react';
 import { MBH_SAGE, SAGE_BG, AMBER_BG, SLATE, CARD, BORDER, SOFT_RED } from '../lib/constants.js';
 import { getStoredGuid } from '../lib/auth.js';
-import { loadDocuments, loadDocCategories, softDeleteDocument, DEV_MEMBER } from '../lib/vault.js';
+import { loadDocuments, loadDocCategories, softDeleteDocument, uploadDocument, DEV_MEMBER } from '../lib/vault.js';
 
-// Caspio submission DataPage for user_document (file upload). Passed the member
-// GUID as legal_entity_id. Update if the deployed DataPage URL changes.
-const UPLOAD_DATAPAGE_URL = 'https://mybiohealth.caspio.app/mybiohealth/data-vault-pop-up';
 // Caspio Details DataPage that displays/serves a document's file attachment.
 // Receives the row via ?document_id=<id> (query-string param filter on the page).
 const VIEW_DATAPAGE_URL = 'https://mybiohealth.caspio.app/mybiohealth/data-vault-pop-up-for-view-for-react';
@@ -23,6 +22,11 @@ export default function VaultPage() {
   const [cats, setCats] = useState([]);          // [{ code, display }]
   const [filter, setFilter] = useState(ALL);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [upFile, setUpFile] = useState(null);    // selected File for upload
+  const [upCategory, setUpCategory] = useState('');
+  const [upDesc, setUpDesc] = useState('');
+  const [upBusy, setUpBusy] = useState(false);
+  const [upError, setUpError] = useState('');
   const [viewDoc, setViewDoc] = useState(null);  // doc being viewed (iframe modal)
   const [busyId, setBusyId] = useState(null);    // doc id mid-delete
 
@@ -68,9 +72,34 @@ export default function VaultPage() {
     window.alert(`"${doc.fileName}" can't be opened directly from here yet — the document viewer isn't wired up.`);
   }
 
+  function resetUpload() {
+    setUpFile(null); setUpCategory(''); setUpDesc(''); setUpError(''); setUpBusy(false);
+  }
+
   function closeUpload() {
+    if (upBusy) return;            // don't bail out mid-upload
     setUploadOpen(false);
-    refresh(); // they may have just uploaded something
+    resetUpload();
+  }
+
+  // ~4.5MB to match the proxy's cap (Netlify function body limit).
+  const MAX_UPLOAD_BYTES = 4.5 * 1024 * 1024;
+
+  async function doUpload(e) {
+    e.preventDefault();
+    if (!upFile) { setUpError('Please choose a file.'); return; }
+    if (upFile.size > MAX_UPLOAD_BYTES) { setUpError('That file is too large (max 4.5 MB).'); return; }
+    setUpBusy(true); setUpError('');
+    try {
+      await uploadDocument({ file: upFile, category: upCategory, description: upDesc });
+      setUploadOpen(false);
+      resetUpload();
+      refresh();                   // show the newly uploaded document
+    } catch (err) {
+      console.error('Upload failed:', err);
+      setUpError('Upload failed. Please try again.');
+      setUpBusy(false);
+    }
   }
 
   return (
@@ -135,16 +164,52 @@ export default function VaultPage() {
 
       {uploadOpen && (
         <div onClick={closeUpload} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: CARD, borderRadius: 14, width: '100%', maxWidth: 600, maxHeight: '88vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: CARD, borderRadius: 14, width: '100%', maxWidth: 480, maxHeight: '88vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: MBH_SAGE, color: 'white' }}>
               <span style={{ fontSize: 15, fontWeight: 600 }}>Upload Document</span>
-              <button onClick={closeUpload} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', width: 30, height: 30, borderRadius: '50%', cursor: 'pointer', fontSize: 16 }}>×</button>
+              <button onClick={closeUpload} disabled={upBusy} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', width: 30, height: 30, borderRadius: '50%', cursor: upBusy ? 'default' : 'pointer', fontSize: 16, opacity: upBusy ? 0.5 : 1 }}>×</button>
             </div>
-            <iframe
-              title="Upload document"
-              src={`${UPLOAD_DATAPAGE_URL}?legal_entity_id=${encodeURIComponent(member)}`}
-              style={{ width: '100%', height: 460, border: 'none' }}
-            />
+            <form onSubmit={doUpload} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
+              <label style={fieldLabel}>
+                File
+                <input
+                  type="file"
+                  onChange={(e) => { setUpFile(e.target.files?.[0] || null); setUpError(''); }}
+                  style={{ display: 'block', marginTop: 6, fontSize: 13, width: '100%' }}
+                />
+                <span style={{ fontSize: 11, color: '#6b7280' }}>PDF, CSV, images — any format, up to 4.5 MB</span>
+              </label>
+
+              <label style={fieldLabel}>
+                Category
+                <select value={upCategory} onChange={(e) => setUpCategory(e.target.value)} style={inputStyle}>
+                  <option value="">— Select a category —</option>
+                  {cats.map((c) => <option key={c.code} value={c.code}>{c.display}</option>)}
+                </select>
+              </label>
+
+              <label style={fieldLabel}>
+                Description <span style={{ fontWeight: 400, color: '#6b7280' }}>(optional)</span>
+                <input
+                  type="text"
+                  value={upDesc}
+                  maxLength={255}
+                  onChange={(e) => setUpDesc(e.target.value)}
+                  placeholder="e.g. June bloodwork"
+                  style={inputStyle}
+                />
+              </label>
+
+              {upError && <div style={{ fontSize: 12.5, color: SOFT_RED }}>{upError}</div>}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+                <button type="button" onClick={closeUpload} disabled={upBusy} style={btnStyle(false, upBusy)}>Cancel</button>
+                <button type="submit" disabled={upBusy || !upFile} style={{
+                  background: MBH_SAGE, color: 'white', border: 'none', borderRadius: 20, padding: '8px 20px',
+                  fontSize: 13, fontWeight: 600, cursor: (upBusy || !upFile) ? 'default' : 'pointer', opacity: (upBusy || !upFile) ? 0.6 : 1,
+                }}>{upBusy ? 'Uploading…' : 'Upload'}</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -176,6 +241,12 @@ function Chip({ label, active, onClick }) {
     }}>{label}</button>
   );
 }
+
+const fieldLabel = { display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, fontWeight: 600, color: SLATE };
+const inputStyle = {
+  marginTop: 4, width: '100%', boxSizing: 'border-box', padding: '8px 10px',
+  fontSize: 13, fontWeight: 400, color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 8, background: 'white',
+};
 
 function btnStyle(danger, busy = false) {
   return {

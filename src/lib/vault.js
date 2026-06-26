@@ -99,6 +99,26 @@ export async function loadDocCategories() {
   return recs.map((x) => ({ code: x.code, display: x.display_name, description: x.description || '' }));
 }
 
+// Upload a document through the proxy's /upload route. The proxy stamps
+// legal_entity_id from the session JWT server-side (the browser never sends a
+// member id — no GUID in any URL, and a user can only write to their own vault),
+// then writes the file to user_document's ATTACHMENT field in two steps. The
+// global fetch patch in auth.js attaches the Bearer JWT. Do NOT set Content-Type
+// — the browser derives the multipart boundary from the FormData body.
+export async function uploadDocument({ file, category, description }) {
+  const fd = new FormData();
+  fd.append('file', file, file.name);
+  fd.append('category', category || '');
+  fd.append('description', description || '');
+  const r = await fetch(`${API_BASE}/upload`, { method: 'POST', body: fd });
+  if (!r.ok) {
+    let detail = '';
+    try { detail = (await r.json()).error || ''; } catch { /* non-JSON error */ }
+    throw new Error(`upload failed (${r.status})${detail ? `: ${detail}` : ''}`);
+  }
+  return r.json();
+}
+
 // Soft delete — mark is_deleted=1 rather than physically removing (matches V1).
 export async function softDeleteDocument(documentId) {
   const where = encodeURIComponent(`document_id=${documentId}`);
