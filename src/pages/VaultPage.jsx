@@ -2,17 +2,14 @@
 // lib/vault.js. Categories come from DOC_CATEGORY (single source of truth).
 // Upload is a native form posting to the proxy's /upload route: the proxy stamps
 // legal_entity_id from the session JWT (server-side, unspoofable) and writes the
-// file to user_document's ATTACHMENT field. This replaces the old Caspio upload
-// DataPage iframe, which dropped legal_entity_id (no Caspio auth in V2) and put
-// the raw member GUID in a URL. View still uses a Caspio DataPage (by document_id).
+// file to user_document's ATTACHMENT field. View is also native: it fetches the
+// file Blob through the proxy and renders it in-app (image/PDF inline, else a
+// download) — both replace the old Caspio DataPage iframes (which dropped
+// legal_entity_id, put the raw GUID in a URL, and broke in Firefox/Safari).
 import { useEffect, useState, useCallback } from 'react';
 import { MBH_SAGE, SAGE_BG, AMBER_BG, SLATE, CARD, BORDER, SOFT_RED } from '../lib/constants.js';
 import { getStoredGuid } from '../lib/auth.js';
-import { loadDocuments, loadDocCategories, softDeleteDocument, uploadDocument, DEV_MEMBER } from '../lib/vault.js';
-
-// Caspio Details DataPage that displays/serves a document's file attachment.
-// Receives the row via ?document_id=<id> (query-string param filter on the page).
-const VIEW_DATAPAGE_URL = 'https://mybiohealth.caspio.app/mybiohealth/data-vault-pop-up-for-view-for-react';
+import { loadDocuments, loadDocCategories, softDeleteDocument, uploadDocument, fetchDocumentBlob, DEV_MEMBER } from '../lib/vault.js';
 
 const ALL = '__all__';
 
@@ -38,7 +35,9 @@ export default function VaultPage() {
   const [upDesc, setUpDesc] = useState('');
   const [upBusy, setUpBusy] = useState(false);
   const [upError, setUpError] = useState('');
-  const [viewDoc, setViewDoc] = useState(null);  // doc being viewed (iframe modal)
+  const [viewDoc, setViewDoc] = useState(null);  // doc being viewed
+  const [viewUrl, setViewUrl] = useState(null);  // object URL for the fetched file blob
+  const [viewError, setViewError] = useState('');
   const [busyId, setBusyId] = useState(null);    // doc id mid-delete
 
   const refresh = useCallback(() => {
@@ -54,6 +53,18 @@ export default function VaultPage() {
       .then(setCats)
       .catch((e) => { console.warn('Vault categories failed:', e); setCats([]); });
   }, [refresh]);
+
+  // Fetch the selected document's file (Blob → object URL) for the in-app viewer.
+  // Revoke the URL on close/change so blobs don't leak.
+  useEffect(() => {
+    if (!viewDoc) { setViewUrl(null); setViewError(''); return; }
+    let objUrl = null, cancelled = false;
+    setViewUrl(null); setViewError('');
+    fetchDocumentBlob(viewDoc.id)
+      .then((blob) => { if (cancelled) return; objUrl = URL.createObjectURL(blob); setViewUrl(objUrl); })
+      .catch((e) => { if (!cancelled) { console.warn('View failed:', e); setViewError('Could not load this document.'); } });
+    return () => { cancelled = true; if (objUrl) URL.revokeObjectURL(objUrl); };
+  }, [viewDoc]);
 
   // Categories that actually have documents, ordered by the DOC_CATEGORY list.
   const present = new Set((docs || []).map((d) => d.category).filter(Boolean));
@@ -78,9 +89,7 @@ export default function VaultPage() {
   }
 
   function handleView(doc) {
-    if (VIEW_DATAPAGE_URL) { setViewDoc(doc); return; }        // Caspio viewer DataPage
-    if (doc.fileUrl) { window.open(doc.fileUrl, '_blank', 'noopener'); return; }
-    window.alert(`"${doc.fileName}" can't be opened directly from here yet — the document viewer isn't wired up.`);
+    setViewDoc(doc);   // the view effect fetches the file blob
   }
 
   function resetUpload() {
@@ -231,15 +240,32 @@ export default function VaultPage() {
       {viewDoc && (
         <div onClick={() => setViewDoc(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: CARD, borderRadius: 14, width: '100%', maxWidth: 640, maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: SLATE, color: 'white' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: MBH_SAGE, color: 'white' }}>
               <span style={{ fontSize: 15, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{viewDoc.fileName}</span>
               <button onClick={() => setViewDoc(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', width: 30, height: 30, borderRadius: '50%', cursor: 'pointer', fontSize: 16, flexShrink: 0 }}>×</button>
             </div>
-            <iframe
-              title="View document"
-              src={`${VIEW_DATAPAGE_URL}?document_id=${encodeURIComponent(viewDoc.id)}`}
-              style={{ width: '100%', height: 540, border: 'none' }}
-            />
+            <div style={{ flex: 1, minHeight: 320, maxHeight: '74vh', overflow: 'auto', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
+              {viewError && <div style={{ fontSize: 13, color: SOFT_RED, padding: 40, textAlign: 'center' }}>{viewError}</div>}
+              {!viewError && !viewUrl && <div style={{ fontSize: 13, color: '#6b7280', padding: 40 }}>Loading…</div>}
+              {!viewError && viewUrl && viewDoc.fileType === 'img' && (
+                <img src={viewUrl} alt={viewDoc.fileName} style={{ maxWidth: '100%', maxHeight: '72vh', objectFit: 'contain', display: 'block' }} />
+              )}
+              {!viewError && viewUrl && viewDoc.fileType === 'pdf' && (
+                <iframe title="View document" src={viewUrl} style={{ width: '100%', height: '72vh', border: 'none' }} />
+              )}
+              {!viewError && viewUrl && viewDoc.fileType !== 'img' && viewDoc.fileType !== 'pdf' && (
+                <div style={{ textAlign: 'center', padding: 40 }}>
+                  <div style={{ fontSize: 40, marginBottom: 10 }}>{viewDoc.icon}</div>
+                  <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>This file type can’t be previewed here.</div>
+                  <a href={viewUrl} download={viewDoc.fileName} style={{ background: MBH_SAGE, color: 'white', textDecoration: 'none', borderRadius: 20, padding: '8px 20px', fontSize: 13, fontWeight: 600 }}>Download</a>
+                </div>
+              )}
+            </div>
+            {!viewError && viewUrl && (viewDoc.fileType === 'img' || viewDoc.fileType === 'pdf') && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 20px', borderTop: `1px solid ${BORDER}` }}>
+                <a href={viewUrl} download={viewDoc.fileName} style={{ color: MBH_SAGE, fontSize: 12.5, fontWeight: 600, textDecoration: 'none' }}>⤓ Download</a>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -119,6 +119,16 @@ export async function uploadDocument({ file, category, description }) {
   return r.json();
 }
 
+// Fetch a document's file as a Blob through the proxy (the fetch patch in auth.js
+// attaches the session JWT; the proxy streams the attachment bytes). Used by the
+// in-app viewer instead of embedding a Caspio Details DataPage — no cross-site
+// iframe, so the Firefox/Safari third-party-cookie 're-login' issue disappears.
+export async function fetchDocumentBlob(documentId) {
+  const r = await fetch(`${API_BASE}/rest/v2/tables/user_document/attachments/file_data/${documentId}`);
+  if (!r.ok) throw new Error(`document fetch failed (${r.status})`);
+  return r.blob();
+}
+
 // Soft delete — mark is_deleted=1 rather than physically removing (matches V1).
 export async function softDeleteDocument(documentId) {
   const where = encodeURIComponent(`document_id=${documentId}`);
