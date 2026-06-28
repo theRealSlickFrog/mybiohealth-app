@@ -1,8 +1,8 @@
 // Glucose Summary data layer — live CGM cycles from the proxy, mirroring the V1
 // glucose_summary page: cycles from member_info (CGM_CYCLE), per-cycle metrics
 // and 4-zone time-in-range from report_ready_result, clinician note (CGM_NOTE).
-// Four zones (same as V1): Baseline <6.3, Normal 6.3–7.8, Spike 7.8–10,
-// Strong Spike >10.
+// Four zones: Baseline <6.3, Normal 6.3–7.8, Elevated 7.8–10, Strongly Elevated >10.
+// (Labels are display-only; the zone keys spike/strong are unchanged.)
 
 const API_BASE = import.meta.env.DEV ? '/api' : 'https://kenises-api-proxy.netlify.app';
 
@@ -21,8 +21,8 @@ async function apiGet(table, where, limit) {
 const ZONE_DEFS = [
   { key: 'baseline', label: 'Baseline',     range: '< 6.3',   code: 'TIR_LT63' },
   { key: 'normal',   label: 'Normal',       range: '6.3–7.8', code: 'TIR_63_75' },
-  { key: 'spike',    label: 'Spike',        range: '7.8–10',  code: 'TIR_75_10' },
-  { key: 'strong',   label: 'Strong Spike', range: '> 10',    code: 'TIR_GT10' },
+  { key: 'spike',    label: 'Elevated',          range: '7.8–10',  code: 'TIR_75_10' },
+  { key: 'strong',   label: 'Strongly Elevated', range: '> 10',    code: 'TIR_GT10' },
 ];
 
 export async function loadGlucose(member) {

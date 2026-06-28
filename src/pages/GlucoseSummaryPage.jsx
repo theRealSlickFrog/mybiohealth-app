@@ -1,5 +1,5 @@
-// Glucose Summary — live CGM cycles, 4-zone time-in-range (matching V1:
-// Baseline <6.3 / Normal 6.3–7.8 / Spike 7.8–10 / Strong Spike >10). Cycle
+// Glucose Summary — live CGM cycles, 4-zone time-in-range
+// (Baseline <6.3 / Normal 6.3–7.8 / Elevated 7.8–10 / Strongly Elevated >10). Cycle
 // picker walks the member's real CGM_CYCLE records. Data via lib/glucose.js.
 import { useEffect, useState } from 'react';
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, AMBER, SOFT_RED, SLATE, OFFWHITE, CARD, BORDER, AMBER_BG, AMBER_TEXT } from '../lib/constants.js';
@@ -216,7 +216,7 @@ export default function GlucoseSummaryPage() {
       {cycles && <PersonalNote noteKey="glucose" />}
 
       <div style={{ padding: '13px 16px', background: '#eeeae4', borderRadius: 10, fontSize: 12, color: '#6b7280', lineHeight: 1.6, marginTop: 16 }}>
-        <strong style={{ color: SLATE }}>About CGM cycles.</strong> A CGM cycle is a 14-day continuous glucose snapshot. Zones: Baseline &lt; 6.3, Normal 6.3–7.8, Spike 7.8–10, Strong Spike &gt; 10 mmol/L. Time Above Range is the daily hours above 7.8 (Spike + Strong Spike).
+        <strong style={{ color: SLATE }}>About CGM cycles.</strong> A CGM cycle is a 14-day continuous glucose snapshot. Zones: Baseline &lt; 6.3, Normal 6.3–7.8, Elevated 7.8–10, Strongly Elevated &gt; 10 mmol/L. Time Above Range is the daily hours above 7.8 (Elevated + Strongly Elevated).
       </div>
     </div>
   );
