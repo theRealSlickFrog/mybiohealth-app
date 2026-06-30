@@ -90,6 +90,25 @@ export async function loadDocuments(member) {
   return rows.map(shapeDoc);
 }
 
+// Categories offered in the UPLOADER — driven by the reference data, not hardcoded.
+// Active DOC_CATEGORY codes come from reference_code (is_active, ordered by
+// sort_order); display names from reference_code_desc. Curate the offered set by
+// editing reference_code (is_active / sort_order) — no code change or deploy needed.
+const isActive = (v) => ['Y', 'Yes', 'True', '1', 1, true].includes(v);
+export async function loadUploadCategories() {
+  const codeWhere = encodeURIComponent(`domain='DOC_CATEGORY'`);
+  const descWhere = encodeURIComponent(`domain='DOC_CATEGORY' AND language='EN'`);
+  const [codeRes, descRes] = await Promise.all([
+    fetch(`${API_BASE}/rest/v2/tables/reference_code/records?q.select=code,sort_order,is_active&q.where=${codeWhere}&q.sort=sort_order`),
+    fetch(`${API_BASE}/rest/v2/tables/reference_code_desc/records?q.select=code,display_name&q.where=${descWhere}`),
+  ]);
+  if (!codeRes.ok) throw new Error(`upload categories ${codeRes.status}`);
+  const codes = (await codeRes.json()).Result || [];
+  const descs = descRes.ok ? ((await descRes.json()).Result || []) : [];
+  const names = Object.fromEntries(descs.map((d) => [d.code, d.display_name]));
+  return codes.filter((c) => isActive(c.is_active)).map((c) => ({ code: c.code, display: names[c.code] || c.code }));
+}
+
 // Document categories from DOC_CATEGORY (display order by display_name, same as V1).
 export async function loadDocCategories() {
   const where = encodeURIComponent(`domain='DOC_CATEGORY' AND language='EN'`);
