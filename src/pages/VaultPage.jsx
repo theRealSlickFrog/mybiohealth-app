@@ -213,12 +213,20 @@ export default function VaultPage() {
                   {d.uploadDateLabel}{d.category ? ` · ${d.category}` : ''}{d.description ? ` · ${d.description}` : ''}
                 </div>
               </div>
-              {tab === 'down' && <ViewedBadge doc={d} />}
-              <button onClick={() => handleView(d)} style={btnStyle(false)}>View</button>
-              {tab === 'up' && (
-                <button onClick={() => handleDelete(d)} disabled={busyId === d.id} style={btnStyle(true, busyId === d.id)}>
-                  {busyId === d.id ? '…' : 'Delete'}
-                </button>
+              {tab === 'down' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5, flexShrink: 0 }}>
+                  <button onClick={() => handleView(d)} style={btnStyle(false)}>View</button>
+                  {d.viewedDate
+                    ? <span style={{ fontSize: 11, color: '#374151', whiteSpace: 'nowrap' }}>You viewed this item on {d.viewedLabel}</span>
+                    : <span style={{ fontSize: 10, fontWeight: 700, color: MBH_SAGE, background: SAGE_BG, borderRadius: 20, padding: '2px 9px', whiteSpace: 'nowrap' }}>● New</span>}
+                </div>
+              ) : (
+                <>
+                  <button onClick={() => handleView(d)} style={btnStyle(false)}>View</button>
+                  <button onClick={() => handleDelete(d)} disabled={busyId === d.id} style={btnStyle(true, busyId === d.id)}>
+                    {busyId === d.id ? '…' : 'Delete'}
+                  </button>
+                </>
               )}
             </div>
           ))}
@@ -287,14 +295,6 @@ export default function VaultPage() {
       )}
     </div>
   );
-}
-
-// Download-tab per-row indicator: "New" until the member opens it, then the date.
-function ViewedBadge({ doc }) {
-  if (doc.viewedDate) {
-    return <span style={{ fontSize: 10.5, color: '#9ca3af', whiteSpace: 'nowrap', flexShrink: 0 }}>Viewed · {doc.viewedLabel}</span>;
-  }
-  return <span style={{ fontSize: 10, fontWeight: 700, color: MBH_SAGE, background: SAGE_BG, borderRadius: 20, padding: '2px 9px', whiteSpace: 'nowrap', flexShrink: 0 }}>● New</span>;
 }
 
 function Chip({ label, active, onClick }) {
