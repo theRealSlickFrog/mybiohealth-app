@@ -1,5 +1,5 @@
 // "Your habits this week" — weekly micro-habit check-in, V1 mechanic & look.
-// Each active assignment (microhabit_x_member + microhabit catalog) is a row:
+// Each active assignment (member_x_microhabit + microhabit catalog) is a row:
 // name, Intended Weekly Frequency, and an Actual Weekly Frequency −/＋ count
 // stepper (0–7). Save diffs the entered count against the week's rows in
 // microhabit_x_member_log — POSTing logs on un-logged days / DELETing from the
@@ -64,7 +64,7 @@ export default function WeeklyCheckin() {
     (async () => {
       try {
         const [axResp, catResp] = await Promise.all([
-          fetch(`${API_BASE}/rest/v2/tables/microhabit_x_member/records?q.where=${encodeURIComponent(`member_id='${member}'`)}&q.limit=100`),
+          fetch(`${API_BASE}/rest/v2/tables/member_x_microhabit/records?q.where=${encodeURIComponent(`member_id='${member}'`)}&q.limit=100`),
           fetch(`${API_BASE}/rest/v2/tables/microhabit/records?q.limit=500`),
         ]);
         const ax = (axResp.ok ? (await axResp.json()).Result : []) || [];

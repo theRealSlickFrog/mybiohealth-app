@@ -89,7 +89,7 @@ export async function loadGlucoseExtras(member) {
     apiGet('report_ready_result', `member_id='${member}' AND marker_code IN (${inList})`, 1000),
     apiGet('reference_code_desc', `domain='MARKERS' AND code IN (${inList})`, 200),
     apiGet('marker_x_microhabit', null, 1000),
-    apiGet('microhabit_x_member', `member_id='${member}'`, 500),
+    apiGet('member_x_microhabit', `member_id='${member}'`, 500),
   ]);
 
   const hasData = (code) => markerRows.some((r) => norm(r.marker_code) === norm(code));
