@@ -78,16 +78,42 @@ function shapeDoc(d) {
     uploadDate: d.upload_date || null,
     uploadDateLabel: formatDate(d.upload_date),
     fileUrl: fileUrlOf(d.file_data),
+    // 'up' = member uploaded to us (default; legacy rows are blank), 'down' = we
+    // shared it for them to download. viewedDate is stamped when the member opens
+    // a download doc (see markViewed).
+    docDirection: (getFieldValue(d.doc_direction) || 'up').toLowerCase(),
+    viewedDate: d.viewed_dt || null,
+    viewedLabel: d.viewed_dt ? formatDate(d.viewed_dt) : null,
   };
 }
 
 // Live documents for a member — excludes soft-deleted, newest first.
-export async function loadDocuments(member) {
-  const where = encodeURIComponent(`legal_entity_id='${member}' AND (is_deleted IS NULL OR is_deleted=0)`);
+// direction: 'up' (member uploads; includes legacy blank rows) or 'down'
+// (docs we shared for download). Splits the two vault tabs.
+export async function loadDocuments(member, direction = 'up') {
+  const dirClause = direction === 'down'
+    ? ` AND doc_direction='down'`
+    : ` AND (doc_direction IS NULL OR doc_direction='' OR doc_direction='up')`;
+  const where = encodeURIComponent(`legal_entity_id='${member}' AND (is_deleted IS NULL OR is_deleted=0)${dirClause}`);
   const r = await fetch(`${API_BASE}/rest/v2/tables/user_document/records?q.where=${where}&q.sort=upload_date DESC&q.limit=500`);
   if (!r.ok) throw new Error(`vault documents ${r.status}`);
   const rows = (await r.json()).Result || [];
   return rows.map(shapeDoc);
+}
+
+// Stamp viewed_dt = now on a download doc when the member opens it. Caller
+// gates this to genuine member sessions (never admin/impersonation). Caspio
+// Date/Time wants 'YYYY-MM-DDTHH:mm:ss'. Returns the stamped value.
+export async function markViewed(documentId) {
+  const now = new Date().toISOString().slice(0, 19);
+  const where = encodeURIComponent(`document_id=${documentId}`);
+  const r = await fetch(`${API_BASE}/rest/v2/tables/user_document/records?q.where=${where}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ viewed_dt: now }),
+  });
+  if (!r.ok) throw new Error(`mark viewed ${r.status}`);
+  return now;
 }
 
 // Categories offered in the UPLOADER — driven by the reference data, not hardcoded.
@@ -95,18 +121,32 @@ export async function loadDocuments(member) {
 // sort_order); display names from reference_code_desc. Curate the offered set by
 // editing reference_code (is_active / sort_order) — no code change or deploy needed.
 const isActive = (v) => ['Y', 'Yes', 'True', '1', 1, true].includes(v);
-export async function loadUploadCategories() {
-  const codeWhere = encodeURIComponent(`domain='DOC_CATEGORY'`);
-  const descWhere = encodeURIComponent(`domain='DOC_CATEGORY' AND language='EN'`);
+
+// Active categories for a reference domain, ordered by sort_order, joined to
+// their EN display names. Shared by the Upload (DOC_CATEGORY) and Download
+// (DOWNLOAD_DOC_CATEGORY) tabs.
+async function loadActiveCategories(domain) {
+  const codeWhere = encodeURIComponent(`domain='${domain}'`);
+  const descWhere = encodeURIComponent(`domain='${domain}' AND language='EN'`);
   const [codeRes, descRes] = await Promise.all([
     fetch(`${API_BASE}/rest/v2/tables/reference_code/records?q.select=code,sort_order,is_active&q.where=${codeWhere}&q.sort=sort_order`),
     fetch(`${API_BASE}/rest/v2/tables/reference_code_desc/records?q.select=code,display_name&q.where=${descWhere}`),
   ]);
-  if (!codeRes.ok) throw new Error(`upload categories ${codeRes.status}`);
+  if (!codeRes.ok) throw new Error(`categories ${domain} ${codeRes.status}`);
   const codes = (await codeRes.json()).Result || [];
   const descs = descRes.ok ? ((await descRes.json()).Result || []) : [];
   const names = Object.fromEntries(descs.map((d) => [d.code, d.display_name]));
   return codes.filter((c) => isActive(c.is_active)).map((c) => ({ code: c.code, display: names[c.code] || c.code }));
+}
+
+export function loadUploadCategories() {
+  return loadActiveCategories('DOC_CATEGORY');
+}
+
+// Categories for the Download tab (docs we shared). View-only — no uploader —
+// so this feeds the filter chips only.
+export function loadDownloadCategories() {
+  return loadActiveCategories('DOWNLOAD_DOC_CATEGORY');
 }
 
 // Document categories from DOC_CATEGORY (display order by display_name, same as V1).
