@@ -91,18 +91,26 @@ export default function VaultPage() {
     }
   }
 
-  // View = open the document in a new browser tab via a short-lived signed URL
-  // from the proxy (see getDownloadUrl). The proxy streams it with a real
-  // Content-Type + filename, so the browser/iOS renders or saves it natively — no
-  // blobs, no download-attribute quirks (the iPad-friendly path). We open the tab
-  // synchronously inside the click (so popup blockers allow it) and point it at the
-  // signed URL once minted. For a download doc, also stamp viewed_dt — but only on
-  // a genuine member session (never admin/impersonation, which would falsely mark
-  // it "viewed" when we load it ourselves to confirm it opened), and only once.
+  // View = open the document in a floating popup WINDOW over the app (not a sibling
+  // tab) via a short-lived signed URL from the proxy (see getDownloadUrl). The proxy
+  // streams it with a real Content-Type + filename, so the browser/iOS renders or
+  // saves it natively — no blobs, no download-attribute quirks (the iPad-friendly
+  // path). We open the window synchronously inside the click (so popup blockers
+  // allow it) — passing size/position features makes browsers spawn a standalone
+  // floating window, centered over the current one — then point it at the signed URL
+  // once minted. (Mobile Safari ignores the features and just uses a tab — fine.)
+  // For a download doc, also stamp viewed_dt — but only on a genuine member session
+  // (never admin/impersonation, which would falsely mark it "viewed" when we load it
+  // ourselves to confirm it opened), and only once.
   function handleView(doc) {
-    const win = window.open('', '_blank');
+    const w = Math.min(1000, window.screen.availWidth - 80);
+    const h = Math.min(1200, window.screen.availHeight - 80);
+    const left = Math.round(window.screenX + Math.max(0, (window.outerWidth - w) / 2));
+    const top = Math.round(window.screenY + Math.max(0, (window.outerHeight - h) / 2));
+    const features = `popup,width=${w},height=${h},left=${left},top=${top}`;
+    const win = window.open('', '_blank', features);
     getDownloadUrl(doc.id)
-      .then((url) => { if (win) win.location = url; else window.open(url, '_blank', 'noopener'); })
+      .then((url) => { if (win) win.location = url; else window.open(url, '_blank', features); })
       .catch((e) => {
         console.warn('View failed:', e);
         if (win) win.close();
