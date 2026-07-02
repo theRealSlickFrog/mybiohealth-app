@@ -163,15 +163,24 @@ export default function VaultPage() {
       <h1 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 28, color: SLATE, marginBottom: 4, fontWeight: 'normal' }}>MyVault</h1>
       <div style={{ fontSize: 12, color: '#374151', marginBottom: 16 }}>Your documents — private and secure</div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 18, borderBottom: `1px solid ${BORDER}` }}>
-        {[{ key: 'up', label: 'Upload' }, { key: 'down', label: 'Download' }].map((t) => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{
-            background: 'none', border: 'none', marginBottom: -1, cursor: 'pointer',
-            borderBottom: tab === t.key ? `2px solid ${MBH_SAGE}` : '2px solid transparent',
-            color: tab === t.key ? SLATE : '#9ca3af', fontSize: 14, fontWeight: 600, padding: '8px 14px',
-          }}>{t.label}</button>
-        ))}
+      {/* Tabs — descriptive cards showing the direction of each */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
+        {[
+          { key: 'up', icon: '⬆️', title: 'Upload', dir: 'You → us', desc: 'Send a file to your vault' },
+          { key: 'down', icon: '⬇️', title: 'Download', dir: 'Us → you', desc: 'Get a copy of your files' },
+        ].map((t) => {
+          const on = tab === t.key;
+          return (
+            <button key={t.key} onClick={() => setTab(t.key)} style={{
+              flex: 1, textAlign: 'left', cursor: 'pointer', borderRadius: 12, padding: '12px 14px',
+              background: on ? SAGE_BG : CARD, border: `1.5px solid ${on ? MBH_SAGE : BORDER}`,
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: on ? MBH_SAGE : SLATE }}>{t.icon} {t.title}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: on ? MBH_SAGE : '#6b7280', marginTop: 3 }}>{t.dir}</div>
+              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>{t.desc}</div>
+            </button>
+          );
+        })}
       </div>
 
       {/* Category filter chips */}
