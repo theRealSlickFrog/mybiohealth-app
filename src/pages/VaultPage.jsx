@@ -11,7 +11,7 @@ import { MBH_SAGE, SAGE_BG, AMBER_BG, SLATE, CARD, BORDER, SOFT_RED } from '../l
 import { getStoredGuid, isAdminSession } from '../lib/auth.js';
 import {
   loadDocuments, loadDocCategories, loadUploadCategories, loadDownloadCategories,
-  softDeleteDocument, uploadDocument, fetchDocumentBlob, markViewed, formatDate, DEV_MEMBER,
+  softDeleteDocument, uploadDocument, getDownloadUrl, markViewed, formatDate, DEV_MEMBER,
 } from '../lib/vault.js';
 
 const ALL = '__all__';
@@ -91,33 +91,18 @@ export default function VaultPage() {
     }
   }
 
-  // View = open the document in a new browser tab (no in-app popup). The file must
-  // be fetched as an authorized Blob (the proxy needs the session JWT, which a
-  // plain <a target="_blank"> can't send), so we open the tab synchronously inside
-  // the click (so popup blockers allow it) and navigate it once the bytes arrive.
-  // For a download doc, also stamp viewed_dt — but only on a genuine member
-  // session (never admin/impersonation, which would falsely mark it "viewed" when
-  // we load it ourselves to confirm it opened), and only the first time.
+  // View = open the document in a new browser tab via a short-lived signed URL
+  // from the proxy (see getDownloadUrl). The proxy streams it with a real
+  // Content-Type + filename, so the browser/iOS renders or saves it natively — no
+  // blobs, no download-attribute quirks (the iPad-friendly path). We open the tab
+  // synchronously inside the click (so popup blockers allow it) and point it at the
+  // signed URL once minted. For a download doc, also stamp viewed_dt — but only on
+  // a genuine member session (never admin/impersonation, which would falsely mark
+  // it "viewed" when we load it ourselves to confirm it opened), and only once.
   function handleView(doc) {
-    // The proxy serves attachments as application/octet-stream, so the browser
-    // won't render them — it downloads a name-less blob. Fetch the authorized
-    // blob, then: for a previewable type (PDF/image) re-tag it with the right
-    // MIME and open it inline in a new tab (opened synchronously so popup
-    // blockers allow it); for anything else, download it with its real filename.
-    const inlineType = mimeForDoc(doc);           // 'application/pdf' | 'image/…' | ''
-    const win = inlineType ? window.open('', '_blank') : null;
-    fetchDocumentBlob(doc.id)
-      .then((blob) => {
-        const type = inlineType || blob.type || 'application/octet-stream';
-        const url = URL.createObjectURL(type !== blob.type ? new Blob([blob], { type }) : blob);
-        if (inlineType) {
-          if (win) win.location = url; else window.open(url, '_blank', 'noopener');
-        } else {
-          const a = document.createElement('a');
-          a.href = url; a.download = doc.fileName; a.click();
-        }
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
-      })
+    const win = window.open('', '_blank');
+    getDownloadUrl(doc.id)
+      .then((url) => { if (win) win.location = url; else window.open(url, '_blank', 'noopener'); })
       .catch((e) => {
         console.warn('View failed:', e);
         if (win) win.close();
@@ -302,19 +287,6 @@ function ViewedBadge({ doc }) {
     return <span style={{ fontSize: 10.5, color: '#9ca3af', whiteSpace: 'nowrap', flexShrink: 0 }}>Viewed · {doc.viewedLabel}</span>;
   }
   return <span style={{ fontSize: 10, fontWeight: 700, color: MBH_SAGE, background: SAGE_BG, borderRadius: 20, padding: '2px 9px', whiteSpace: 'nowrap', flexShrink: 0 }}>● New</span>;
-}
-
-// Best-guess MIME for inline viewing when the fetched Blob has no type, so the
-// browser renders PDFs/images inline instead of downloading. '' = let it download.
-function mimeForDoc(doc) {
-  if (doc.fileType === 'pdf') return 'application/pdf';
-  if (doc.fileType === 'img') {
-    const ext = (doc.fileName.split('.').pop() || '').toLowerCase();
-    if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
-    if (ext === 'svg') return 'image/svg+xml';
-    return `image/${ext}`;
-  }
-  return '';
 }
 
 function Chip({ label, active, onClick }) {

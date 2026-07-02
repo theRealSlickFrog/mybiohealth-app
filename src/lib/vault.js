@@ -188,6 +188,22 @@ export async function fetchDocumentBlob(documentId) {
   return r.blob();
 }
 
+// Mint a short-lived signed link and return the full /download URL for a doc.
+// The POST is authorized (the fetch patch attaches the session JWT); the returned
+// URL is a plain navigation target the browser/iOS can open natively (proper
+// Content-Type + filename from the proxy) — no blob, no download-attribute quirks,
+// which is what iPad/Safari needs.
+export async function getDownloadUrl(documentId) {
+  const r = await fetch(`${API_BASE}/download-token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ doc: documentId }),
+  });
+  if (!r.ok) throw new Error(`download token ${r.status}`);
+  const { token } = await r.json();
+  return `${API_BASE}/download?doc=${documentId}&t=${encodeURIComponent(token)}`;
+}
+
 // Soft delete — mark is_deleted=1 rather than physically removing (matches V1).
 export async function softDeleteDocument(documentId) {
   const where = encodeURIComponent(`document_id=${documentId}`);
