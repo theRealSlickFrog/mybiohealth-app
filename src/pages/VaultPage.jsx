@@ -99,12 +99,23 @@ export default function VaultPage() {
   // session (never admin/impersonation, which would falsely mark it "viewed" when
   // we load it ourselves to confirm it opened), and only the first time.
   function handleView(doc) {
-    const win = window.open('', '_blank');
+    // The proxy serves attachments as application/octet-stream, so the browser
+    // won't render them — it downloads a name-less blob. Fetch the authorized
+    // blob, then: for a previewable type (PDF/image) re-tag it with the right
+    // MIME and open it inline in a new tab (opened synchronously so popup
+    // blockers allow it); for anything else, download it with its real filename.
+    const inlineType = mimeForDoc(doc);           // 'application/pdf' | 'image/…' | ''
+    const win = inlineType ? window.open('', '_blank') : null;
     fetchDocumentBlob(doc.id)
       .then((blob) => {
-        const out = blob.type ? blob : (() => { const t = mimeForDoc(doc); return t ? new Blob([blob], { type: t }) : blob; })();
-        const url = URL.createObjectURL(out);
-        if (win) win.location = url; else window.open(url, '_blank', 'noopener');
+        const type = inlineType || blob.type || 'application/octet-stream';
+        const url = URL.createObjectURL(type !== blob.type ? new Blob([blob], { type }) : blob);
+        if (inlineType) {
+          if (win) win.location = url; else window.open(url, '_blank', 'noopener');
+        } else {
+          const a = document.createElement('a');
+          a.href = url; a.download = doc.fileName; a.click();
+        }
         setTimeout(() => URL.revokeObjectURL(url), 60000);
       })
       .catch((e) => {
