@@ -88,7 +88,7 @@ function RelatedCard({ sub }) {
       {open && (
         <div style={{ padding: '0 12px 12px' }}>
           {hasChart
-            ? <PlotlyChart history={sub.history} thresholds={sub.thresholds} unit={sub.unit} markerName={sub.name} height={180} />
+            ? <PlotlyChart history={sub.history} thresholds={sub.thresholds} reference={sub.reference} unit={sub.unit} markerName={sub.name} height={180} />
             : <div style={{ fontSize: 12, color: GAP_TEXT, fontStyle: 'italic', padding: '2px 2px 4px' }}>Not yet tested — add to next draw.</div>}
         </div>
       )}
@@ -140,7 +140,7 @@ function MarkerCard({ marker, defaultOpen }) {
         <div style={{ padding: '0 20px 18px' }}>
           {marker.history && marker.history.length >= 1 && (
             <div style={{ background: OFFWHITE, borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
-              <PlotlyChart history={marker.history} thresholds={marker.thresholds} unit={marker.unit} markerName={marker.name} height={300} />
+              <PlotlyChart history={marker.history} thresholds={marker.thresholds} reference={marker.reference} unit={marker.unit} markerName={marker.name} height={300} />
             </div>
           )}
           <Related related={marker.related} />

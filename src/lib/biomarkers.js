@@ -86,15 +86,17 @@ function historyOf(grp) {
 }
 const nameOf = (code, names) => (names[code] && names[code].display_name) || code;
 
-function buildRelatedFor(code, g, relMap, names) {
+function buildRelatedFor(code, g, relMap, names, refs) {
   return (relMap[code] || []).map((rc) => {
+    const ref = refs[(rc.code || '').toUpperCase()] || null;
     const sg = g[rc.code];
     if (!sg || !sg.length) {
-      return { name: nameOf(rc.code, names), unit: '', latest: null, optimal: '—', trendDir: 'none', thresholds: null, history: [] };
+      return { code: rc.code, name: nameOf(rc.code, names), unit: '', latest: null, optimal: '—', trendDir: 'none', thresholds: null, history: [], reference: ref };
     }
     const last = sg[sg.length - 1];
     const t = thresholdsFromRow(last);
     return {
+      code: rc.code,
       name: nameOf(rc.code, names),
       unit: last.measurement || '',
       latest: fmtVal(last.marker_value),
@@ -102,11 +104,12 @@ function buildRelatedFor(code, g, relMap, names) {
       trendDir: trendOf(sg),
       thresholds: t,
       history: historyOf(sg),
+      reference: ref,
     };
   });
 }
 
-export function buildMarkers(rows, relMap, names) {
+export function buildMarkers(rows, relMap, names, refs = {}) {
   const g = groupRows(rows);
   const mains = Object.values(g)
     .filter((grp) => grp[0].display_order != null)
@@ -127,7 +130,8 @@ export function buildMarkers(rows, relMap, names) {
       thresholds: t,
       history: historyOf(grp),
       description: (meta.display_text || '').split(/\r?\n/)[0],
-      related: buildRelatedFor(code, g, relMap, names),
+      reference: refs[(code || '').toUpperCase()] || null,
+      related: buildRelatedFor(code, g, relMap, names, refs),
     };
   });
 }
@@ -159,13 +163,27 @@ function namesFrom(rows) {
   }
   return m;
 }
+// Reference/target points keyed by marker code, from member_info rows whose
+// feature is '<MARKER>-reference' (number_1=value, date_1=date, text_box_1=direction).
+// Same source MyStrategy uses, so both pages render the reference identically.
+function refsMapFrom(rows) {
+  const m = {};
+  for (const r of rows) {
+    const code = (r.feature || '').replace(/-reference$/i, '').trim().toUpperCase();
+    if (!code) continue;
+    m[code] = { value: r.number_1, date: r.date_1, direction: (r.text_box_1 || '').trim() };
+  }
+  return m;
+}
 
 // Fetch + build the member's markers. Throws on network/CORS failure.
 export async function loadBiomarkers(member) {
-  const [rows, rel, names] = await Promise.all([
+  const [rows, rel, names, refRows] = await Promise.all([
     apiGet('report_ready_result', `member_id='${member}'`, 1000),
     apiGet('marker_x_marker', "relationship_type='related'", 500),
     apiGet('reference_code_desc', "domain='MARKERS'", 500),
+    // reference targets — non-fatal (charts still render if this fails)
+    apiGet('member_info', `member_id='${member}' AND feature LIKE '%-reference'`, 100).catch(() => []),
   ]);
-  return buildMarkers(rows, relMapFrom(rel), namesFrom(names));
+  return buildMarkers(rows, relMapFrom(rel), namesFrom(names), refsMapFrom(refRows));
 }
