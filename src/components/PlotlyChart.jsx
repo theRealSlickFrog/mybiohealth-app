@@ -99,13 +99,21 @@ export default function PlotlyChart({ history, thresholds, reference, unit, mark
     const xMin = new Date(dt0.getTime() - span * 0.08).toISOString().split('T')[0];
     const xMax = new Date(dtN.getTime() + span * 0.08).toISOString().split('T')[0];
 
-    // Zone shapes
+    // Zone shapes. The DRIFT band sits on the "bad" side of optimal, which flips
+    // with concern_direction: for higher-is-bad ('>') it's ABOVE optimal
+    // (upper_optimal→upper_drift); for higher-is-good ('<', e.g. EGFR/HDL) it's
+    // BELOW optimal (lower_drift→lower_optimal). Always drawing it on the upper
+    // side painted the drift band on top of the optimal band for inverted markers.
+    const higherIsBad = (t.concern_direction || '') !== '<';
     const shapes = [];
     if (t.lower_optimal != null && t.upper_optimal != null) {
       shapes.push({ type:'rect', xref:'paper', yref:'y', x0:0, x1:1, y0:t.lower_optimal, y1:t.upper_optimal, fillcolor: cfg.optimalColor, line:{width:0} });
     }
-    if (t.upper_optimal != null && t.upper_drift != null && parseFloat(t.upper_optimal) !== parseFloat(t.upper_drift)) {
-      shapes.push({ type:'rect', xref:'paper', yref:'y', x0:0, x1:1, y0:t.upper_optimal, y1:t.upper_drift, fillcolor: cfg.driftColor, line:{width:0} });
+    const drift = higherIsBad
+      ? { a: t.upper_optimal, b: t.upper_drift }    // above optimal
+      : { a: t.lower_drift,   b: t.lower_optimal };  // below optimal (inverted)
+    if (drift.a != null && drift.b != null && parseFloat(drift.a) !== parseFloat(drift.b)) {
+      shapes.push({ type:'rect', xref:'paper', yref:'y', x0:0, x1:1, y0:drift.a, y1:drift.b, fillcolor: cfg.driftColor, line:{width:0} });
     }
 
     const dashFor = (style) => ({ solid: 'solid', dot: 'dot', dash: 'dash', dashdot: 'dashdot' }[style] || 'dash');
@@ -117,10 +125,12 @@ export default function PlotlyChart({ history, thresholds, reference, unit, mark
         line:{ color: '#9ca3af', width: conf.thickness || 1, dash: dashFor(conf.style) },
       };
     };
+    // Outer drift boundary line also flips with direction (upper_drift vs lower_drift).
+    const driftEdge = higherIsBad ? t.upper_drift : t.lower_drift;
     [
       lineFor(t.lower_optimal, cfg.zoneLines.optimal_lower),
       lineFor(t.upper_optimal, cfg.zoneLines.optimal_upper),
-      lineFor(t.upper_drift,   cfg.zoneLines.drift_upper),
+      lineFor(driftEdge,       cfg.zoneLines.drift_upper),
       lineFor(t.concern_threshold, cfg.zoneLines.concern),
     ].forEach((s) => s && shapes.push(s));
 
