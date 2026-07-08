@@ -371,9 +371,14 @@ export default function GlucoseSummaryPage() {
 
   useEffect(() => {
     let cancelled = false;
+    // API-CONNECT(cycles): GET cgm_cycle by member GUID (lib/glucoseCycle.js).
+    // Serves the bundled MOCK cycle (amber "Sample cycle" banner) until the
+    // Caspio table exists and this member has rows — no code change to go live.
     loadGlucoseCycles(member)
       .then((cs) => { if (!cancelled) setCycles(cs); })
       .catch((e) => { console.error('glucose cycles failed:', e); if (!cancelled) setCycles([]); });
+    // Already live: Related Markers + MicroHabits from the existing tables
+    // (system_parm, report_ready_result, marker_x_microhabit, …).
     loadGlucoseExtras(member)
       .then((x) => { if (!cancelled) setExtras(x); })
       .catch((e) => { console.warn('Glucose extras failed:', e); });
@@ -399,12 +404,18 @@ export default function GlucoseSummaryPage() {
     if (!cyc) return;
     let cancelled = false;
     setVoices(null); setVStatus({});
+    // API-CONNECT(voices-read): GET member_info CGM_VOICE_* rows for this
+    // cycle (lib/glucoseCycle.js). While the MOCK sample cycle is showing,
+    // the boxes stay local-only — nothing is fetched or written.
     if (cyc.sample) { setVoices(EMPTY_VOICES()); return; }
     loadVoices(member, cyc.endKey).then((v) => { if (!cancelled) setVoices(v); });
     return () => { cancelled = true; };
   }, [cyc && cyc.endKey]);
   useEffect(() => () => { for (const k in timers.current) clearTimeout(timers.current[k]); }, []);
 
+  // API-CONNECT(voices-write): debounced autosave → saveVoice() PUTs/POSTs the
+  // member_info row (lib/glucoseCycle.js). Requires the proxy to pass PUT for
+  // member_info; skipped (status "sample — not saved") on the MOCK cycle.
   const editVoice = (key, text) => {
     setVoices((v) => v ? { ...v, [key]: { ...v[key], text } } : v);
     if (cyc.sample) { setVStatus((s) => ({ ...s, [key]: 'local' })); return; }

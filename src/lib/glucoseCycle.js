@@ -3,13 +3,23 @@
 // pipeline uploads raw 15-minute readings + watched events + notes; every
 // derived figure (percentile bands, per-day medians, time-above, weekday/
 // weekend splits) is computed HERE, client-side, so Caspio stores data, not
-// math. Payload contract: pipeline/CASPIO_CGM_API.md.
+// math. Payload contract + connection checklist: pipeline/CASPIO_CGM_API.md.
+//
+// The page currently runs on bundled MOCK DATA (glucoseSample.js) because the
+// cgm_cycle table doesn't exist yet. No code change is needed to go live:
+// every request below is already wired — grep "API-CONNECT" for the exact
+// touchpoints — and the sample retires automatically once the member's first
+// real row comes back from Caspio.
 //
 // Voices (Member / MBH / Clinician free text per cycle) live in member_info
 // rows: feature = CGM_VOICE_* keyed by date_2 = cycle end date.
 
 import { SAMPLE_META, SAMPLE_PAYLOAD } from './glucoseSample.js';
 
+// API-CONNECT(proxy): every call goes through the Caspio REST proxy — the same
+// one auth.js and the other data layers use. Dev traffic rides the Vite /api
+// proxy (vite.config.js) to dodge the CORS allowlist; production calls it
+// directly. The session JWT is attached globally by auth.js's fetch patch.
 const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV)
   ? '/api' : 'https://kenises-api-proxy.netlify.app';
 
@@ -184,8 +194,18 @@ export function sampleCycle() {
   return buildCycle({ ...SAMPLE_META, payload: SAMPLE_PAYLOAD, sample: true });
 }
 
-// Newest first. Falls back to the bundled sample cycle (flagged sample:true)
-// when the member has no cgm_cycle rows yet or the table isn't live.
+// API-CONNECT(cycles): the page's main data source.
+//
+//   GET {proxy}/rest/v2/tables/cgm_cycle/records
+//       ?q.where=member_id='<UserGUID>'&q.limit=100
+//
+// Expects Caspio's usual envelope { Result: [row, …] } where each row has
+// member_id, cycle_number, start_date, end_date, label, payload (JSON string —
+// see pipeline/CASPIO_CGM_API.md §2). To connect: create the cgm_cycle table,
+// allow GET for it in the proxy, and upload rows built by
+// pipeline/build_payload.py. Nothing here changes when that happens — the
+// mock below is only reached while the request errors (table missing) or
+// returns no rows for this member.
 export async function loadGlucoseCycles(member) {
   let rows = [];
   try {
@@ -195,6 +215,8 @@ export async function loadGlucoseCycles(member) {
   }
   const cycles = rows.map(rowToCycle).filter(Boolean)
     .sort((a, b) => (b.number || 0) - (a.number || 0) || new Date(b.end) - new Date(a.end));
+  // MOCK DATA fallback — the bundled M4 sample (flagged sample:true, shown with
+  // an amber banner). Delete nothing to go live; real rows above win.
   return cycles.length ? cycles : [sampleCycle()];
 }
 
@@ -207,6 +229,15 @@ export const VOICES = [
 
 const dateKey = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 
+// API-CONNECT(voices-read): loads the three boxes for one cycle.
+//
+//   GET {proxy}/rest/v2/tables/member_info/records
+//       ?q.where=member_id='<UserGUID>' AND feature IN ('CGM_VOICE_MEMBER',
+//                'CGM_VOICE_MBH','CGM_VOICE_CLINICIAN')
+//
+// member_info already exists and is GET-readable through the proxy today —
+// rows just need to be written (by saveVoice below, or by MBH/clinician
+// tooling). Matched to the cycle client-side on date_2 = cycle end date.
 export async function loadVoices(member, endKey) {
   const out = {};
   for (const v of VOICES) out[v.key] = { text: '', exists: false };
@@ -222,8 +253,17 @@ export async function loadVoices(member, endKey) {
   return out;
 }
 
-// Update-then-insert: PUT against (member_id, feature, date_2); if the row we
-// believed existed no longer matches, fall through to a POST rather than fail.
+// API-CONNECT(voices-write): autosave for the three boxes (update-then-insert).
+//
+//   PUT  {proxy}/rest/v2/tables/member_info/records?q.where=member_id='…'
+//        AND feature='CGM_VOICE_*' AND date_2='YYYY-MM-DD'   body {text_box_1}
+//   POST {proxy}/rest/v2/tables/member_info/records          (row didn't exist)
+//
+// To connect: confirm the proxy passes PUT through for member_info (POST is
+// already used elsewhere, e.g. activity_log). date_2 must be stored date-only
+// or the PUT's where-clause never matches — see CASPIO_CGM_API.md §3. Note
+// saves are skipped entirely while the mock sample cycle is showing (the page
+// marks them "sample — not saved").
 export async function saveVoice(member, endKey, voiceKey, text, exists) {
   const v = VOICES.find((x) => x.key === voiceKey);
   if (!v) throw new Error(`unknown voice '${voiceKey}'`);

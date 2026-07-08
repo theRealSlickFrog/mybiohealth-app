@@ -8,6 +8,54 @@ figures client-side (percentile bands, per-day medians, time-above-7.8,
 weekday/weekend splits, sensor coverage) — Caspio stores data, not math.
 Until a member has rows here, the app shows a clearly-labeled sample cycle.
 
+## 0. Connection checklist
+
+The frontend is **fully wired already** — every request below ships in the
+app today, and the mock sample cycle retires automatically per member once
+real rows come back. Nothing in `src/` needs to change to go live. Grep the
+code for **`API-CONNECT`** to see each touchpoint:
+
+| Tag                         | Where                                    | Call                                        |
+| --------------------------- | ---------------------------------------- | ------------------------------------------- |
+| `API-CONNECT(proxy)`        | `src/lib/glucoseCycle.js` (API_BASE)     | proxy base URL, dev `/api` vs prod          |
+| `API-CONNECT(cycles)`       | `glucoseCycle.js` → `loadGlucoseCycles`  | `GET cgm_cycle` by member GUID              |
+| `API-CONNECT(voices-read)`  | `glucoseCycle.js` → `loadVoices`         | `GET member_info` CGM_VOICE_* rows          |
+| `API-CONNECT(voices-write)` | `glucoseCycle.js` → `saveVoice`          | `PUT`/`POST member_info` (autosave)         |
+| (mock)                      | `src/lib/glucoseSample.js`               | fallback data — keep; it's the empty state  |
+
+Steps to connect, in order:
+
+1. **Create the `cgm_cycle` table** in Caspio with the fields in §1.
+2. **Proxy allowlist** on kenises-api-proxy: allow `GET` for `cgm_cycle`, and
+   confirm `PUT` passes through for `member_info` (`POST` already works —
+   activity_log uses it). No frontend origin changes needed.
+3. **Generate cycle records** from a member's Libre export (§4):
+   ```
+   python pipeline/deid.py export.csv --member-code M1 --registry members.json --out-dir cleaned/
+   python pipeline/build_payload.py cleaned/M1_*_cleaned.csv --out-dir cycles/ --member-id <UserGUID>
+   ```
+4. **Upload** each file (or paste rows into Caspio while volume is low):
+   ```
+   curl -X POST "https://kenises-api-proxy.netlify.app/rest/v2/tables/cgm_cycle/records" \
+        -H "Content-Type: application/json" \
+        -d @cycles/cycle_01_2025-12-07.json
+   ```
+   (Each file is exactly one row: member_id, cycle_number, start_date,
+   end_date, label, payload. Add auth headers if/when the proxy enforces them.)
+5. **Verify in the app**, logged in as that member (or admin view-as):
+   - the amber "Sample cycle" banner is gone and the newest cycle shows;
+   - the header pager reads "cycle 1 / N" and walks older cycles;
+   - typing in the Member voice box settles to "saved" (not "couldn't save").
+
+Troubleshooting:
+
+| Symptom                              | Likely cause                                                        |
+| ------------------------------------ | ------------------------------------------------------------------- |
+| Sample banner won't go away          | `GET cgm_cycle` blocked by proxy, or no rows for this exact GUID (console shows `cgm_cycle fetch failed`) |
+| Cycle missing/blank chart            | `payload` not valid JSON or missing `days` — the row is skipped (console warning) |
+| Voice box stuck on "couldn't save"   | proxy rejects `PUT member_info`, or `date_2` stored with a time component so the where-clause never matches |
+| Voices save but vanish on reload     | `date_2` on the row ≠ cycle `end_date` (must match, date-only)      |
+
 ## 1. Table: `cgm_cycle`
 
 One row per member per 14-day cycle.

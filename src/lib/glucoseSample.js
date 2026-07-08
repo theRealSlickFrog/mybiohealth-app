@@ -1,5 +1,8 @@
-// Sample CGM cycle — a real, de-identified Libre 2 cycle (M4, Jun 11–24 2026).
-// Shown, clearly labeled, when a member has no cgm_cycle rows in Caspio yet.
+// MOCK DATA — a real, de-identified Libre 2 cycle (M4, Jun 11–24 2026) shown,
+// clearly labeled, while a member has no cgm_cycle rows in Caspio. It retires
+// automatically per member once live rows exist — see glucoseCycle.js,
+// API-CONNECT(cycles). Keep this file even after go-live: it doubles as the
+// empty state for members whose first sensor hasn't reported yet.
 // The payload is in the exact contract format the pipeline uploads
 // (see pipeline/CASPIO_CGM_API.md); days/bursts are compact [minute, mmol] pairs.
 // Generated file — do not hand-edit point data.
