@@ -75,7 +75,8 @@ export default function AppShell() {
         )}
       </div>
 
-      <div style={{ maxWidth: 740, margin: '0 auto' }}>
+      {/* Glucose renders the full-width M4 card (chart + side panel); everything else stays narrow. */}
+      <div style={{ maxWidth: activePage === 'glucose' ? 'none' : 740, margin: '0 auto' }}>
         {activePage === 'strategy'   && <MyStrategyPage />}
         {activePage === 'priorities' && <PrioritiesPage />}
         {activePage === 'biosignals' && <BioSignalsPage />}
