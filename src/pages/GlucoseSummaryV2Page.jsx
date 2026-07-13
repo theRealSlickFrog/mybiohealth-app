@@ -18,9 +18,11 @@ const C = {
   sage: MBH_SAGE, sageDeep: SAGE_TEXT, healthy: 'rgba(74,124,111,0.16)',
   amber: AMBER, clay: SOFT_RED, horizon: SLATE, slate: TEAL, box: 'rgba(30,45,61,0.13)',
 };
-const SERIF = "'Iowan Old Style','Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif";
+// Match the rest of V2: DM Sans for text, DM Serif Display for big display numbers.
+// (No monospace — V2 only uses it for tabular columns, which this page has none of.)
+const SERIF = "'DM Serif Display',Georgia,serif";
 const SANS = "'DM Sans',-apple-system,ui-sans-serif,system-ui,sans-serif";
-const MONO = "'SF Mono','SFMono-Regular',ui-monospace,Menlo,monospace";
+const MONO = SANS;
 const SAMPLES = 96, STEP = 15, TH_HI = 7.8, TH_VHI = 10;
 const dWd = (c, i) => c.dates[i].wd, dDate = (c, i) => c.dates[i].d, dWk = (c, i) => c.dates[i].wknd;
 const BAND = { src: 'MBH phenotype', on: [4.5, 5.5], day: [4.8, 6.0], floor: 3.9 };  // reference params
