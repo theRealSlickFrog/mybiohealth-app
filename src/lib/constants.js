@@ -26,6 +26,7 @@ export const NAV_ITEMS = [
   { key: 'priorities', label: 'Priorities',      icon: '🎯', child: true }, // shown in dev only (see Drawer) — hardcoded, to be fixed
   { key: 'biosignals', label: 'BioSignals',      icon: '📊' },
   { key: 'glucose',    label: 'Glucose Summary (CGM)', icon: '🍯' },
+  { key: 'glucose_v2', label: 'Glucose Summary V2', icon: '🩸' },
   { key: 'dexa',       label: 'Structural (DEXA et al.)', icon: '🦴' },
   // Member section — order here drives display order (Drawer filters NAV_ITEMS by key)
   { key: 'account',    label: 'Account',         icon: '💳' },
