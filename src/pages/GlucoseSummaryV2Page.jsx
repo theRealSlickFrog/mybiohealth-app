@@ -270,7 +270,7 @@ function Midnight3Strip({ cyc, onInfo }) {
 }
 
 // ---- The viewer proper — only mounts once a cycle blob is loaded ----
-function GlucoseCycleView({ cyc }) {
+function GlucoseCycleView({ cyc, cycleIdx, cycleCount, onCycle }) {
   const events = cyc.events || [];
   const DAYS = cyc.dates.length;
   const wkCount = cyc.dates.filter(d => !d.wknd).length, weCount = cyc.dates.filter(d => d.wknd).length;
@@ -281,7 +281,12 @@ function GlucoseCycleView({ cyc }) {
   const [mTxt, setM] = useState(''); const [oTxt, setO] = useState(''); const [cTxt, setCx] = useState('');
   const slices = useMemo(() => scope === 'one' ? daySlices(cyc.days[dayIdx]) : scope === 'weekday' ? cyc.bandWk : scope === 'weekend' ? cyc.bandWe : cyc.band, [cyc, scope, dayIdx]);
   const openFromList = e => { setScope('one'); setDayIdx(e.day); setOpenEvent(e); setTab('watched'); };
-  const step = d => { if (scope === 'one') { setDayIdx(a => (a + d + DAYS) % DAYS); setOpenEvent(null); } };
+  // The header pager does double duty: in "One day" it steps days within the cycle;
+  // otherwise it steps between cycles (newest → oldest).
+  const step = d => {
+    if (scope === 'one') { setDayIdx(a => (a + d + DAYS) % DAYS); setOpenEvent(null); }
+    else { const ni = cycleIdx + d; if (ni >= 0 && ni < cycleCount) onCycle(ni); }
+  };
   const [onLo, onHi] = BAND.on, [dLo, dHi] = BAND.day;
   const ab = (v, top) => v > top ? C.amber : C.ink;
   const md = a => { a = a.filter(x => x != null).sort((x, y) => x - y); const n = a.length; return n ? (n % 2 ? a[(n - 1) / 2] : Math.round((a[n / 2 - 1] + a[n / 2]) / 2 * 100) / 100) : null; };
@@ -347,9 +352,9 @@ function GlucoseCycleView({ cyc }) {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
           <button className="gv2-guide" onClick={() => setInfoKey('guide')}><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.3" /><circle cx="8" cy="4.6" r="0.95" fill="currentColor" /><path d="M8 7v4.4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>How to read this</button>
-          <div className="gv2-pager"><span style={{ font: `400 11px ${MONO}`, color: C.muted, marginRight: 6 }}>{scope === 'one' ? `${dWd(cyc, dayIdx)} ${dDate(cyc, dayIdx)} · day ${dayIdx + 1}/${DAYS}` : 'cycle'}</span>
-            <button className="gv2-ic" onClick={() => step(-1)} disabled={scope !== 'one'} aria-label="Previous"><Chevron dir="left" /></button>
-            <button className="gv2-ic" onClick={() => step(1)} disabled={scope !== 'one'} aria-label="Next"><Chevron dir="right" /></button>
+          <div className="gv2-pager"><span style={{ font: `400 11px ${MONO}`, color: C.muted, marginRight: 6 }}>{scope === 'one' ? `${dWd(cyc, dayIdx)} ${dDate(cyc, dayIdx)} · day ${dayIdx + 1}/${DAYS}` : `cycle ${cycleIdx + 1} of ${cycleCount}`}</span>
+            <button className="gv2-ic" onClick={() => step(-1)} disabled={scope === 'one' ? false : cycleIdx === 0} aria-label={scope === 'one' ? 'Previous day' : 'Newer cycle'}><Chevron dir="left" /></button>
+            <button className="gv2-ic" onClick={() => step(1)} disabled={scope === 'one' ? false : cycleIdx === cycleCount - 1} aria-label={scope === 'one' ? 'Next day' : 'Older cycle'}><Chevron dir="right" /></button>
           </div>
         </div>
       </div>
@@ -418,25 +423,32 @@ function GlucoseCycleView({ cyc }) {
 }
 
 export default function GlucoseSummaryV2Page() {
-  const [cyc, setCyc] = useState(undefined);   // undefined=loading, null=none/error, obj=data
+  // All of the member's cycles, newest first (each is a parsed blob). The header
+  // pager steps between them. undefined=loading, null=error, []=none.
+  const [cycles, setCycles] = useState(undefined);
+  const [cycleIdx, setCycleIdx] = useState(0);
   useEffect(() => {
     const member = getStoredGuid() || DEV_MEMBER;
     let cancelled = false;
     const where = encodeURIComponent(`member_id='${member}'`);
-    fetch(`${API_BASE}/rest/v2/tables/glucose_cycle/records?q.where=${where}&q.sort=cycle_start_dt DESC&q.limit=1`)
+    fetch(`${API_BASE}/rest/v2/tables/glucose_cycle/records?q.where=${where}&q.sort=cycle_start_dt DESC&q.limit=50`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((j) => {
         if (cancelled) return;
-        const row = (j.Result || [])[0];
-        if (!row || !row.blob) { setCyc(null); return; }
-        try { const d = JSON.parse(row.blob); setCyc({ ...d, mem: { notes: d.notes } }); }
-        catch (e) { console.warn('glucose_cycle blob parse failed', e); setCyc(null); }
+        const parsed = (j.Result || []).map((row) => {
+          try { const d = JSON.parse(row.blob); return { ...d, mem: { notes: d.notes } }; }
+          catch (e) { console.warn('glucose_cycle blob parse failed', e); return null; }
+        }).filter(Boolean);
+        setCycles(parsed);
       })
-      .catch((e) => { if (!cancelled) { console.warn('glucose_cycle load failed', e); setCyc(null); } });
+      .catch((e) => { if (!cancelled) { console.warn('glucose_cycle load failed', e); setCycles(null); } });
     return () => { cancelled = true; };
   }, []);
 
-  if (cyc === undefined) return <div style={{ padding: '40px 20px', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Loading your glucose cycle…</div>;
-  if (cyc === null) return <div style={{ padding: '40px 20px', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>No glucose cycle on file yet.</div>;
-  return <GlucoseCycleView cyc={cyc} />;
+  if (cycles === undefined) return <div style={{ padding: '40px 20px', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Loading your glucose cycles…</div>;
+  if (cycles === null) return <div style={{ padding: '40px 20px', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Couldn't load your glucose cycles.</div>;
+  if (!cycles.length) return <div style={{ padding: '40px 20px', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>No glucose cycle on file yet.</div>;
+  const idx = Math.min(cycleIdx, cycles.length - 1);
+  // key={idx} remounts on cycle switch → fresh scope/day state for the new cycle.
+  return <GlucoseCycleView key={idx} cyc={cycles[idx]} cycleIdx={idx} cycleCount={cycles.length} onCycle={setCycleIdx} />;
 }
