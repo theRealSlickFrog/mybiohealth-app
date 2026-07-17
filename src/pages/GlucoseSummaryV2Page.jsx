@@ -101,10 +101,11 @@ function ContextArc({ ev, cyc }) {
   </svg>);
 }
 
-function Measure({ label, value, unit, band, tone, onInfo, big }) {
+function Measure({ label, value, unit, band, tone, onInfo, big, small }) {
+  const vSize = big ? 42 : small ? 20 : 26;
   return (<div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 5, height: 14 }}><span style={{ font: `600 ${big ? 10.5 : 10}px ${SANS}`, letterSpacing: '.09em', textTransform: 'uppercase', color: C.muted }}>{label}</span>{onInfo && <InfoDot onClick={onInfo} />}</div>
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, marginTop: big ? 6 : 4, height: big ? 42 : 28 }}><span style={{ font: `400 ${big ? 42 : 26}px/1 ${SERIF}`, color: tone || C.ink, fontFeatureSettings: '"tnum"' }}>{value}</span>{unit && <span style={{ font: `400 ${big ? 11 : 11}px/1 ${SANS}`, color: C.muted }}>{unit}</span>}</div>
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, marginTop: big ? 6 : 4, height: big ? 42 : 28 }}><span style={{ font: `400 ${vSize}px/1 ${SERIF}`, color: tone || C.ink, fontFeatureSettings: '"tnum"' }}>{value}</span>{unit && <span style={{ font: `400 11px/1 ${SANS}`, color: C.muted }}>{unit}</span>}</div>
     <div style={{ font: `400 9px ${MONO}`, color: C.muted, marginTop: 5, height: 11 }}>{band ? `band ${band[0]}–${band[1]}` : ''}</div></div>);
 }
 const sf = x => x == null ? '—' : x.toFixed(1);
@@ -318,9 +319,9 @@ function GlucoseCycleView({ cyc, cycleIdx, cycleCount, onCycle }) {
       .gv2-side{flex:0 0 244px;padding:14px 14px 18px;border-left:1px solid ${C.hair};background:${C.paper};}
       .gv2-row{display:flex;align-items:center;gap:9px;width:100%;border:0;background:transparent;text-align:left;padding:6px 8px;cursor:pointer;border-radius:6px;transition:opacity .15s;}
       .gv2-row:hover{background:rgba(30,45,61,.05)!important;}
-      .gv2-measures{display:flex;gap:22px;flex-wrap:wrap;align-items:stretch;margin:8px 0 12px;padding:14px 16px;border:1px solid ${C.hair};border-radius:10px;background:${C.paper};}
-      .gv2-lead{display:flex;align-items:center;padding-right:22px;border-right:1px solid ${C.hair};flex:0 0 auto;}
-      .gv2-grid4{flex:1 1 320px;display:grid;grid-template-columns:1fr 1fr;gap:12px 28px;align-content:center;}
+      .gv2-measures{display:flex;flex-direction:column;gap:12px;margin:8px 0 12px;padding:16px;border:1px solid ${C.hair};border-radius:10px;background:${C.paper};}
+      .gv2-grid4{display:grid;grid-template-columns:1fr 1fr;gap:14px 28px;}
+      .gv2-divider{height:1px;background:${C.hair};}
       .gv2-method{font:400 10px/1.5 ${MONO};color:${C.muted};margin:12px 0;padding:8px 12px;border-radius:8px;background:rgba(30,45,61,.04);}
       .gv2-moment{margin-top:13px;padding:13px 15px;background:${C.paper};border:1px solid ${C.hair};border-radius:11px;}
       .gv2-sidetab{display:inline-flex;background:rgba(30,45,61,.06);border-radius:8px;padding:3px;gap:2px;margin-bottom:10px;}
@@ -343,7 +344,7 @@ function GlucoseCycleView({ cyc, cycleIdx, cycleCount, onCycle }) {
       .gv2-cta{display:block;margin-top:14px;border:0;background:${C.ink};color:${C.panel};border-radius:9px;padding:9px 14px;font:600 12.5px ${SANS};cursor:pointer;}
       .gv2-guidelink{display:block;margin-top:10px;border:0;background:transparent;color:${C.sageDeep};font:600 12px ${SANS};cursor:pointer;padding:4px 0;}
       @media (max-width:720px){.gv2-body{flex-direction:column;}.gv2-side{flex-basis:auto;border-left:0;border-top:1px solid ${C.hair};}
-        .gv2-lead{border-right:0;border-bottom:1px solid ${C.hair};padding-right:0;padding-bottom:12px;width:100%;}.gv2-grid4{flex-basis:100%;}}
+        }
     `}</style>
     <div className="gv2-card">
       <div className="gv2-head">
@@ -371,12 +372,15 @@ function GlucoseCycleView({ cyc, cycleIdx, cycleCount, onCycle }) {
       <div className="gv2-body">
         <div className="gv2-main">
           <div className="gv2-measures">
-            <div className="gv2-lead"><Measure big label="Time above 7.8" value={sf(iv.tar)} unit={scope === 'one' ? 'hrs · this day' : scope === 'weekday' ? 'hrs · median weekday' : scope === 'weekend' ? 'hrs · median weekend' : 'hrs · median day'} tone={iv.tar > 1 ? C.amber : C.ink} onInfo={() => setInfoKey('tar')} /></div>
             <div className="gv2-grid4">
-              <Measure label="24h median" value={sf(iv.m24)} unit="mmol/L" tone={C.ink} />
-              <Measure label="Daytime" value={sf(iv.dt)} unit="mmol/L" band={BAND.day} tone={ab(iv.dt, dHi)} />
-              <Measure label="Overnight" value={sf(iv.on)} unit="mmol/L" band={BAND.on} tone={ab(iv.on, onHi)} />
               <Measure label="Midnight–3 AM" value={sf(mid3)} unit="mmol/L" band={BAND.on} tone={ab(mid3, onHi)} onInfo={() => setInfoKey('mid3')} />
+              <Measure label="24h median" value={sf(iv.m24)} unit="mmol/L" tone={C.ink} />
+              <Measure label="Overnight" value={sf(iv.on)} unit="mmol/L" band={BAND.on} tone={ab(iv.on, onHi)} small />
+              <Measure label="Daytime" value={sf(iv.dt)} unit="mmol/L" band={BAND.day} tone={ab(iv.dt, dHi)} small />
+            </div>
+            <div className="gv2-divider" />
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <Measure big label="Time above 7.8" value={sf(iv.tar)} unit={scope === 'one' ? 'hrs · this day' : scope === 'weekday' ? 'hrs · median weekday' : scope === 'weekend' ? 'hrs · median weekend' : 'hrs · median day'} tone={iv.tar > 1 ? C.amber : C.ink} onInfo={() => setInfoKey('tar')} />
             </div>
           </div>
           {scope !== 'one' && <DailyTARStrip cyc={cyc} />}
