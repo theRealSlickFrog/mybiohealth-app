@@ -7,8 +7,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, OFFWHITE, CARD, BORDER, SOFT_RED, AMBER } from '../lib/constants.js';
 import {
-  emptyDraft, fetchPriorityLibrary, fetchMicrohabits, applyLibraryPick, latestReadingFor,
-  loadDraft, saveDraft, clearDraft, promoteDraft,
+  emptyDraft, fetchPriorityCatalog, fetchMicrohabits, applyLibraryPick, latestReadingFor,
+  loadDraft, saveDraft, clearDraft, promoteDraft, draftHasContent,
 } from '../lib/strategyBuilder.js';
 
 const lbl = { fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#374151', marginBottom: 4, display: 'block' };
@@ -16,7 +16,12 @@ const input = { width: '100%', border: `1px solid ${BORDER}`, borderRadius: 8, p
 const area = { ...input, minHeight: 56, resize: 'vertical', lineHeight: 1.5 };
 
 export default function StrategyBuilder({ member, initialDraft, labRows, currentActiveRow, onPromoted, onCancel }) {
-  const [draft, setDraft] = useState(() => loadDraft(member) || initialDraft || emptyDraft());
+  // Resume a real in-progress draft, but don't let a stale empty draft shadow the
+  // prefill coming from the current strategy ("Create New Version").
+  const [draft, setDraft] = useState(() => {
+    const saved = loadDraft(member);
+    return draftHasContent(saved) ? saved : (initialDraft || emptyDraft());
+  });
   const [library, setLibrary] = useState([]);
   const [habitCatalog, setHabitCatalog] = useState([]);
   const [mhxCat, setMhxCat] = useState(['', '', '']);   // per-slot category selection (UI only)
@@ -24,7 +29,7 @@ export default function StrategyBuilder({ member, initialDraft, labRows, current
   const [error, setError] = useState(null);
   const [savedTick, setSavedTick] = useState(false);
 
-  useEffect(() => { fetchPriorityLibrary().then(setLibrary); }, []);
+  useEffect(() => { fetchPriorityCatalog().then(setLibrary); }, []);
   useEffect(() => { fetchMicrohabits().then(setHabitCatalog); }, []);
 
   // Autosave the draft to localStorage on every change (debounced-ish via effect).
@@ -44,6 +49,10 @@ export default function StrategyBuilder({ member, initialDraft, labRows, current
 
   const libByCode = useMemo(() => {
     const m = {}; library.forEach((l) => { m[l.priority_code] = l; }); return m;
+  }, [library]);
+  const libCategories = useMemo(() => {
+    const s = new Set(library.map((l) => l.category || 'Other'));
+    return [...s].sort();
   }, [library]);
 
   const categories = useMemo(() => {
@@ -158,7 +167,12 @@ export default function StrategyBuilder({ member, initialDraft, labRows, current
             <span style={{ width: 22, height: 22, borderRadius: '50%', background: SLATE, color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>P{i + 1}</span>
             <select style={{ ...input, width: 'auto', flex: 1, background: CARD }} value={p.priority_code} onChange={(e) => pickLibrary(i, e.target.value)}>
               <option value="">— pick a priority —</option>
-              {library.map((l) => <option key={l.priority_code} value={l.priority_code}>{l.name}</option>)}
+              {libCategories.map((cat) => (
+                <optgroup key={cat} label={cat}>
+                  {library.filter((l) => (l.category || 'Other') === cat)
+                    .map((l) => <option key={l.priority_code} value={l.priority_code}>{l.name}</option>)}
+                </optgroup>
+              ))}
             </select>
           </div>
 

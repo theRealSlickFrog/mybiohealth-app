@@ -101,13 +101,35 @@ export function draftFromRow(row) {
   return d;
 }
 
-// ── priority_library (the picker catalog) ──────────────────────────────────
-export async function fetchPriorityLibrary() {
+// ── Priority catalog (the picker source) ────────────────────────────────────
+// The LIVE catalog is the `priority` table (populated June 2026), NOT the
+// never-imported priority_library seed. Normalize its columns to the shape the
+// builder + applyLibraryPick expect: { priority_code, name, primary_marker_code,
+// render_kind, default_anchor_text, category }.
+export async function fetchPriorityCatalog() {
   try {
-    const r = await fetch(`${API_BASE}/rest/v2/tables/priority_library/records?q.orderBy=priority_number&q.limit=200`);
+    const r = await fetch(`${API_BASE}/rest/v2/tables/priority/records?q.orderBy=priority_number&q.limit=500`);
     if (!r.ok) return [];
-    return (await r.json()).Result || [];
+    const rows = (await r.json()).Result || [];
+    return rows.map((p) => ({
+      priority_code: p.priority_code || '',
+      name: p.Priority || p.priority || p.name || '',            // "Lower Apo B"
+      primary_marker_code: p.primary_marker_code || '',
+      render_kind: (p.render_kind || 'chart').trim() || 'chart',
+      // domain/anchor line used to seed the target (e.g. "Cardiovascular Health")
+      default_anchor_text: [p.default_anchor_text, p.anchor_text_extra]
+        .map((x) => (x || '').trim()).filter(Boolean).join(' · '),
+      category: p.Category || p.category || 'Other',
+      priority_number: p.priority_number,
+    })).filter((p) => p.name);
   } catch (e) { return []; }
+}
+
+// Does a saved draft hold real content? Used so a stale, autosaved EMPTY draft
+// doesn't shadow the prefill when opening "Create New Version" from a strategy.
+export function draftHasContent(d) {
+  if (!d) return false;
+  return !!(d.tagline || (d.priorities || []).some((p) => p && p.name) || (d.mhx || []).some((m) => m && m.name));
 }
 
 // The microhabit catalog (the "acceptable habits" list Ken maintains) — the
