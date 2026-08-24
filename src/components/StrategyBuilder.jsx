@@ -19,6 +19,7 @@ export default function StrategyBuilder({ member, initialDraft, labRows, current
   const [draft, setDraft] = useState(() => loadDraft(member) || initialDraft || emptyDraft());
   const [library, setLibrary] = useState([]);
   const [habitCatalog, setHabitCatalog] = useState([]);
+  const [mhxCat, setMhxCat] = useState(['', '', '']);   // per-slot category selection (UI only)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [savedTick, setSavedTick] = useState(false);
@@ -29,9 +30,27 @@ export default function StrategyBuilder({ member, initialDraft, labRows, current
   // Autosave the draft to localStorage on every change (debounced-ish via effect).
   useEffect(() => { saveDraft(member, draft); }, [member, draft]);
 
+  // Once the catalog loads, back-fill each slot's category from its saved habit
+  // (so editing an existing version pre-selects the right category).
+  useEffect(() => {
+    if (!habitCatalog.length) return;
+    setMhxCat((prev) => prev.map((c, i) => {
+      if (c) return c;
+      const name = draft.mhx[i] && draft.mhx[i].name;
+      const hit = name ? habitCatalog.find((h) => h.microhabit_name === name) : null;
+      return hit ? (hit.microhabit_category || '') : c;
+    }));
+  }, [habitCatalog]);
+
   const libByCode = useMemo(() => {
     const m = {}; library.forEach((l) => { m[l.priority_code] = l; }); return m;
   }, [library]);
+
+  const categories = useMemo(() => {
+    const s = new Set(habitCatalog.map((h) => h.microhabit_category || 'Other'));
+    return [...s].sort();
+  }, [habitCatalog]);
+  const habitsFor = (cat) => habitCatalog.filter((h) => (h.microhabit_category || 'Other') === cat);
 
   // ── mutators ──────────────────────────────────────────────────────────────
   const setPriority = (i, patch) => setDraft((d) => {
@@ -75,6 +94,16 @@ export default function StrategyBuilder({ member, initialDraft, labRows, current
     if (!name) { setMhx(i, { name: '' }); return; }
     const cat = habitCatalog.find((h) => h.microhabit_name === name);
     setMhx(i, { name, frequency: draft.mhx[i].frequency || (cat && cat.default_frequency) || '' });
+  }
+
+  // Choose a category for a slot; if the currently-picked habit isn't in it, clear it.
+  function setCategory(i, cat) {
+    setMhxCat((prev) => prev.map((c, idx) => (idx === i ? cat : c)));
+    const name = draft.mhx[i].name;
+    if (name) {
+      const h = habitCatalog.find((x) => x.microhabit_name === name);
+      if (!h || (h.microhabit_category || 'Other') !== cat) setMhx(i, { name: '' });
+    }
   }
 
   function manualSave() {
@@ -189,18 +218,25 @@ export default function StrategyBuilder({ member, initialDraft, labRows, current
       {draft.mhx.map((m, i) => (
         <div key={i} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '12px 14px', marginBottom: 10 }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-            <div style={{ flex: '2 1 200px' }}>
+            <div style={{ flex: '1 1 140px' }}>
+              <label style={lbl}>Category</label>
+              <select style={{ ...input, background: CARD }} value={mhxCat[i]} onChange={(e) => setCategory(i, e.target.value)}>
+                <option value="">— category —</option>
+                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div style={{ flex: '1.5 1 170px' }}>
               <label style={lbl}>Habit {i + 1}</label>
-              <select style={{ ...input, background: CARD }} value={m.name} onChange={(e) => pickHabit(i, e.target.value)}>
-                <option value="">— pick a habit —</option>
+              <select style={{ ...input, background: CARD }} value={m.name} onChange={(e) => pickHabit(i, e.target.value)} disabled={!mhxCat[i] && !m.name}>
+                <option value="">{mhxCat[i] ? '— pick a habit —' : '— category first —'}</option>
                 {/* keep an existing (e.g. legacy) name selectable even if it's no longer in the catalog */}
                 {m.name && !habitCatalog.some((h) => h.microhabit_name === m.name) && (
                   <option value={m.name}>{m.name}</option>
                 )}
-                {habitCatalog.map((h) => <option key={h.microhabit_id} value={h.microhabit_name}>{h.microhabit_name}</option>)}
+                {habitsFor(mhxCat[i]).map((h) => <option key={h.microhabit_id} value={h.microhabit_name}>{h.microhabit_name}</option>)}
               </select>
             </div>
-            <div style={{ flex: '1 1 120px' }}>
+            <div style={{ flex: '1 1 110px' }}>
               <label style={lbl}>Frequency</label>
               <input style={input} value={m.frequency} onChange={(e) => setMhx(i, { frequency: e.target.value })} placeholder="5/7 days" />
             </div>
