@@ -110,6 +110,19 @@ export async function fetchPriorityLibrary() {
   } catch (e) { return []; }
 }
 
+// The microhabit catalog (the "acceptable habits" list Ken maintains) — the
+// dropdown source for each habit slot. Active habits only, sorted by name.
+export async function fetchMicrohabits() {
+  try {
+    const r = await fetch(`${API_BASE}/rest/v2/tables/microhabit/records?q.limit=500`);
+    if (!r.ok) return [];
+    const rows = (await r.json()).Result || [];
+    const isActive = (v) => !(v === false || v === 0 || v === '0' || v === 'false' || v === 'No');
+    return rows.filter((m) => isActive(m.is_active))
+      .sort((a, b) => (a.microhabit_name || '').localeCompare(b.microhabit_name || ''));
+  } catch (e) { return []; }
+}
+
 // Apply a picked priority_library row onto a priority slot: copies name / kind /
 // marker and seeds the target text from default_anchor_text (all editable after).
 export function applyLibraryPick(priority, lib) {

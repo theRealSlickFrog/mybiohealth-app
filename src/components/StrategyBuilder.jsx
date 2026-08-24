@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, OFFWHITE, CARD, BORDER, SOFT_RED, AMBER } from '../lib/constants.js';
 import {
-  emptyDraft, fetchPriorityLibrary, applyLibraryPick, latestReadingFor,
+  emptyDraft, fetchPriorityLibrary, fetchMicrohabits, applyLibraryPick, latestReadingFor,
   loadDraft, saveDraft, clearDraft, promoteDraft,
 } from '../lib/strategyBuilder.js';
 
@@ -18,11 +18,13 @@ const area = { ...input, minHeight: 56, resize: 'vertical', lineHeight: 1.5 };
 export default function StrategyBuilder({ member, initialDraft, labRows, currentActiveRow, onPromoted, onCancel }) {
   const [draft, setDraft] = useState(() => loadDraft(member) || initialDraft || emptyDraft());
   const [library, setLibrary] = useState([]);
+  const [habitCatalog, setHabitCatalog] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [savedTick, setSavedTick] = useState(false);
 
   useEffect(() => { fetchPriorityLibrary().then(setLibrary); }, []);
+  useEffect(() => { fetchMicrohabits().then(setHabitCatalog); }, []);
 
   // Autosave the draft to localStorage on every change (debounced-ish via effect).
   useEffect(() => { saveDraft(member, draft); }, [member, draft]);
@@ -65,6 +67,14 @@ export default function StrategyBuilder({ member, initialDraft, labRows, current
     const cur = draft.mhx[i].linked_priorities || [];
     const next = cur.includes(n) ? cur.filter((x) => x !== n) : [...cur, n].sort();
     setMhx(i, { linked_priorities: next });
+  }
+
+  // Pick a habit from the catalog: set the name and, if no frequency yet, seed it
+  // from the catalog's default_frequency (still editable).
+  function pickHabit(i, name) {
+    if (!name) { setMhx(i, { name: '' }); return; }
+    const cat = habitCatalog.find((h) => h.microhabit_name === name);
+    setMhx(i, { name, frequency: draft.mhx[i].frequency || (cat && cat.default_frequency) || '' });
   }
 
   function manualSave() {
@@ -181,7 +191,14 @@ export default function StrategyBuilder({ member, initialDraft, labRows, current
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
             <div style={{ flex: '2 1 200px' }}>
               <label style={lbl}>Habit {i + 1}</label>
-              <input style={input} value={m.name} onChange={(e) => setMhx(i, { name: e.target.value })} placeholder="Daily glucose rest, > 3 hours" />
+              <select style={{ ...input, background: CARD }} value={m.name} onChange={(e) => pickHabit(i, e.target.value)}>
+                <option value="">— pick a habit —</option>
+                {/* keep an existing (e.g. legacy) name selectable even if it's no longer in the catalog */}
+                {m.name && !habitCatalog.some((h) => h.microhabit_name === m.name) && (
+                  <option value={m.name}>{m.name}</option>
+                )}
+                {habitCatalog.map((h) => <option key={h.microhabit_id} value={h.microhabit_name}>{h.microhabit_name}</option>)}
+              </select>
             </div>
             <div style={{ flex: '1 1 120px' }}>
               <label style={lbl}>Frequency</label>
