@@ -11,7 +11,7 @@ import { OPTIMAL_AUTHORITIES } from '../lib/optimal-authorities.js';
 import { markerZone, ZONE_LABEL, thresholdsFromRow, optimalText, DEV_MEMBER } from '../lib/biomarkers.js';
 import { getStoredGuid } from '../lib/auth.js';
 import { loadStrategyConfig, DEFAULTS as STRATEGY_CFG_DEFAULTS } from '../lib/strategyConfig.js';
-import { draftFromRow } from '../lib/strategyBuilder.js';
+import { draftFromRow, emptyPriority } from '../lib/strategyBuilder.js';
 import OptimalDrawer from '../components/OptimalDrawer.jsx';
 import WhyModal from '../components/WhyModal.jsx';
 import PlotlyChart from '../components/PlotlyChart.jsx';
@@ -394,9 +394,20 @@ export default function MyStrategyPage() {
       <div style={{ fontSize: 12, color: '#374151', marginBottom: 20 }}>{cfg.subtitle || strategy.tagline}</div>
 
       {building && (
-        <StrategyBuilder member={member} initialDraft={draftFromRow(activeRawRow)} labRows={labRows} currentActiveRow={activeRawRow} onPromoted={onPromoted} onCancel={() => setBuilding(false)} />
+        <StrategyBuilder
+          member={member}
+          initialDraft={{ ...draftFromRow(activeRawRow), priorities: [emptyPriority(), emptyPriority(), emptyPriority()] }}
+          previousDraft={draftFromRow(activeRawRow)}
+          labRows={labRows}
+          currentActiveRow={activeRawRow}
+          onPromoted={onPromoted}
+          onCancel={() => setBuilding(false)}
+        />
       )}
 
+      {/* While building a new version, hide the current strategy below so the
+          page isn't crowded with the old priorities + charts. */}
+      {!building && (<>
       <WhyImHere heading={cfg.whyHeading} caption={cfg.whyCaption} />
 
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', marginBottom: 10 }}>Priorities</div>
@@ -584,6 +595,7 @@ export default function MyStrategyPage() {
       <div style={{ padding: '13px 16px', background: '#eeeae4', borderRadius: 10, fontSize: 12, color: '#6b7280', lineHeight: 1.6 }}>
         <strong style={{ color: SLATE }}>About <em style={{ fontStyle: 'normal' }}>My</em>Strategy.</strong> A living plan — versioned, signal-linked, renewed on a cadence the member sets.
       </div>
+      </>)}
     </div>
   );
 }

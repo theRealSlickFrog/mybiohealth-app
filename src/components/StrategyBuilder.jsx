@@ -12,10 +12,10 @@ import {
 } from '../lib/strategyBuilder.js';
 
 const lbl = { fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#374151', marginBottom: 4, display: 'block' };
-const input = { width: '100%', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '8px 10px', fontSize: 13, color: SLATE, background: OFFWHITE, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
-const area = { ...input, minHeight: 56, resize: 'vertical', lineHeight: 1.5 };
+const input = { width: '100%', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '10px 12px', fontSize: 14, color: SLATE, background: OFFWHITE, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
+const area = { ...input, minHeight: 72, resize: 'vertical', lineHeight: 1.5 };
 
-export default function StrategyBuilder({ member, initialDraft, labRows, currentActiveRow, onPromoted, onCancel }) {
+export default function StrategyBuilder({ member, initialDraft, previousDraft, labRows, currentActiveRow, onPromoted, onCancel }) {
   // Resume a real in-progress draft, but don't let a stale empty draft shadow the
   // prefill coming from the current strategy ("Create New Version").
   const [draft, setDraft] = useState(() => {
@@ -91,6 +91,12 @@ export default function StrategyBuilder({ member, initialDraft, labRows, current
     if (reading) setPriority(i, { latest_value: reading.value, unit: reading.unit, latest_date: reading.date });
   }
 
+  // Copy the previous version's priority into this slot (from the "Previous: X" hint).
+  function usePrevious(i) {
+    const prev = previousDraft && previousDraft.priorities && previousDraft.priorities[i];
+    if (prev && prev.name) setPriority(i, { ...prev });
+  }
+
   function toggleServes(i, n) {
     const cur = draft.mhx[i].linked_priorities || [];
     const next = cur.includes(n) ? cur.filter((x) => x !== n) : [...cur, n].sort();
@@ -163,9 +169,9 @@ export default function StrategyBuilder({ member, initialDraft, labRows, current
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', marginBottom: 8 }}>Priorities</div>
       {draft.priorities.map((p, i) => (
         <div key={i} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '14px 14px', marginBottom: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: p.name ? 12 : 0, flexWrap: 'wrap' }}>
             <span style={{ width: 22, height: 22, borderRadius: '50%', background: SLATE, color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>P{i + 1}</span>
-            <select style={{ ...input, width: 'auto', flex: 1, background: CARD }} value={p.priority_code} onChange={(e) => pickLibrary(i, e.target.value)}>
+            <select style={{ ...input, width: 'auto', flex: '0 1 230px', background: CARD }} value={p.priority_code} onChange={(e) => pickLibrary(i, e.target.value)}>
               <option value="">— pick a priority —</option>
               {libCategories.map((cat) => (
                 <optgroup key={cat} label={cat}>
@@ -174,6 +180,15 @@ export default function StrategyBuilder({ member, initialDraft, labRows, current
                 </optgroup>
               ))}
             </select>
+            {previousDraft && previousDraft.priorities[i] && previousDraft.priorities[i].name && (
+              <span style={{ fontSize: 12, color: '#9ca3af', whiteSpace: 'nowrap' }}>
+                Previous: <span style={{ color: '#6b7280', fontWeight: 600 }}>{previousDraft.priorities[i].name}</span>
+                {!p.name && (
+                  <button onClick={() => usePrevious(i)} title="Copy the previous version's priority into this slot"
+                    style={{ marginLeft: 8, background: 'none', border: `1px solid ${BORDER}`, borderRadius: 12, padding: '2px 10px', fontSize: 11, fontWeight: 600, color: MBH_SAGE, cursor: 'pointer' }}>use</button>
+                )}
+              </span>
+            )}
           </div>
 
           {p.name && (<>
