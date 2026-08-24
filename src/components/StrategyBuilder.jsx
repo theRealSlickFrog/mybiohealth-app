@@ -1,0 +1,243 @@
+// StrategyBuilder — the "Priority Builder" (Aug 19 stand-up). An inline panel on
+// MyStrategy that lets an admin (or the member on a call) assemble a strategy:
+// pick up to 3 priorities from priority_library (auto-fills name/marker + pulls
+// the latest reading), write each "Why", set up to 3 shared micro-habits, then
+// Promote to a new versioned mystrategy_report_ready row. The working draft is
+// held in localStorage until Promote (nothing touches the live table before).
+import { useEffect, useMemo, useState } from 'react';
+import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, OFFWHITE, CARD, BORDER, SOFT_RED, AMBER } from '../lib/constants.js';
+import {
+  emptyDraft, fetchPriorityLibrary, applyLibraryPick, latestReadingFor,
+  loadDraft, saveDraft, clearDraft, promoteDraft,
+} from '../lib/strategyBuilder.js';
+
+const lbl = { fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#374151', marginBottom: 4, display: 'block' };
+const input = { width: '100%', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '8px 10px', fontSize: 13, color: SLATE, background: OFFWHITE, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
+const area = { ...input, minHeight: 56, resize: 'vertical', lineHeight: 1.5 };
+
+export default function StrategyBuilder({ member, initialDraft, labRows, currentActiveRow, onPromoted, onCancel }) {
+  const [draft, setDraft] = useState(() => loadDraft(member) || initialDraft || emptyDraft());
+  const [library, setLibrary] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [savedTick, setSavedTick] = useState(false);
+
+  useEffect(() => { fetchPriorityLibrary().then(setLibrary); }, []);
+
+  // Autosave the draft to localStorage on every change (debounced-ish via effect).
+  useEffect(() => { saveDraft(member, draft); }, [member, draft]);
+
+  const libByCode = useMemo(() => {
+    const m = {}; library.forEach((l) => { m[l.priority_code] = l; }); return m;
+  }, [library]);
+
+  // ── mutators ──────────────────────────────────────────────────────────────
+  const setPriority = (i, patch) => setDraft((d) => {
+    const priorities = d.priorities.map((p, idx) => (idx === i ? { ...p, ...patch } : p));
+    return { ...d, priorities };
+  });
+  const setMhx = (i, patch) => setDraft((d) => {
+    const mhx = d.mhx.map((m, idx) => (idx === i ? { ...m, ...patch } : m));
+    return { ...d, mhx };
+  });
+
+  function pickLibrary(i, code) {
+    if (!code) { setPriority(i, { priority_code: '', name: '', primary_marker: '', kind: 'chart' }); return; }
+    const lib = libByCode[code];
+    if (!lib) return;
+    const applied = applyLibraryPick(draft.priorities[i], lib);
+    const reading = latestReadingFor(labRows, lib.primary_marker_code);
+    setPriority(i, {
+      ...applied,
+      latest_value: reading ? reading.value : draft.priorities[i].latest_value,
+      unit: reading ? reading.unit : draft.priorities[i].unit,
+      latest_date: reading ? reading.date : draft.priorities[i].latest_date,
+    });
+  }
+
+  function refreshReading(i) {
+    const p = draft.priorities[i];
+    const reading = latestReadingFor(labRows, p.primary_marker);
+    if (reading) setPriority(i, { latest_value: reading.value, unit: reading.unit, latest_date: reading.date });
+  }
+
+  function toggleServes(i, n) {
+    const cur = draft.mhx[i].linked_priorities || [];
+    const next = cur.includes(n) ? cur.filter((x) => x !== n) : [...cur, n].sort();
+    setMhx(i, { linked_priorities: next });
+  }
+
+  function manualSave() {
+    saveDraft(member, draft);
+    setSavedTick(true);
+    setTimeout(() => setSavedTick(false), 1500);
+  }
+
+  async function promote() {
+    if (!confirm('Promote this draft to a new live strategy version? The current version becomes a past version.')) return;
+    setBusy(true); setError(null);
+    try {
+      await promoteDraft(draft, { member_id: member, currentActiveRow });
+      onPromoted && onPromoted();
+    } catch (e) {
+      setError(e.message || 'Promote failed.');
+    } finally { setBusy(false); }
+  }
+
+  function discard() {
+    if (!confirm('Discard this draft? Unsaved builder changes will be lost.')) return;
+    clearDraft(member);
+    onCancel && onCancel();
+  }
+
+  const isNewFromScratch = !currentActiveRow;
+
+  return (
+    <div style={{ background: OFFWHITE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: '18px 18px 16px', marginBottom: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+        <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 20, color: SLATE }}>
+          {isNewFromScratch ? 'Build strategy' : 'New strategy version'}
+        </div>
+        <button onClick={onCancel} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 20, cursor: 'pointer', lineHeight: 1 }} aria-label="Close builder">×</button>
+      </div>
+      <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>
+        Draft is saved in this browser — nothing goes live until you <strong>Promote</strong>.
+      </div>
+
+      {/* Tagline */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={lbl}>Tagline <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>(optional sub-header)</span></label>
+        <input style={input} value={draft.tagline} onChange={(e) => setDraft((d) => ({ ...d, tagline: e.target.value }))}
+          placeholder="Two habits. Three priorities. Signal-confirmed." />
+      </div>
+
+      {/* Priorities */}
+      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', marginBottom: 8 }}>Priorities</div>
+      {draft.priorities.map((p, i) => (
+        <div key={i} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '14px 14px', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <span style={{ width: 22, height: 22, borderRadius: '50%', background: SLATE, color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>P{i + 1}</span>
+            <select style={{ ...input, width: 'auto', flex: 1, background: CARD }} value={p.priority_code} onChange={(e) => pickLibrary(i, e.target.value)}>
+              <option value="">— pick a priority —</option>
+              {library.map((l) => <option key={l.priority_code} value={l.priority_code}>{l.name}</option>)}
+            </select>
+          </div>
+
+          {p.name && (<>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 120px' }}>
+                <label style={lbl}>Latest value</label>
+                <input style={input} value={p.latest_value} onChange={(e) => setPriority(i, { latest_value: e.target.value })} placeholder="—" />
+              </div>
+              <div style={{ flex: '1 1 90px' }}>
+                <label style={lbl}>Unit</label>
+                <input style={input} value={p.unit} onChange={(e) => setPriority(i, { unit: e.target.value })} placeholder="g/L" />
+              </div>
+              <div style={{ flex: '1 1 110px' }}>
+                <label style={lbl}>Date</label>
+                <input style={input} value={p.latest_date} onChange={(e) => setPriority(i, { latest_date: e.target.value })} placeholder="Jan 2025" />
+              </div>
+              <button onClick={() => refreshReading(i)} title="Pull latest from lab results"
+                style={{ alignSelf: 'flex-end', border: `1px solid ${MBH_SAGE}55`, color: MBH_SAGE, background: CARD, borderRadius: 8, padding: '8px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', height: 35 }}>
+                ↻ from labs
+              </button>
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label style={lbl}>Target <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>(the "→ …" line)</span></label>
+              <input style={input} value={p.target_text} onChange={(e) => setPriority(i, { target_text: e.target.value })} placeholder="Trending → < 0.80 g/L · re-test at 3 months" />
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label style={lbl}>The Why</label>
+              <textarea style={area} value={p.why_text} onChange={(e) => setPriority(i, { why_text: e.target.value })} placeholder="Why this priority matters, in plain words…" />
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 160px' }}>
+                <label style={lbl}>Rx pill <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>(optional)</span></label>
+                <input style={input} value={p.rx_text} onChange={(e) => setPriority(i, { rx_text: e.target.value })} placeholder="Statin started" />
+              </div>
+              <div style={{ flex: '1 1 220px' }}>
+                <label style={lbl}>Other markers <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>(name|value|optimal, one per line)</span></label>
+                <textarea style={{ ...area, minHeight: 38 }} value={p.other_markers} onChange={(e) => setPriority(i, { other_markers: e.target.value })} placeholder={'Visceral fat|984 g|< 1000'} />
+              </div>
+            </div>
+            {p.kind === 'donut' && (
+              <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 90px' }}><label style={lbl}>Hrs 7.8–10</label><input style={input} value={p.donut_hr78} onChange={(e) => setPriority(i, { donut_hr78: e.target.value })} placeholder="4.5" /></div>
+                <div style={{ flex: '1 1 90px' }}><label style={lbl}>Hrs &gt; 10</label><input style={input} value={p.donut_hr10} onChange={(e) => setPriority(i, { donut_hr10: e.target.value })} placeholder="0.4" /></div>
+                <div style={{ flex: '1 1 90px' }}><label style={lbl}>Target hr/day</label><input style={input} value={p.donut_target_hr} onChange={(e) => setPriority(i, { donut_target_hr: e.target.value })} placeholder="1" /></div>
+                <div style={{ flex: '1 1 160px' }}><label style={lbl}>Next text</label><input style={input} value={p.next_text} onChange={(e) => setPriority(i, { next_text: e.target.value })} placeholder="Next CGM cycle ~May 24" /></div>
+              </div>
+            )}
+          </>)}
+        </div>
+      ))}
+
+      {/* Micro-habits (shared 3) */}
+      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', margin: '6px 0 8px' }}>
+        Micro-habits <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>— three shared levers; tick which priorities each serves</span>
+      </div>
+      {draft.mhx.map((m, i) => (
+        <div key={i} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '12px 14px', marginBottom: 10 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+            <div style={{ flex: '2 1 200px' }}>
+              <label style={lbl}>Habit {i + 1}</label>
+              <input style={input} value={m.name} onChange={(e) => setMhx(i, { name: e.target.value })} placeholder="Daily glucose rest, > 3 hours" />
+            </div>
+            <div style={{ flex: '1 1 120px' }}>
+              <label style={lbl}>Frequency</label>
+              <input style={input} value={m.frequency} onChange={(e) => setMhx(i, { frequency: e.target.value })} placeholder="5/7 days" />
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, color: '#6b7280' }}>Serves:</span>
+            {[1, 2, 3].map((n) => {
+              const on = (m.linked_priorities || []).includes(n);
+              const enabled = !!draft.priorities[n - 1].name;
+              return (
+                <button key={n} onClick={() => enabled && toggleServes(i, n)} disabled={!enabled}
+                  style={{ border: `1px solid ${on ? MBH_SAGE : BORDER}`, background: on ? SAGE_BG : CARD, color: on ? SAGE_TEXT : (enabled ? SLATE : '#c9c9c9'), borderRadius: 20, padding: '4px 12px', fontSize: 11, fontWeight: 600, cursor: enabled ? 'pointer' : 'not-allowed' }}>
+                  P{n}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      {/* Routines */}
+      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', margin: '6px 0 8px' }}>Routines</div>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ flex: '1 1 120px' }}><label style={lbl}>Sleep</label><input style={input} value={draft.routines.sleep} onChange={(e) => setDraft((d) => ({ ...d, routines: { ...d.routines, sleep: e.target.value } }))} placeholder="7–7.5 hrs" /></div>
+        <div style={{ flex: '1 1 120px' }}><label style={lbl}>Strength</label><input style={input} value={draft.routines.strength} onChange={(e) => setDraft((d) => ({ ...d, routines: { ...d.routines, strength: e.target.value } }))} placeholder="2–3 / 7" /></div>
+        <div style={{ flex: '1 1 120px' }}><label style={lbl}>Cardio</label><input style={input} value={draft.routines.cardio} onChange={(e) => setDraft((d) => ({ ...d, routines: { ...d.routines, cardio: e.target.value } }))} placeholder="> 250 min/wk" /></div>
+      </div>
+
+      {/* Strategy elements */}
+      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', margin: '6px 0 8px' }}>
+        Strategy elements <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>— one item per line</span>
+      </div>
+      {[['sx', 'Medically-directed supplements'], ['lx', 'Lifestyle advice'], ['sm', 'Member-elected supplements'], ['rx', 'Prescriptions']].map(([k, title]) => (
+        <div key={k} style={{ marginBottom: 10 }}>
+          <label style={lbl}>{title}</label>
+          <textarea style={{ ...area, minHeight: 40 }} value={draft.elements[`${k}_items`]}
+            onChange={(e) => setDraft((d) => ({ ...d, elements: { ...d.elements, [`${k}_items`]: e.target.value } }))}
+            placeholder={k === 'rx' ? 'None current' : ''} />
+        </div>
+      ))}
+
+      {/* Footer */}
+      {error && <div style={{ color: SOFT_RED, fontSize: 12, marginTop: 8 }}>{error}</div>}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 14 }}>
+        <button onClick={discard} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Discard draft</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {savedTick && <span style={{ fontSize: 11, color: MBH_SAGE, fontWeight: 600 }}>Draft saved</span>}
+          <button onClick={manualSave} style={{ border: `1px solid ${BORDER}`, background: CARD, color: SLATE, borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Save draft</button>
+          <button onClick={promote} disabled={busy}
+            style={{ border: 'none', background: busy ? '#e5e7eb' : MBH_SAGE, color: busy ? '#9ca3af' : '#fff', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: busy ? 'default' : 'pointer' }}>
+            {busy ? 'Promoting…' : 'Promote →'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

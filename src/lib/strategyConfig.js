@@ -12,7 +12,7 @@
 //                          -> "Served by" chip colours. main_value = background,
 //                             value_two = text colour. Default to the design hues.
 
-const API_BASE = 'https://kenises-api-proxy.netlify.app';
+const API_BASE = import.meta.env.DEV ? '/api' : 'https://kenises-api-proxy.netlify.app';
 
 export const DEFAULTS = {
   subtitle: '',                    // '' => fall back to the per-member tagline

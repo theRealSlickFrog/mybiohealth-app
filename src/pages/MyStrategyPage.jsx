@@ -8,17 +8,21 @@
 import { useState, useEffect } from 'react';
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, AMBER, AMBER_BG, AMBER_TEXT, SOFT_RED, GAP_BG, GAP_TEXT, GAP_BORDER, SLATE, OFFWHITE, CARD, BORDER } from '../lib/constants.js';
 import { OPTIMAL_AUTHORITIES } from '../lib/optimal-authorities.js';
-import { markerZone, ZONE_LABEL, thresholdsFromRow, optimalText } from '../lib/biomarkers.js';
+import { markerZone, ZONE_LABEL, thresholdsFromRow, optimalText, DEV_MEMBER } from '../lib/biomarkers.js';
 import { getStoredGuid } from '../lib/auth.js';
 import { loadStrategyConfig, DEFAULTS as STRATEGY_CFG_DEFAULTS } from '../lib/strategyConfig.js';
+import { draftFromRow } from '../lib/strategyBuilder.js';
 import OptimalDrawer from '../components/OptimalDrawer.jsx';
 import WhyModal from '../components/WhyModal.jsx';
 import PlotlyChart from '../components/PlotlyChart.jsx';
 import PersonalNote from '../components/PersonalNote.jsx';
 import WhyImHere from '../components/WhyImHere.jsx';
 import WeeklyCheckin from '../components/WeeklyCheckin.jsx';
+import StrategyBuilder from '../components/StrategyBuilder.jsx';
 
-const API_BASE = 'https://kenises-api-proxy.netlify.app';
+// Dev routes /api/* through Vite (the proxy's CORS excludes localhost); prod
+// calls the proxy directly. Mirrors auth.js.
+const API_BASE = import.meta.env.DEV ? '/api' : 'https://kenises-api-proxy.netlify.app';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 // effective_from -> "Jul 24, 2025"
@@ -197,7 +201,10 @@ export default function MyStrategyPage() {
   const togglePriority = (n) => setOpenPriorities((p) => ({ ...p, [n]: !p[n] }));
 
   const [versions, setVersions] = useState([]);    // all strategy rows, oldest -> newest
+  const [rawRows, setRawRows] = useState([]);      // raw strategy rows (need PK + effective_to for the builder)
   const [versionIdx, setVersionIdx] = useState(0); // which version is being viewed
+  const [building, setBuilding] = useState(false); // Priority Builder open?
+  const [reloadKey, setReloadKey] = useState(0);   // bump to re-fetch after promote
   const [labRows, setLabRows] = useState([]);
   const [relations, setRelations] = useState([]);
   const [references, setReferences] = useState({});  // marker_code → { value, date, direction }
@@ -257,6 +264,7 @@ export default function MyStrategyPage() {
         let defaultIdx = unflattened.findIndex((s) => !s.effectiveTo);
         if (defaultIdx < 0) defaultIdx = unflattened.length - 1;
         setVersions(unflattened);
+        setRawRows(stratRows);
         setVersionIdx(defaultIdx);
         setLabRows(rrr);
         setRelations(mxm);
@@ -269,7 +277,7 @@ export default function MyStrategyPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [reloadKey]);
 
   // Build chart history + threshold profile for a marker_code from labRows
   function historyFor(markerCode) {
@@ -318,13 +326,31 @@ export default function MyStrategyPage() {
     });
   }
 
+  // Priority Builder plumbing — current member, the active raw row (needed to
+  // close the current version + prefill "new version"), and open/close handlers.
+  const member = getStoredGuid() || DEV_MEMBER;
+  const activeRawRow = rawRows.find((r) => !r.effective_to) || rawRows[rawRows.length - 1] || null;
+  const startBuild = () => setBuilding(true);
+  const onPromoted = () => { setBuilding(false); setReloadKey((k) => k + 1); };
+  const buildBtnStyle = { border: 'none', background: MBH_SAGE, color: '#fff', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' };
+
   if (state === 'loading') {
     return <div style={{ padding: '40px 20px', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Loading strategy…</div>;
   }
   if (state === 'empty' || versions.length === 0) {
     return (
-      <div style={{ padding: '40px 20px', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>
-        No active strategy on file yet.
+      <div style={{ padding: '22px 16px 80px' }}>
+        <h1 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 28, color: SLATE, fontWeight: 'normal', marginBottom: 16 }}>
+          <em style={{ fontStyle: 'normal' }}>My</em>Strategy
+        </h1>
+        {building ? (
+          <StrategyBuilder member={member} initialDraft={null} labRows={labRows} currentActiveRow={null} onPromoted={onPromoted} onCancel={() => setBuilding(false)} />
+        ) : (
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af', fontSize: 14 }}>
+            <div style={{ marginBottom: 16 }}>No strategy on file yet.</div>
+            <button onClick={startBuild} style={{ ...buildBtnStyle, padding: '10px 20px', fontSize: 13 }}>Build strategy</button>
+          </div>
+        )}
       </div>
     );
   }
@@ -360,9 +386,16 @@ export default function MyStrategyPage() {
                 style={{ border: `1px solid ${BORDER}`, background: atNewest ? '#f3f4f6' : CARD, color: atNewest ? '#d1d5db' : SLATE, borderRadius: 8, width: 28, height: 24, cursor: atNewest ? 'default' : 'pointer', fontSize: 14, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>›</button>
             </div>
           )}
+          {!building && (
+            <button onClick={startBuild} style={{ ...buildBtnStyle, marginTop: 8 }}>Create New Version</button>
+          )}
         </div>
       </div>
       <div style={{ fontSize: 12, color: '#374151', marginBottom: 20 }}>{cfg.subtitle || strategy.tagline}</div>
+
+      {building && (
+        <StrategyBuilder member={member} initialDraft={draftFromRow(activeRawRow)} labRows={labRows} currentActiveRow={activeRawRow} onPromoted={onPromoted} onCancel={() => setBuilding(false)} />
+      )}
 
       <WhyImHere heading={cfg.whyHeading} caption={cfg.whyCaption} />
 

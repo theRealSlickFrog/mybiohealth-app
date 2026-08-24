@@ -9,7 +9,7 @@ import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, CARD, BORDER, SOFT_RED } from '../
 import { getStoredGuid } from '../lib/auth.js';
 import { DEV_MEMBER } from '../lib/biomarkers.js';
 
-const API_BASE = 'https://kenises-api-proxy.netlify.app';
+const API_BASE = import.meta.env.DEV ? '/api' : 'https://kenises-api-proxy.netlify.app';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function weekStartOf(d) {
