@@ -75,6 +75,18 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
     if (!code) { setPriority(i, { priority_code: '', name: '', primary_marker: '', kind: 'chart' }); return; }
     const lib = libByCode[code];
     if (!lib) return;
+    // If the pick matches what the previous version had (same slot first, else
+    // any slot), restore THAT slot's details — target/why/value carry over.
+    const prevSlots = (previousDraft && previousDraft.priorities) || [];
+    const same = (a, b) => a && b && a.trim().toLowerCase() === b.trim().toLowerCase();
+    const prev = (prevSlots[i] && same(prevSlots[i].name, lib.name))
+      ? prevSlots[i]
+      : prevSlots.find((s) => same(s.name, lib.name));
+    if (prev && prev.name) {
+      setPriority(i, { ...prev, priority_code: code, kind: lib.render_kind || prev.kind, primary_marker: lib.primary_marker_code || prev.primary_marker });
+      return;
+    }
+    // Otherwise a fresh pick: library defaults + the latest reading from labs.
     const applied = applyLibraryPick(draft.priorities[i], lib);
     const reading = latestReadingFor(labRows, lib.primary_marker_code);
     setPriority(i, {
@@ -89,12 +101,6 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
     const p = draft.priorities[i];
     const reading = latestReadingFor(labRows, p.primary_marker);
     if (reading) setPriority(i, { latest_value: reading.value, unit: reading.unit, latest_date: reading.date });
-  }
-
-  // Copy the previous version's priority into this slot (from the "Previous: X" hint).
-  function usePrevious(i) {
-    const prev = previousDraft && previousDraft.priorities && previousDraft.priorities[i];
-    if (prev && prev.name) setPriority(i, { ...prev });
   }
 
   function toggleServes(i, n) {
@@ -183,10 +189,6 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
             {previousDraft && previousDraft.priorities[i] && previousDraft.priorities[i].name && (
               <span style={{ fontSize: 12, color: '#9ca3af', whiteSpace: 'nowrap' }}>
                 Previous: <span style={{ color: '#6b7280', fontWeight: 600 }}>{previousDraft.priorities[i].name}</span>
-                {!p.name && (
-                  <button onClick={() => usePrevious(i)} title="Copy the previous version's priority into this slot"
-                    style={{ marginLeft: 8, background: 'none', border: `1px solid ${BORDER}`, borderRadius: 12, padding: '2px 10px', fontSize: 11, fontWeight: 600, color: MBH_SAGE, cursor: 'pointer' }}>use</button>
-                )}
               </span>
             )}
           </div>
