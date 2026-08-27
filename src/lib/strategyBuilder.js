@@ -182,22 +182,16 @@ function fmtMonthYear(d) {
   return `${MONTHS[m - 1]} ${y}`;
 }
 
-// ── localStorage draft persistence (per member) ────────────────────────────
-const draftKey = (member) => `mbh_strategy_draft_${member}`;
-
-export function loadDraft(member) {
-  try {
-    const raw = localStorage.getItem(draftKey(member));
-    return raw ? JSON.parse(raw) : null;
-  } catch (e) { return null; }
-}
-export function saveDraft(member, draft) {
-  try { localStorage.setItem(draftKey(member), JSON.stringify(draft)); return true; }
-  catch (e) { return false; }
-}
-export function clearDraft(member) {
-  try { localStorage.removeItem(draftKey(member)); } catch (e) { /* ignore */ }
-}
+// ── Unsaved-draft guard ─────────────────────────────────────────────────────
+// The draft is NOT persisted anywhere — it lives only in the builder's React
+// state for the current session. Start building and leave without Promote and
+// it's gone. This module-level flag lets AppShell block SPA navigation (and the
+// builder warn on hard browser close) while an unpromoted draft with real
+// content is open, so it isn't silently lost.
+let _draftDirty = false;
+export function setDraftDirty(v) { _draftDirty = !!v; }
+export function isDraftDirty() { return _draftDirty; }
+export const DRAFT_LEAVE_MSG = 'Promote this to a strategy, or it will be lost. Leave without promoting?';
 
 // ── Version label — date-based, matching the existing convention (YY.MM.DD.a) ─
 export function todayISO() {
@@ -306,7 +300,7 @@ export async function promoteDraft(draft, { member_id, currentActiveRow }) {
     throw new Error(`Couldn't create the new version (HTTP ${post.status}). ${detail.slice(0, 160)}`);
   }
 
-  // 3) clear the draft
-  clearDraft(member_id);
+  // 3) clear the unsaved-draft guard (the draft state is dropped by the builder)
+  setDraftDirty(false);
   return { version, effective_from };
 }

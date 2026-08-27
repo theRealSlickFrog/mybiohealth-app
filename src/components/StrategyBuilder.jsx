@@ -3,12 +3,13 @@
 // pick up to 3 priorities from priority_library (auto-fills name/marker + pulls
 // the latest reading), write each "Why", set up to 3 shared micro-habits, then
 // Promote to a new versioned mystrategy_report_ready row. The working draft is
-// held in localStorage until Promote (nothing touches the live table before).
+// NOT persisted — it lives only in this component's state for the session.
+// Leave without Promote and it's gone (with a warning first).
 import { useEffect, useMemo, useState } from 'react';
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, OFFWHITE, CARD, BORDER, SOFT_RED, AMBER } from '../lib/constants.js';
 import {
   emptyDraft, fetchPriorityCatalog, fetchMicrohabits, applyLibraryPick, latestReadingFor,
-  loadDraft, saveDraft, clearDraft, promoteDraft, draftHasContent,
+  promoteDraft, draftHasContent, setDraftDirty, DRAFT_LEAVE_MSG,
 } from '../lib/strategyBuilder.js';
 
 const lbl = { fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#374151', marginBottom: 4, display: 'block' };
@@ -16,24 +17,30 @@ const input = { width: '100%', border: `1px solid ${BORDER}`, borderRadius: 8, p
 const area = { ...input, minHeight: 72, resize: 'vertical', lineHeight: 1.5 };
 
 export default function StrategyBuilder({ member, initialDraft, previousDraft, labRows, currentActiveRow, onPromoted, onCancel }) {
-  // Resume a real in-progress draft, but don't let a stale empty draft shadow the
-  // prefill coming from the current strategy ("Create New Version").
-  const [draft, setDraft] = useState(() => {
-    const saved = loadDraft(member);
-    return draftHasContent(saved) ? saved : (initialDraft || emptyDraft());
-  });
+  // Start from the prefill (a "new version from current strategy") or blank.
+  // Nothing is loaded from storage — the draft is session-only.
+  const [draft, setDraft] = useState(() => initialDraft || emptyDraft());
   const [library, setLibrary] = useState([]);
   const [habitCatalog, setHabitCatalog] = useState([]);
   const [mhxCat, setMhxCat] = useState(['', '', '']);   // per-slot category selection (UI only)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  const [savedTick, setSavedTick] = useState(false);
 
   useEffect(() => { fetchPriorityCatalog().then(setLibrary); }, []);
   useEffect(() => { fetchMicrohabits().then(setHabitCatalog); }, []);
 
-  // Autosave the draft to localStorage on every change (debounced-ish via effect).
-  useEffect(() => { saveDraft(member, draft); }, [member, draft]);
+  // The draft is not persisted. Keep the module-level "unpromoted draft" flag in
+  // sync (so AppShell can block navigation) and warn on hard browser close/refresh
+  // while there's real content. Always clear the flag on unmount.
+  const dirty = draftHasContent(draft);
+  useEffect(() => {
+    setDraftDirty(dirty);
+    if (!dirty) return undefined;
+    const warn = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+  useEffect(() => () => setDraftDirty(false), []);
 
   // Once the catalog loads, back-fill each slot's category from its saved habit
   // (so editing an existing version pre-selects the right category).
@@ -127,12 +134,6 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
     }
   }
 
-  function manualSave() {
-    saveDraft(member, draft);
-    setSavedTick(true);
-    setTimeout(() => setSavedTick(false), 1500);
-  }
-
   async function promote() {
     if (!confirm('Promote this draft to a new live strategy version? The current version becomes a past version.')) return;
     setBusy(true); setError(null);
@@ -144,9 +145,10 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
     } finally { setBusy(false); }
   }
 
+  // Leaving the builder without promoting: warn only if there's real content.
   function discard() {
-    if (!confirm('Discard this draft? Unsaved builder changes will be lost.')) return;
-    clearDraft(member);
+    if (dirty && !confirm(DRAFT_LEAVE_MSG)) return;
+    setDraftDirty(false);
     onCancel && onCancel();
   }
 
@@ -158,10 +160,10 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
         <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 20, color: SLATE }}>
           {isNewFromScratch ? 'Build strategy' : 'New strategy version'}
         </div>
-        <button onClick={onCancel} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 20, cursor: 'pointer', lineHeight: 1 }} aria-label="Close builder">×</button>
+        <button onClick={discard} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 20, cursor: 'pointer', lineHeight: 1 }} aria-label="Close builder">×</button>
       </div>
       <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>
-        Draft is saved in this browser — nothing goes live until you <strong>Promote</strong>.
+        This draft isn’t saved — <strong>Promote</strong> it to a strategy, or it’s discarded when you leave.
       </div>
 
       {/* Tagline */}
@@ -312,10 +314,8 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
       {/* Footer */}
       {error && <div style={{ color: SOFT_RED, fontSize: 12, marginTop: 8 }}>{error}</div>}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 14 }}>
-        <button onClick={discard} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Discard draft</button>
+        <button onClick={discard} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Discard</button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {savedTick && <span style={{ fontSize: 11, color: MBH_SAGE, fontWeight: 600 }}>Draft saved</span>}
-          <button onClick={manualSave} style={{ border: `1px solid ${BORDER}`, background: CARD, color: SLATE, borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Save draft</button>
           <button onClick={promote} disabled={busy}
             style={{ border: 'none', background: busy ? '#e5e7eb' : MBH_SAGE, color: busy ? '#9ca3af' : '#fff', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: busy ? 'default' : 'pointer' }}>
             {busy ? 'Promoting…' : 'Promote →'}

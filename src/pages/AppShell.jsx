@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { SLATE, OFFWHITE, MBH_DROP_IMG, NAV_ITEMS } from '../lib/constants.js';
 import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity, isAdminSession, REDIRECTOR_URL } from '../lib/auth.js';
+import { isDraftDirty, setDraftDirty, DRAFT_LEAVE_MSG } from '../lib/strategyBuilder.js';
 import Drawer from '../components/Drawer.jsx';
 import MyStrategyPage from './MyStrategyPage.jsx';
 import PrioritiesPage from './PrioritiesPage.jsx';
@@ -43,6 +44,14 @@ export default function AppShell() {
     sessionStorage.setItem('mbh_activity_session', '1');
   }, [activePage, booting]);
 
+  // Guard navigation: an unpromoted strategy draft (StrategyBuilder) blocks
+  // leaving until the user confirms — then it's discarded (nothing persisted).
+  const navigate = (page) => {
+    if (page !== activePage && isDraftDirty() && !window.confirm(DRAFT_LEAVE_MSG)) return;
+    setDraftDirty(false);
+    setActivePage(page);
+  };
+
   const pageLabel = NAV_ITEMS.find((n) => n.key === activePage)?.label;
   const showLabel = activePage !== 'strategy';
 
@@ -52,7 +61,7 @@ export default function AppShell() {
 
   return (
     <div style={{ fontFamily: "'DM Sans',sans-serif", background: OFFWHITE, minHeight: '100vh', color: SLATE }}>
-      {drawerOpen && <Drawer activePage={activePage} onSelect={setActivePage} onClose={() => setDrawerOpen(false)} />}
+      {drawerOpen && <Drawer activePage={activePage} onSelect={navigate} onClose={() => setDrawerOpen(false)} />}
 
       <div style={{ position: 'sticky', top: 0, zIndex: 100, background: SLATE, padding: '13px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
         <button onClick={() => setDrawerOpen(true)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '2px 4px', display: 'flex', flexDirection: 'column', gap: 4 }}>
