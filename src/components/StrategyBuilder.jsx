@@ -83,14 +83,23 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
     const lib = libByCode[code];
     if (!lib) return;
     // If the pick matches what the previous version had (same slot first, else
-    // any slot), restore THAT slot's details — target/why/value carry over.
+    // any slot), restore THAT slot's details (target/why carry over) — but the
+    // value/unit/date always refresh to the latest lab reading, so a new version
+    // shows the current value, not the previous version's.
     const prevSlots = (previousDraft && previousDraft.priorities) || [];
     const same = (a, b) => a && b && a.trim().toLowerCase() === b.trim().toLowerCase();
     const prev = (prevSlots[i] && same(prevSlots[i].name, lib.name))
       ? prevSlots[i]
       : prevSlots.find((s) => same(s.name, lib.name));
     if (prev && prev.name) {
-      setPriority(i, { ...prev, priority_code: code, kind: lib.render_kind || prev.kind, primary_marker: lib.primary_marker_code || prev.primary_marker });
+      const marker = lib.primary_marker_code || prev.primary_marker;
+      const reading = latestReadingFor(labRows, marker);
+      setPriority(i, {
+        ...prev, priority_code: code, kind: lib.render_kind || prev.kind, primary_marker: marker,
+        latest_value: reading ? reading.value : prev.latest_value,
+        unit: reading ? reading.unit : prev.unit,
+        latest_date: reading ? reading.date : prev.latest_date,
+      });
       return;
     }
     // Otherwise a fresh pick: library defaults + the latest reading from labs.
@@ -102,12 +111,6 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
       unit: reading ? reading.unit : draft.priorities[i].unit,
       latest_date: reading ? reading.date : draft.priorities[i].latest_date,
     });
-  }
-
-  function refreshReading(i) {
-    const p = draft.priorities[i];
-    const reading = latestReadingFor(labRows, p.primary_marker);
-    if (reading) setPriority(i, { latest_value: reading.value, unit: reading.unit, latest_date: reading.date });
   }
 
   function toggleServes(i, n) {
@@ -209,10 +212,6 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
                 <label style={lbl}>Date</label>
                 <input style={input} value={p.latest_date} onChange={(e) => setPriority(i, { latest_date: e.target.value })} placeholder="Jan 2025" />
               </div>
-              <button onClick={() => refreshReading(i)} title="Pull latest from lab results"
-                style={{ alignSelf: 'flex-end', border: `1px solid ${MBH_SAGE}55`, color: MBH_SAGE, background: CARD, borderRadius: 8, padding: '8px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', height: 35 }}>
-                ↻ from labs
-              </button>
             </div>
             <div style={{ marginBottom: 10 }}>
               <label style={lbl}>Target <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>(the "→ …" line)</span></label>
