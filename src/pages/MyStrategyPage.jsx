@@ -127,6 +127,8 @@ function unflattenRow(row) {
     if (!row[`p${n}_name`]) continue;
     priorities.push({
       n,
+      anchor: row[`p${n}_anchor`] || null,
+      code: row[`p${n}_code`] || null,
       name: row[`p${n}_name`],
       kind: row[`p${n}_kind`],
       primaryMarker: row[`p${n}_primary_marker`] || null,
@@ -452,9 +454,9 @@ export default function MyStrategyPage() {
             <div onClick={() => togglePriority(p.n)} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: isOpen ? 12 : 0, cursor: 'pointer' }}>
               <div style={{ width: 24, height: 24, borderRadius: '50%', background: SLATE, color: 'white', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>P{p.n}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: SLATE, lineHeight: 1.25, marginBottom: 3 }}>{p.name}</div>
+                <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: SLATE, lineHeight: 1.25, marginBottom: 3 }}>{p.anchor || p.name}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ fontSize: 12, color: cfg.priorityTargetColour, fontWeight: 600, fontFamily: 'monospace' }}>{'→'} {p.target}</div>
+                  <div style={{ fontSize: 12, color: cfg.priorityTargetColour, fontWeight: 600, fontFamily: 'monospace' }}>{'→'} {p.anchor ? p.name : p.target}</div>
                   {p.primaryMarker && OPTIMAL_AUTHORITIES[p.primaryMarker] && (
                     <button onClick={(e) => { e.stopPropagation(); setOptimalSignal(p.primaryMarker); }} style={{ background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', color: MBH_SAGE, fontSize: 13, lineHeight: 1, fontWeight: 700 }}>{'ⓘ'}</button>
                   )}

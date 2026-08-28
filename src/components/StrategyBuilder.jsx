@@ -95,7 +95,8 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
       const marker = lib.primary_marker_code || prev.primary_marker;
       const reading = latestReadingFor(labRows, marker);
       setPriority(i, {
-        ...prev, priority_code: code, kind: lib.render_kind || prev.kind, primary_marker: marker,
+        ...prev, priority_code: code, anchor: lib.default_anchor_text || prev.anchor,
+        name: lib.name || prev.name, kind: lib.render_kind || prev.kind, primary_marker: marker,
         latest_value: reading ? reading.value : prev.latest_value,
         unit: reading ? reading.unit : prev.unit,
         latest_date: reading ? reading.date : prev.latest_date,

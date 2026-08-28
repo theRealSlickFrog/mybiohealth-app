@@ -23,7 +23,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 export function emptyPriority() {
   return {
-    priority_code: '', name: '', kind: 'chart', primary_marker: '',
+    priority_code: '', anchor: '', name: '', kind: 'chart', primary_marker: '',
     target_text: '', latest_value: '', unit: '', latest_date: '',
     next_text: '', rx_text: '', why_text: '', other_markers: '',
     donut_hr78: '', donut_hr10: '', donut_target_hr: '',
@@ -61,6 +61,8 @@ export function draftFromRow(row) {
   d.tagline = row.tagline || '';
   for (let n = 1; n <= 3; n++) {
     const p = d.priorities[n - 1];
+    p.priority_code = row[`p${n}_code`] || '';
+    p.anchor = row[`p${n}_anchor`] || '';
     p.name = row[`p${n}_name`] || '';
     p.kind = row[`p${n}_kind`] || 'chart';
     p.primary_marker = row[`p${n}_primary_marker`] || '';
@@ -145,16 +147,18 @@ export async function fetchMicrohabits() {
   } catch (e) { return []; }
 }
 
-// Apply a picked priority_library row onto a priority slot: copies name / kind /
-// marker and seeds the target text from default_anchor_text (all editable after).
+// Apply a picked catalog row onto a priority slot. anchor = the domain (title),
+// name = the Priority action (subtitle), code = the catalog key (stored, not
+// shown). target_text is left as-is (an optional free field, no longer seeded).
 export function applyLibraryPick(priority, lib) {
   return {
     ...priority,
     priority_code: lib.priority_code || '',
+    anchor: lib.default_anchor_text || '',
     name: lib.name || '',
     kind: lib.render_kind || 'chart',
     primary_marker: lib.primary_marker_code || '',
-    target_text: priority.target_text || lib.default_anchor_text || '',
+    target_text: priority.target_text || '',
   };
 }
 
@@ -213,6 +217,8 @@ export function flattenDraft(draft, { member_id, version, effective_from }) {
   draft.priorities.forEach((p, i) => {
     if (!p.name) return;               // empty slot → skip entirely
     const n = i + 1;
+    put(row, `p${n}_code`, p.priority_code);
+    put(row, `p${n}_anchor`, p.anchor);
     put(row, `p${n}_name`, p.name);
     put(row, `p${n}_kind`, p.kind);
     put(row, `p${n}_primary_marker`, p.primary_marker);
