@@ -11,6 +11,7 @@ import {
   emptyDraft, fetchPriorityCatalog, fetchMicrohabits, applyLibraryPick, latestReadingFor,
   promoteDraft, draftHasContent, setDraftDirty, DRAFT_LEAVE_MSG,
 } from '../lib/strategyBuilder.js';
+import { loadNote, saveNote } from '../lib/notes.js';
 
 const lbl = { fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#374151', marginBottom: 4, display: 'block' };
 const input = { width: '100%', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '10px 12px', fontSize: 14, color: SLATE, background: OFFWHITE, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
@@ -25,14 +26,24 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
   const [mhxCat, setMhxCat] = useState(['', '', '']);   // per-slot category selection (UI only)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // "From the Top" — the member's goal statement (a single per-member note,
+  // strategy_why). Prefill from the existing note; saved on Promote.
+  const [whyText, setWhyText] = useState('');
+  const [whyOrig, setWhyOrig] = useState('');
+  const [whyNoteId, setWhyNoteId] = useState(null);
 
   useEffect(() => { fetchPriorityCatalog().then(setLibrary); }, []);
   useEffect(() => { fetchMicrohabits().then(setHabitCatalog); }, []);
+  useEffect(() => {
+    loadNote(member, 'strategy_why')
+      .then((n) => { setWhyText(n.text || ''); setWhyOrig(n.text || ''); setWhyNoteId(n.id); })
+      .catch(() => {});
+  }, [member]);
 
   // The draft is not persisted. Keep the module-level "unpromoted draft" flag in
   // sync (so AppShell can block navigation) and warn on hard browser close/refresh
   // while there's real content. Always clear the flag on unmount.
-  const dirty = draftHasContent(draft);
+  const dirty = draftHasContent(draft) || whyText !== whyOrig;
   useEffect(() => {
     setDraftDirty(dirty);
     if (!dirty) return undefined;
@@ -143,6 +154,7 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
     setBusy(true); setError(null);
     try {
       await promoteDraft(draft, { member_id: member, currentActiveRow });
+      try { await saveNote(member, 'strategy_why', whyText.trim(), whyNoteId); } catch (e) { /* note save is non-fatal */ }
       onPromoted && onPromoted();
     } catch (e) {
       setError(e.message || 'Promote failed.');
@@ -168,6 +180,13 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
       </div>
       <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>
         This draft isn’t saved — <strong>Promote</strong> it to a strategy, or it’s discarded when you leave.
+      </div>
+
+      {/* From the Top — the member's goal statement (strategy_why note) */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={lbl}>From the Top <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>(the member’s goal, shown at the top of the strategy)</span></label>
+        <textarea style={area} value={whyText} onChange={(e) => setWhyText(e.target.value)}
+          placeholder="In their words — what brings them here, and what they want to protect…" />
       </div>
 
       {/* Tagline */}
