@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, OFFWHITE, CARD, BORDER, SOFT_RED, AMBER } from '../lib/constants.js';
 import {
-  emptyDraft, fetchPriorityCatalog, fetchMicrohabits, applyLibraryPick, latestReadingFor,
+  emptyDraft, fetchPriorityCatalog, fetchMicrohabits, fetchPriorityWhys, applyLibraryPick, latestReadingFor,
   promoteDraft, draftHasContent, setDraftDirty, DRAFT_LEAVE_MSG,
 } from '../lib/strategyBuilder.js';
 import { loadNote, saveNote } from '../lib/notes.js';
@@ -22,6 +22,7 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
   // Nothing is loaded from storage — the draft is session-only.
   const [draft, setDraft] = useState(() => initialDraft || emptyDraft());
   const [library, setLibrary] = useState([]);
+  const [whyLib, setWhyLib] = useState({});   // priority_code -> standard Why (markdown)
   const [habitCatalog, setHabitCatalog] = useState([]);
   const [mhxCat, setMhxCat] = useState(['', '', '']);   // per-slot category selection (UI only)
   const [busy, setBusy] = useState(false);
@@ -33,6 +34,7 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
   const [whyNoteId, setWhyNoteId] = useState(null);
 
   useEffect(() => { fetchPriorityCatalog().then(setLibrary); }, []);
+  useEffect(() => { fetchPriorityWhys('EN').then(setWhyLib); }, []);
   useEffect(() => { fetchMicrohabits().then(setHabitCatalog); }, []);
   useEffect(() => {
     loadNote(member, 'strategy_why')
@@ -124,6 +126,7 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
       latest_value: reading ? reading.value : '',
       unit: reading ? reading.unit : '',
       latest_date: reading ? reading.date : '',
+      why_text: whyLib[code] || '',   // seed the standard Why for this priority (editable)
     });
   }
 

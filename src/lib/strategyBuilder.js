@@ -127,6 +127,22 @@ export async function fetchPriorityCatalog() {
   } catch (e) { return []; }
 }
 
+// ── Standard "Why" library (reference_code_desc, domain='PRIORITY') ──────────
+// Returns a map priority_code -> display_text (the 3-page markdown Why) for the
+// given language. The builder seeds a priority's Why from this on pick; the
+// admin can then edit, and Promote saves the per-member copy to p{n}_why_text.
+export async function fetchPriorityWhys(language = 'EN') {
+  try {
+    const where = encodeURIComponent(`domain='PRIORITY' AND language='${language}'`);
+    const r = await fetch(`${API_BASE}/rest/v2/tables/reference_code_desc/records?q.where=${where}&q.select=code,display_text&q.limit=500`);
+    if (!r.ok) return {};
+    const rows = (await r.json()).Result || [];
+    const m = {};
+    rows.forEach((x) => { if (x.code) m[x.code] = x.display_text || ''; });
+    return m;
+  } catch (e) { return {}; }
+}
+
 // Does a saved draft hold real content? Used so a stale, autosaved EMPTY draft
 // doesn't shadow the prefill when opening "Create New Version" from a strategy.
 export function draftHasContent(d) {
