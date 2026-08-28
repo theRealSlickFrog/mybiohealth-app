@@ -456,11 +456,14 @@ export default function MyStrategyPage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 18, color: SLATE, lineHeight: 1.25, marginBottom: 3 }}>{p.anchor || p.name}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ fontSize: 12, color: cfg.priorityTargetColour, fontWeight: 600, fontFamily: 'monospace' }}>{'→'} {p.anchor ? p.name : p.target}</div>
+                  <div style={{ fontSize: 12, color: cfg.priorityTargetColour, fontWeight: 600, fontFamily: 'monospace' }}>{p.anchor ? p.name : `→ ${p.target}`}</div>
                   {p.primaryMarker && OPTIMAL_AUTHORITIES[p.primaryMarker] && (
                     <button onClick={(e) => { e.stopPropagation(); setOptimalSignal(p.primaryMarker); }} style={{ background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', color: MBH_SAGE, fontSize: 13, lineHeight: 1, fontWeight: 700 }}>{'ⓘ'}</button>
                   )}
                 </div>
+                {p.anchor && p.target && (
+                  <div style={{ fontSize: 12, color: cfg.priorityTargetColour, fontWeight: 600, fontFamily: 'monospace', marginTop: 2 }}>{'→'} {p.target}</div>
+                )}
                 {p.why && (
                   <button onClick={(e) => { e.stopPropagation(); setWhy({ title: p.name, body: p.why }); }} style={{ marginTop: 8, background: 'none', border: `1px solid ${MBH_SAGE}50`, borderRadius: 14, padding: '3px 11px', fontSize: 11, fontWeight: 600, color: MBH_SAGE, cursor: 'pointer' }}>
                     The Why →
