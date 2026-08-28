@@ -115,13 +115,15 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
       return;
     }
     // Otherwise a fresh pick: library defaults + the latest reading from labs.
+    // Always reset value/unit/date to the new marker's reading (or blank) — never
+    // keep the previously-picked priority's value when switching.
     const applied = applyLibraryPick(draft.priorities[i], lib);
     const reading = latestReadingFor(labRows, lib.primary_marker_code);
     setPriority(i, {
       ...applied,
-      latest_value: reading ? reading.value : draft.priorities[i].latest_value,
-      unit: reading ? reading.unit : draft.priorities[i].unit,
-      latest_date: reading ? reading.date : draft.priorities[i].latest_date,
+      latest_value: reading ? reading.value : '',
+      unit: reading ? reading.unit : '',
+      latest_date: reading ? reading.date : '',
     });
   }
 
