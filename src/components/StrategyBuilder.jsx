@@ -315,33 +315,21 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
           No habits yet — use “Pick Micro-habits” to choose the levers that move your priorities.
         </div>
       )}
-      {draft.mhx.map((m, i) => (m.name ? (
-        <div key={i} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '12px 14px', marginBottom: 10 }}>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 8 }}>
-            <div style={{ flex: '2 1 200px' }}>
-              <label style={lbl}>Habit {i + 1}</label>
-              <div style={{ fontSize: 14, color: SLATE, fontWeight: 600, padding: '6px 0 2px' }}>{m.name}</div>
+      {draft.mhx.some((m) => m.name) && (
+        <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '10px 14px', marginBottom: 10 }}>
+          {draft.mhx.filter((m) => m.name).map((m, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0' }}>
+              <span style={{ flex: 1, fontSize: 13.5, color: SLATE, fontWeight: 600 }}>{m.name}</span>
+              {m.frequency && <span style={{ fontSize: 11, color: '#6b7280' }}>{m.frequency}</span>}
+              <span style={{ display: 'flex', gap: 4 }}>
+                {(m.linked_priorities || []).map((n) => (
+                  <span key={n} style={{ fontSize: 10, fontWeight: 700, color: SAGE_TEXT, background: SAGE_BG, border: `1px solid ${MBH_SAGE}55`, borderRadius: 6, padding: '1px 5px' }}>P{n}</span>
+                ))}
+              </span>
             </div>
-            <div style={{ flex: '1 1 110px' }}>
-              <label style={lbl}>Frequency</label>
-              <input style={input} value={m.frequency} onChange={(e) => setMhx(i, { frequency: e.target.value })} placeholder="5/7 days" />
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 11, color: '#6b7280' }}>Serves:</span>
-            {[1, 2, 3].map((n) => {
-              const on = (m.linked_priorities || []).includes(n);
-              const enabled = !!draft.priorities[n - 1].name;
-              return (
-                <button key={n} onClick={() => enabled && toggleServes(i, n)} disabled={!enabled}
-                  style={{ border: `1px solid ${on ? MBH_SAGE : BORDER}`, background: on ? SAGE_BG : CARD, color: on ? SAGE_TEXT : (enabled ? SLATE : '#c9c9c9'), borderRadius: 20, padding: '4px 12px', fontSize: 11, fontWeight: 600, cursor: enabled ? 'pointer' : 'not-allowed' }}>
-                  P{n}
-                </button>
-              );
-            })}
-          </div>
+          ))}
         </div>
-      ) : null))}
+      )}
 
       {/* Routines */}
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', margin: '6px 0 8px' }}>Routines</div>
