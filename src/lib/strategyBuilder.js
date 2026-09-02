@@ -143,6 +143,30 @@ export async function fetchPriorityWhys(language = 'EN') {
   } catch (e) { return {}; }
 }
 
+// ── Tagline display toggle (system_parm 'show_tagline', group mystrategy_page) ─
+// GLOBAL setting surfaced in the builder: when on, the per-member tagline shows
+// as the strategy sub-header; when off, the static subtitle_text shows instead.
+// Saved immediately (not part of the draft) since it's a global config flag.
+export async function fetchTaglineToggle() {
+  try {
+    const where = encodeURIComponent("parm_group='mystrategy_page' AND parm_name='show_tagline'");
+    const r = await fetch(`${API_BASE}/rest/v2/tables/system_parm/records?q.where=${where}&q.limit=1`);
+    if (!r.ok) return { on: false, pk: null };
+    const row = ((await r.json()).Result || [])[0];
+    if (!row) return { on: false, pk: null };
+    const v = (row.main_value || '').trim().toLowerCase();
+    return { on: ['on', 'true', '1', 'yes'].includes(v), pk: row.PK_ID };
+  } catch (e) { return { on: false, pk: null }; }
+}
+export async function setTaglineToggle(pk, on) {
+  if (pk == null) return false;
+  try {
+    const url = `${API_BASE}/rest/v2/tables/system_parm/records?q.where=${encodeURIComponent('PK_ID=' + pk)}`;
+    const r = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ main_value: on ? 'on' : 'off' }) });
+    return r.ok;
+  } catch (e) { return false; }
+}
+
 // Does a saved draft hold real content? Used so a stale, autosaved EMPTY draft
 // doesn't shadow the prefill when opening "Create New Version" from a strategy.
 export function draftHasContent(d) {

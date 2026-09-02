@@ -393,7 +393,7 @@ export default function MyStrategyPage() {
           )}
         </div>
       </div>
-      <div style={{ fontSize: 12, color: '#374151', marginBottom: 20 }}>{cfg.subtitle || strategy.tagline}</div>
+      <div style={{ fontSize: 12, color: '#374151', marginBottom: 20 }}>{(cfg.showTagline && strategy.tagline) ? strategy.tagline : cfg.subtitle}</div>
 
       {building && (
         <StrategyBuilder
