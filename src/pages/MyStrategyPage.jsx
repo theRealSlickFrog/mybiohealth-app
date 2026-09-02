@@ -343,7 +343,7 @@ export default function MyStrategyPage() {
     return (
       <div style={{ padding: '22px 16px 80px' }}>
         <h1 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 28, color: SLATE, fontWeight: 'normal', marginBottom: 16 }}>
-          <em style={{ fontStyle: 'normal' }}>My</em>Strategy
+          <em style={{ fontStyle: 'italic' }}>My</em>Strategy
         </h1>
         {building ? (
           <StrategyBuilder member={member} initialDraft={null} labRows={labRows} currentActiveRow={null} onPromoted={onPromoted} onCancel={() => setBuilding(false)} />
@@ -369,7 +369,7 @@ export default function MyStrategyPage() {
       {why && <WhyModal title={why.title} body={why.body} onClose={() => setWhy(null)} />}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
         <h1 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 28, color: SLATE, fontWeight: 'normal' }}>
-          <em style={{ fontStyle: 'normal' }}>My</em>Strategy
+          <em style={{ fontStyle: 'italic' }}>My</em>Strategy
         </h1>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 12, color: SLATE, fontWeight: 600 }}>
@@ -598,7 +598,7 @@ export default function MyStrategyPage() {
       <PersonalNote noteKey="strategy" />
 
       <div style={{ padding: '13px 16px', background: '#eeeae4', borderRadius: 10, fontSize: 12, color: '#6b7280', lineHeight: 1.6 }}>
-        <strong style={{ color: SLATE }}>About <em style={{ fontStyle: 'normal' }}>My</em>Strategy.</strong> A living plan — versioned, signal-linked, renewed on a cadence the member sets.
+        <strong style={{ color: SLATE }}>About <em style={{ fontStyle: 'italic' }}>My</em>Strategy.</strong> A living plan — versioned, signal-linked, renewed on a cadence the member sets.
       </div>
       </>)}
     </div>
