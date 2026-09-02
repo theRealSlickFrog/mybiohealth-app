@@ -15,8 +15,7 @@
 const API_BASE = import.meta.env.DEV ? '/api' : 'https://kenises-api-proxy.netlify.app';
 
 export const DEFAULTS = {
-  subtitle: '',                    // static sub-header (shown when the tagline toggle is off)
-  showTagline: false,              // 'show_tagline'='on' => use the per-member tagline as the sub-header
+  subtitle: '',                    // (legacy static sub-header — no longer used; the tagline drives the sub-header now)
   priorityTargetColour: '#000000', // colour of the "→ {target}" line
   // "Why I'm here" card. Heading + caption are fixed copy from system_parm;
   // the body in between is the member's editable note (notes.js key 'strategy_why').
@@ -49,7 +48,6 @@ export async function loadStrategyConfig() {
         const v2 = (row.value_two || '').trim();   // text colour for lever_* parms
         switch (k) {
           case 'subtitle_text':          if (v) cfg.subtitle = v; break;
-          case 'show_tagline':           cfg.showTagline = ['on','true','1','yes'].includes(v.toLowerCase()); break;
           case 'priority_target_colour': if (v) cfg.priorityTargetColour = v; break;
           case 'why_heading':            if (v) cfg.whyHeading = v; break;
           case 'why_caption':            if (v) cfg.whyCaption = v; break;

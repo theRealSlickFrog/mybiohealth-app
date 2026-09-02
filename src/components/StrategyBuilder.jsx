@@ -10,7 +10,6 @@ import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, OFFWHITE, CARD, BORDER, SOFT_RED, 
 import {
   emptyDraft, fetchPriorityCatalog, fetchMicrohabits, fetchPriorityWhys, applyLibraryPick, latestReadingFor,
   promoteDraft, draftHasContent, setDraftDirty, DRAFT_LEAVE_MSG,
-  fetchTaglineToggle, setTaglineToggle,
 } from '../lib/strategyBuilder.js';
 import { loadNote, saveNote } from '../lib/notes.js';
 
@@ -33,14 +32,10 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
   const [whyText, setWhyText] = useState('');
   const [whyOrig, setWhyOrig] = useState('');
   const [whyNoteId, setWhyNoteId] = useState(null);
-  // Global "show tagline as sub-header" toggle (system_parm show_tagline)
-  const [taglineOn, setTaglineOn] = useState(false);
-  const [taglinePk, setTaglinePk] = useState(null);
 
   useEffect(() => { fetchPriorityCatalog().then(setLibrary); }, []);
   useEffect(() => { fetchPriorityWhys('EN').then(setWhyLib); }, []);
   useEffect(() => { fetchMicrohabits().then(setHabitCatalog); }, []);
-  useEffect(() => { fetchTaglineToggle().then((t) => { setTaglineOn(t.on); setTaglinePk(t.pk); }); }, []);
   useEffect(() => {
     loadNote(member, 'strategy_why')
       .then((n) => { setWhyText(n.text || ''); setWhyOrig(n.text || ''); setWhyNoteId(n.id); })
@@ -201,12 +196,7 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
 
       {/* Tagline */}
       <div style={{ marginBottom: 16 }}>
-        <label style={lbl}>Tagline <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>(optional sub-header)</span></label>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6b7280', margin: '0 0 6px', cursor: taglinePk ? 'pointer' : 'default', opacity: taglinePk ? 1 : 0.5 }}>
-          <input type="checkbox" checked={taglineOn} disabled={!taglinePk}
-            onChange={async (e) => { const on = e.target.checked; setTaglineOn(on); await setTaglineToggle(taglinePk, on); }} />
-          Show the tagline as the page sub-header <span style={{ color: '#9ca3af' }}>(applies to all members)</span>
-        </label>
+        <label style={lbl}>Tagline <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>(optional sub-header — shown only when filled in)</span></label>
         <input style={input} value={draft.tagline} onChange={(e) => setDraft((d) => ({ ...d, tagline: e.target.value }))}
           placeholder="Two habits. Three priorities. Signal-confirmed." />
       </div>
