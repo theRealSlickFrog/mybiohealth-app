@@ -163,8 +163,8 @@ export default function PlotlyChart({ history, thresholds, reference, unit, mark
       },
     ];
 
-    // Reference marker + optional connector
-    if (hasRef && refDate) {
+    // Reference marker + optional connector — gated by the reference_target parm
+    if (hasRef && refDate && cfg.showReferenceTarget) {
       if (targetConnectorOn && dates.length > 0) {
         traces.push({
           x: [dates[dates.length - 1], refDate], y: [values[values.length - 1], refValue],
@@ -188,7 +188,7 @@ export default function PlotlyChart({ history, thresholds, reference, unit, mark
     if (present.has(cfg.emojis.drift))     legendData.push({ emoji: cfg.emojis.drift, label: 'Drift Zone' });
     if (present.has(cfg.emojis.driftPlus)) legendData.push({ emoji: cfg.emojis.driftPlus, label: 'Drift Zone+' });
     if (present.has(cfg.emojis.concern))   legendData.push({ emoji: cfg.emojis.concern, label: 'Concern Zone', color: '#c0483a' });
-    if (hasRef) {
+    if (hasRef && cfg.showReferenceTarget) {
       const refLabelVal = refDirection ? `${refDirection} ${refValue}` : refValue;
       legendData.push({ emoji: cfg.emojis.target, label: `${cfg.referenceLabel} ${refLabelVal}${unit ? ' '+unit : ''}` });
     }

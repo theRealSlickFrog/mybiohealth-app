@@ -33,6 +33,7 @@ const DEFAULTS = {
   targetConnectorLine: { style: 'off', thickness: 2, color: '#4a7c6f' }, // last value → reference
   dtickButtons: 'QE',   // which dtick toggle buttons to render above the chart
   referenceLabel: 'Reference',  // label for the target/reference point (legend + hover)
+  showReferenceTarget: true,    // the ◯ optimal/reference target point — parm 'reference_target'='off' hides it (and its connector)
 };
 
 let cached = null;
@@ -86,6 +87,7 @@ export async function loadChartConfig() {
             cfg.targetConnectorLine = { style: v.toLowerCase(), thickness: parseFloat(v2) || 1, color: v3 || cfg.targetConnectorLine.color }; break;
           case 'dtick_buttons':         if (v) cfg.dtickButtons = v.toUpperCase(); break;
           case 'reference_label':       if (v) cfg.referenceLabel = v; break;
+          case 'reference_target':      cfg.showReferenceTarget = (v.toLowerCase() !== 'off'); break;
           default: break;
         }
       }
