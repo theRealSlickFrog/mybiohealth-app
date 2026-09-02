@@ -8,10 +8,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, OFFWHITE, CARD, BORDER, SOFT_RED, AMBER } from '../lib/constants.js';
 import {
-  emptyDraft, fetchPriorityCatalog, fetchMicrohabits, fetchPriorityWhys, applyLibraryPick, latestReadingFor,
+  emptyDraft, emptyMhx, fetchPriorityCatalog, fetchMicrohabits, fetchPriorityWhys, fetchMarkerHabitLinks,
+  applyLibraryPick, latestReadingFor,
   promoteDraft, draftHasContent, setDraftDirty, DRAFT_LEAVE_MSG,
 } from '../lib/strategyBuilder.js';
 import { loadNote, saveNote } from '../lib/notes.js';
+import MicrohabitWizard from './MicrohabitWizard.jsx';
 
 const lbl = { fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#374151', marginBottom: 4, display: 'block' };
 const input = { width: '100%', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '10px 12px', fontSize: 14, color: SLATE, background: OFFWHITE, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
@@ -32,10 +34,13 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
   const [whyText, setWhyText] = useState('');
   const [whyOrig, setWhyOrig] = useState('');
   const [whyNoteId, setWhyNoteId] = useState(null);
+  const [habitLinks, setHabitLinks] = useState([]);   // marker_x_microhabit, for the picker wizard
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   useEffect(() => { fetchPriorityCatalog().then(setLibrary); }, []);
   useEffect(() => { fetchPriorityWhys('EN').then(setWhyLib); }, []);
   useEffect(() => { fetchMicrohabits().then(setHabitCatalog); }, []);
+  useEffect(() => { fetchMarkerHabitLinks().then(setHabitLinks); }, []);
   useEffect(() => {
     loadNote(member, 'strategy_why')
       .then((n) => { setWhyText(n.text || ''); setWhyOrig(n.text || ''); setWhyNoteId(n.id); })
@@ -136,6 +141,23 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
     setMhx(i, { linked_priorities: next });
   }
 
+  // Wizard result → fill the 3 mhx slots. Each pick brings its name, default
+  // frequency, and the priorities it moves (auto Serves-links). Editable after.
+  function applyHabits(picks) {
+    setDraft((d) => {
+      const mhx = [emptyMhx(), emptyMhx(), emptyMhx()];
+      picks.slice(0, 3).forEach((p, i) => {
+        mhx[i] = { ...emptyMhx(), name: p.name, frequency: p.frequency || '', linked_priorities: (p.moves || []).slice() };
+      });
+      return { ...d, mhx };
+    });
+    setWizardOpen(false);
+  }
+  const currentHabitIds = () => draft.mhx.filter((m) => m.name)
+    .map((m) => { const h = habitCatalog.find((x) => x.microhabit_name === m.name); return h ? h.microhabit_id : null; })
+    .filter((x) => x != null);
+  const anyPriority = draft.priorities.some((p) => p.name);
+
   // Pick a habit from the catalog: set the name and, if no frequency yet, seed it
   // from the catalog's default_frequency (still editable).
   function pickHabit(i, name) {
@@ -177,6 +199,16 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
 
   return (
     <div style={{ background: OFFWHITE, border: `1px solid ${BORDER}`, borderRadius: 14, padding: '18px 18px 16px', marginBottom: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+      {wizardOpen && (
+        <MicrohabitWizard
+          priorities={draft.priorities}
+          habitCatalog={habitCatalog}
+          links={habitLinks}
+          initialIds={currentHabitIds()}
+          onDone={applyHabits}
+          onClose={() => setWizardOpen(false)}
+        />
+      )}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
         <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 20, color: SLATE }}>
           {isNewFromScratch ? 'Build strategy' : 'New strategy version'}
@@ -268,30 +300,27 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
         </div>
       ))}
 
-      {/* Micro-habits (shared 3) */}
-      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', margin: '6px 0 8px' }}>
-        Micro-habits <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>— three shared levers; tick which priorities each serves</span>
+      {/* Micro-habits (shared, ≤3) — picked via the leverage wizard */}
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, margin: '6px 0 8px' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151' }}>
+          Micro-habits <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>— up to three shared levers</span>
+        </div>
+        <button onClick={() => anyPriority && setWizardOpen(true)} disabled={!anyPriority}
+          style={{ border: `1px solid ${MBH_SAGE}`, background: anyPriority ? MBH_SAGE : '#e5e7eb', color: anyPriority ? '#fff' : '#9ca3af', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: anyPriority ? 'pointer' : 'default' }}>
+          ✨ Pick Micro-habits
+        </button>
       </div>
-      {draft.mhx.map((m, i) => (
+      {draft.mhx.every((m) => !m.name) && (
+        <div style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic', background: CARD, border: `1px dashed ${BORDER}`, borderRadius: 12, padding: '12px 14px', marginBottom: 10 }}>
+          No habits yet — use “Pick Micro-habits” to choose the levers that move your priorities.
+        </div>
+      )}
+      {draft.mhx.map((m, i) => (m.name ? (
         <div key={i} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '12px 14px', marginBottom: 10 }}>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-            <div style={{ flex: '1 1 140px' }}>
-              <label style={lbl}>Category</label>
-              <select style={{ ...input, background: CARD }} value={mhxCat[i]} onChange={(e) => setCategory(i, e.target.value)}>
-                <option value="">— category —</option>
-                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div style={{ flex: '1.5 1 170px' }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 8 }}>
+            <div style={{ flex: '2 1 200px' }}>
               <label style={lbl}>Habit {i + 1}</label>
-              <select style={{ ...input, background: CARD }} value={m.name} onChange={(e) => pickHabit(i, e.target.value)} disabled={!mhxCat[i] && !m.name}>
-                <option value="">{mhxCat[i] ? '— pick a habit —' : '— category first —'}</option>
-                {/* keep an existing (e.g. legacy) name selectable even if it's no longer in the catalog */}
-                {m.name && !habitCatalog.some((h) => h.microhabit_name === m.name) && (
-                  <option value={m.name}>{m.name}</option>
-                )}
-                {habitsFor(mhxCat[i]).map((h) => <option key={h.microhabit_id} value={h.microhabit_name}>{h.microhabit_name}</option>)}
-              </select>
+              <div style={{ fontSize: 14, color: SLATE, fontWeight: 600, padding: '6px 0 2px' }}>{m.name}</div>
             </div>
             <div style={{ flex: '1 1 110px' }}>
               <label style={lbl}>Frequency</label>
@@ -312,7 +341,7 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
             })}
           </div>
         </div>
-      ))}
+      ) : null))}
 
       {/* Routines */}
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', margin: '6px 0 8px' }}>Routines</div>

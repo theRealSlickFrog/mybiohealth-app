@@ -143,6 +143,16 @@ export async function fetchPriorityWhys(language = 'EN') {
   } catch (e) { return {}; }
 }
 
+// All marker→microhabit links, for computing habit leverage in the picker
+// wizard. Returns an array of { marker_code, microhabit_id }.
+export async function fetchMarkerHabitLinks() {
+  try {
+    const r = await fetch(`${API_BASE}/rest/v2/tables/marker_x_microhabit/records?q.select=marker_code,microhabit_id&q.limit=1000`);
+    if (!r.ok) return [];
+    return (await r.json()).Result || [];
+  } catch (e) { return []; }
+}
+
 // Does a saved draft hold real content? Used so a stale, autosaved EMPTY draft
 // doesn't shadow the prefill when opening "Create New Version" from a strategy.
 export function draftHasContent(d) {
