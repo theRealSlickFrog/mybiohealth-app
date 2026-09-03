@@ -254,20 +254,15 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
       ))}
 
       {/* Micro-habits (shared, ≤3) — picked via the leverage wizard */}
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, margin: '6px 0 8px' }}>
-        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151' }}>
-          Micro-habits <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>— up to three shared levers</span>
-        </div>
+      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', margin: '6px 0 8px' }}>
+        Micro-habits <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>— up to three shared levers</span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'center', margin: '36px 0' }}>
         <button onClick={() => anyPriority && setWizardOpen(true)} disabled={!anyPriority}
-          style={{ border: `1px solid ${MBH_SAGE}`, background: anyPriority ? MBH_SAGE : '#e5e7eb', color: anyPriority ? '#fff' : '#9ca3af', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: anyPriority ? 'pointer' : 'default' }}>
+          style={{ border: `1px solid ${MBH_SAGE}`, background: anyPriority ? MBH_SAGE : '#e5e7eb', color: anyPriority ? '#fff' : '#9ca3af', borderRadius: 10, padding: '13px 32px', fontSize: 14, fontWeight: 700, cursor: anyPriority ? 'pointer' : 'default' }}>
           ✨ Pick Micro-habits
         </button>
       </div>
-      {draft.mhx.every((m) => !m.name) && (
-        <div style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic', background: CARD, border: `1px dashed ${BORDER}`, borderRadius: 12, padding: '12px 14px', marginBottom: 10 }}>
-          No habits yet — use “Pick Micro-habits” to choose the levers that move your priorities.
-        </div>
-      )}
 
       {/* Routines */}
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', margin: '6px 0 8px' }}>Routines</div>
