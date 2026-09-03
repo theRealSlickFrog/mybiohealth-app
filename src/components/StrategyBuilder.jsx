@@ -26,7 +26,6 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
   const [library, setLibrary] = useState([]);
   const [whyLib, setWhyLib] = useState({});   // priority_code -> standard Why (markdown)
   const [habitCatalog, setHabitCatalog] = useState([]);
-  const [mhxCat, setMhxCat] = useState(['', '', '']);   // per-slot category selection (UI only)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   // "From the Top" — the member's goal statement (a single per-member note,
@@ -60,18 +59,6 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
   }, [dirty]);
   useEffect(() => () => setDraftDirty(false), []);
 
-  // Once the catalog loads, back-fill each slot's category from its saved habit
-  // (so editing an existing version pre-selects the right category).
-  useEffect(() => {
-    if (!habitCatalog.length) return;
-    setMhxCat((prev) => prev.map((c, i) => {
-      if (c) return c;
-      const name = draft.mhx[i] && draft.mhx[i].name;
-      const hit = name ? habitCatalog.find((h) => h.microhabit_name === name) : null;
-      return hit ? (hit.microhabit_category || '') : c;
-    }));
-  }, [habitCatalog]);
-
   const libByCode = useMemo(() => {
     const m = {}; library.forEach((l) => { m[l.priority_code] = l; }); return m;
   }, [library]);
@@ -80,20 +67,10 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
     return [...s].sort();
   }, [library]);
 
-  const categories = useMemo(() => {
-    const s = new Set(habitCatalog.map((h) => h.microhabit_category || 'Other'));
-    return [...s].sort();
-  }, [habitCatalog]);
-  const habitsFor = (cat) => habitCatalog.filter((h) => (h.microhabit_category || 'Other') === cat);
-
   // ── mutators ──────────────────────────────────────────────────────────────
   const setPriority = (i, patch) => setDraft((d) => {
     const priorities = d.priorities.map((p, idx) => (idx === i ? { ...p, ...patch } : p));
     return { ...d, priorities };
-  });
-  const setMhx = (i, patch) => setDraft((d) => {
-    const mhx = d.mhx.map((m, idx) => (idx === i ? { ...m, ...patch } : m));
-    return { ...d, mhx };
   });
 
   function pickLibrary(i, code) {
@@ -135,12 +112,6 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
     });
   }
 
-  function toggleServes(i, n) {
-    const cur = draft.mhx[i].linked_priorities || [];
-    const next = cur.includes(n) ? cur.filter((x) => x !== n) : [...cur, n].sort();
-    setMhx(i, { linked_priorities: next });
-  }
-
   // Wizard result → fill the 3 mhx slots. Each pick brings its name, default
   // frequency, and the priorities it moves (auto Serves-links). Editable after.
   function applyHabits(picks) {
@@ -157,24 +128,6 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
     .map((m) => { const h = habitCatalog.find((x) => x.microhabit_name === m.name); return h ? h.microhabit_id : null; })
     .filter((x) => x != null);
   const anyPriority = draft.priorities.some((p) => p.name);
-
-  // Pick a habit from the catalog: set the name and, if no frequency yet, seed it
-  // from the catalog's default_frequency (still editable).
-  function pickHabit(i, name) {
-    if (!name) { setMhx(i, { name: '' }); return; }
-    const cat = habitCatalog.find((h) => h.microhabit_name === name);
-    setMhx(i, { name, frequency: draft.mhx[i].frequency || (cat && cat.default_frequency) || '' });
-  }
-
-  // Choose a category for a slot; if the currently-picked habit isn't in it, clear it.
-  function setCategory(i, cat) {
-    setMhxCat((prev) => prev.map((c, idx) => (idx === i ? cat : c)));
-    const name = draft.mhx[i].name;
-    if (name) {
-      const h = habitCatalog.find((x) => x.microhabit_name === name);
-      if (!h || (h.microhabit_category || 'Other') !== cat) setMhx(i, { name: '' });
-    }
-  }
 
   async function promote() {
     if (!confirm('Promote this draft to a new live strategy version? The current version becomes a past version.')) return;
@@ -313,21 +266,6 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
       {draft.mhx.every((m) => !m.name) && (
         <div style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic', background: CARD, border: `1px dashed ${BORDER}`, borderRadius: 12, padding: '12px 14px', marginBottom: 10 }}>
           No habits yet — use “Pick Micro-habits” to choose the levers that move your priorities.
-        </div>
-      )}
-      {draft.mhx.some((m) => m.name) && (
-        <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '10px 14px', marginBottom: 10 }}>
-          {draft.mhx.filter((m) => m.name).map((m, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0' }}>
-              <span style={{ flex: 1, fontSize: 13.5, color: SLATE, fontWeight: 600 }}>{m.name}</span>
-              {m.frequency && <span style={{ fontSize: 11, color: '#6b7280' }}>{m.frequency}</span>}
-              <span style={{ display: 'flex', gap: 4 }}>
-                {(m.linked_priorities || []).map((n) => (
-                  <span key={n} style={{ fontSize: 10, fontWeight: 700, color: SAGE_TEXT, background: SAGE_BG, border: `1px solid ${MBH_SAGE}55`, borderRadius: 6, padding: '1px 5px' }}>P{n}</span>
-                ))}
-              </span>
-            </div>
-          ))}
         </div>
       )}
 
