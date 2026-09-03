@@ -59,6 +59,21 @@ export default function MicrohabitWizard({ priorities, habitCatalog, links, init
   const nP = activePriorities.length;
   const chip = (n) => <span key={n} style={{ fontSize: 10, fontWeight: 700, color: SAGE_TEXT, background: SAGE_BG, border: `1px solid ${MBH_SAGE}55`, borderRadius: 6, padding: '1px 5px' }}>P{n}</span>;
 
+  // Priorities covered by the current selection, and the greedy fewest-habits
+  // set that covers all active priorities (<= MAX) — the "these N cover all" tip.
+  const selCover = useMemo(() => { const s = new Set(); selected.forEach((id) => (byId[id]?.moves || []).forEach((n) => s.add(n))); return s; }, [selected, byId]);
+  const allCovered = activePriorities.length > 0 && activePriorities.every((p) => selCover.has(p.n));
+  const minimal = useMemo(() => {
+    const need = new Set(activePriorities.map((p) => p.n));
+    const chosen = []; const pool = candidates.filter((c) => c.moves.length);
+    while (need.size && chosen.length < MAX) {
+      let best = null, gain = 0;
+      for (const c of pool) { if (chosen.includes(c)) continue; const g = c.moves.filter((n) => need.has(n)).length; if (g > gain) { gain = g; best = c; } }
+      if (!best) break; chosen.push(best); best.moves.forEach((n) => need.delete(n));
+    }
+    return { picks: chosen, uncovered: [...need] };
+  }, [candidates, activePriorities]);
+
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(30,45,61,0.6)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: OFFWHITE, borderRadius: 16, width: '100%', maxWidth: 560, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -121,6 +136,31 @@ export default function MicrohabitWizard({ priorities, habitCatalog, links, init
 
           {isReview && (<>
             <h2 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 21, color: SLATE, margin: '4px 0 10px', fontWeight: 'normal' }}>Your micro-habits</h2>
+
+            {/* coverage of the current selection */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>Covers:</span>
+              {activePriorities.map((p) => {
+                const on = selCover.has(p.n);
+                return <span key={p.n} style={{ fontSize: 11, fontWeight: 700, borderRadius: 6, padding: '2px 7px', color: on ? SAGE_TEXT : '#9ca3af', background: on ? SAGE_BG : '#f3f4f6', border: `1px solid ${on ? MBH_SAGE + '55' : BORDER}` }}>P{p.n} {p.name}</span>;
+              })}
+              <span style={{ fontSize: 12, fontWeight: 600, color: allCovered ? SAGE_TEXT : '#b45309' }}>{allCovered ? '✓ all covered' : '— gaps remain'}</span>
+            </div>
+
+            {/* fewest-habits suggestion (set-cover) */}
+            {minimal.uncovered.length === 0 && minimal.picks.length > 0 && (
+              <div style={{ fontSize: 12.5, color: SLATE, background: SAGE_BG, border: `1px solid ${MBH_SAGE}55`, borderRadius: 10, padding: '10px 12px', marginBottom: 10 }}>
+                💡 Fewest habits that cover all {nP}: <strong>{minimal.picks.map((c) => c.name).join(' + ')}</strong>
+                <button onClick={() => setSelected(minimal.picks.map((c) => c.id))} style={{ marginLeft: 8, border: `1px solid ${MBH_SAGE}`, background: '#fff', color: SAGE_TEXT, borderRadius: 14, padding: '3px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Use this set</button>
+              </div>
+            )}
+
+            {/* AI-generated guidance (Phase 2: Claude via a Netlify function) */}
+            <div style={{ background: '#fff', border: `1px dashed ${BORDER}`, borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9ca3af', marginBottom: 4 }}>Guidance</div>
+              <div style={{ fontSize: 13, color: '#374151', fontStyle: 'italic' }}>AI generated text goes here</div>
+            </div>
+
             {selected.length === 0 && <div style={{ fontSize: 13, color: '#6b7280' }}>None chosen yet — go back and pick the levers that move your priorities.</div>}
             {selected.map((id) => { const c = byId[id]; if (!c) return null; return (
               <div key={id} style={{ border: `1px solid ${BORDER}`, borderRadius: 10, background: CARD, padding: '10px 12px', marginBottom: 8 }}>
