@@ -22,16 +22,22 @@ export const RENEWAL = '26.07.23';
 export const MBH_DROP_IMG = 'https://res.cloudinary.com/dai0low65/image/upload/v1763491944/logo_pp70kv.png';
 
 export const NAV_ITEMS = [
-  { key: 'strategy',   label: 'MyStrategy',      icon: '🎯' },
-  { key: 'priorities', label: 'Priorities',      icon: '🎯', child: true }, // shown in dev only (see Drawer) — hardcoded, to be fixed
-  { key: 'biosignals', label: 'BioSignals',      icon: '📊' },
-  { key: 'glucose',    label: 'Glucose Summary (CGM)', icon: '🍯' },
-  { key: 'glucose_v2', label: 'Glucose Summary V2', icon: '🩸' },
-  { key: 'dexa',       label: 'Structural (DEXA et al.)', icon: '🦴' },
-  // Member section — order here drives display order (Drawer filters NAV_ITEMS by key)
-  { key: 'account',    label: 'Account',         icon: '💳' },
-  { key: 'calendar',   label: 'Calendar',        icon: '📅' },
-  { key: 'vault',      label: 'MyVault',         icon: '📁' },
-  { key: 'library',    label: 'MBH Library',     icon: '📚' },
-  { key: 'questions',  label: 'Questions',       icon: '✉️' },
+  // Top-level
+  { key: 'strategy',            label: 'MyStrategy',             icon: '🎯' },
+  // CHECK-IN section
+  { key: 'checkin_priorities',  label: 'Priorities & MHx',       icon: '📋' },
+  { key: 'jots',                label: 'Jots',                   icon: '✏️' },
+  { key: 'upnext',              label: 'Up Next',                icon: '⏭️' },
+  // SIGNALS section
+  { key: 'biosignals',          label: 'BioSignals (Primary Six)', icon: '📊' },
+  { key: 'glucose_v2',          label: 'Glucose Summary (CGM)',  icon: '🩸' },
+  { key: 'context_signals',     label: 'Context Signals',        icon: '🫀' },
+  { key: 'dexa',                label: 'Structural (DEXA)',      icon: '🦴' },
+  { key: 'risk_measures',       label: 'Risk Measures',          icon: '📐' },
+  // Member section
+  { key: 'account',             label: 'Account',                icon: '💳' },
+  { key: 'calendar',            label: 'Calendar',               icon: '📅' },
+  { key: 'vault',               label: 'MyVault',                icon: '📁' },
+  { key: 'library',             label: 'MBH Library',            icon: '📚' },
+  { key: 'questions',           label: 'Questions',              icon: '✉️' },
 ];

@@ -5,9 +5,7 @@ import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity,
 import { isDraftDirty, setDraftDirty, DRAFT_LEAVE_MSG } from '../lib/strategyBuilder.js';
 import Drawer from '../components/Drawer.jsx';
 import MyStrategyPage from './MyStrategyPage.jsx';
-import PrioritiesPage from './PrioritiesPage.jsx';
 import BioSignalsPage from './BioSignalsPage.jsx';
-import GlucoseSummaryPage from './GlucoseSummaryPage.jsx';
 import GlucoseSummaryV2Page from './GlucoseSummaryV2Page.jsx';
 import DEXAPage from './DEXAPage.jsx';
 import AccountPage from './AccountPage.jsx';
@@ -15,6 +13,11 @@ import VaultPage from './VaultPage.jsx';
 import CalendarPage from './CalendarPage.jsx';
 import LibraryPage from './LibraryPage.jsx';
 import QuestionsPage from './QuestionsPage.jsx';
+import CheckinPrioritiesPage from './CheckinPrioritiesPage.jsx';
+import JotsPage from './JotsPage.jsx';
+import UpNextPage from './UpNextPage.jsx';
+import ContextSignalsPage from './ContextSignalsPage.jsx';
+import RiskMeasuresPage from './RiskMeasuresPage.jsx';
 
 // Capture the GUID at module-load time, before any component renders. Doing
 // it in a useEffect means child components mount + run their own effects
@@ -86,17 +89,20 @@ export default function AppShell() {
       </div>
 
       <div style={{ maxWidth: 740, margin: '0 auto' }}>
-        {activePage === 'strategy'   && <MyStrategyPage />}
-        {activePage === 'priorities' && <PrioritiesPage />}
-        {activePage === 'biosignals' && <BioSignalsPage />}
-        {activePage === 'glucose'    && <GlucoseSummaryPage />}
-        {activePage === 'glucose_v2' && <GlucoseSummaryV2Page />}
-        {activePage === 'dexa'       && <DEXAPage />}
-        {activePage === 'account'    && <AccountPage />}
-        {activePage === 'vault'      && <VaultPage />}
-        {activePage === 'calendar'   && <CalendarPage />}
-        {activePage === 'library'    && <LibraryPage />}
-        {activePage === 'questions'  && <QuestionsPage />}
+        {activePage === 'strategy'           && <MyStrategyPage />}
+        {activePage === 'biosignals'         && <BioSignalsPage />}
+        {activePage === 'glucose_v2'         && <GlucoseSummaryV2Page />}
+        {activePage === 'dexa'               && <DEXAPage />}
+        {activePage === 'account'            && <AccountPage />}
+        {activePage === 'vault'              && <VaultPage />}
+        {activePage === 'calendar'           && <CalendarPage />}
+        {activePage === 'library'            && <LibraryPage />}
+        {activePage === 'questions'          && <QuestionsPage />}
+        {activePage === 'checkin_priorities' && <CheckinPrioritiesPage />}
+        {activePage === 'jots'               && <JotsPage />}
+        {activePage === 'upnext'             && <UpNextPage />}
+        {activePage === 'context_signals'    && <ContextSignalsPage />}
+        {activePage === 'risk_measures'      && <RiskMeasuresPage />}
       </div>
     </div>
   );

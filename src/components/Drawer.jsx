@@ -4,12 +4,10 @@ import { logout } from '../lib/auth.js';
 
 export default function Drawer({ activePage, onSelect, onClose }) {
   const groups = [
-    // 'priorities' is hardcoded/unfinished — show it only in the local dev server
-    // (`npm run dev`). import.meta.env.DEV is false in production builds, so Vite
-    // dead-code-eliminates it and members never see the menu item.
-    { label: null,     keys: ['strategy', ...(import.meta.env.DEV ? ['priorities'] : []), 'biosignals', 'glucose', 'glucose_v2', 'dexa'] },
-    { label: 'Member', keys: ['account', 'calendar', 'vault'] },
-    { label: 'MBH',    keys: ['library', 'questions'] },
+    { label: null,        header: false, keys: ['strategy'] },
+    { label: 'Check-In',  header: true,  keys: ['checkin_priorities', 'jots', 'upnext'] },
+    { label: 'Signals',   header: true,  keys: ['biosignals', 'glucose_v2', 'context_signals', 'dexa', 'risk_measures'] },
+    { label: 'Member',    header: false, keys: ['account', 'calendar', 'vault', 'library', 'questions'] },
   ];
   return (
     <>
@@ -33,12 +31,12 @@ export default function Drawer({ activePage, onSelect, onClose }) {
         <div style={{ flex: 1, padding: '8px 0' }}>
           {groups.map((g, gi) => (
             <div key={gi}>
+              {gi > 0 && <div style={{ height: 1, background: BORDER, margin: '4px 0' }} />}
               {g.label && (
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#374151', padding: '12px 20px 4px' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: g.header ? MBH_SAGE : '#374151', padding: g.header ? '14px 20px 4px' : '12px 20px 4px' }}>
                   {g.label}
                 </div>
               )}
-              {gi > 0 && <div style={{ height: 1, background: BORDER, margin: '4px 0' }} />}
               {NAV_ITEMS.filter((n) => g.keys.includes(n.key)).map((item) => {
                 const active = activePage === item.key;
                 return (
