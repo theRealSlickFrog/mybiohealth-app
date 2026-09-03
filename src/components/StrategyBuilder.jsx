@@ -157,7 +157,7 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
           priorities={draft.priorities}
           habitCatalog={habitCatalog}
           links={habitLinks}
-          initialIds={currentHabitIds()}
+          whyLib={whyLib}
           onDone={applyHabits}
           onClose={() => setWizardOpen(false)}
         />
