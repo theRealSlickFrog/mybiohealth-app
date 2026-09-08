@@ -11,8 +11,10 @@ import { OPTIMAL_AUTHORITIES } from '../lib/optimal-authorities.js';
 import { markerZone, ZONE_LABEL, thresholdsFromRow, optimalText, DEV_MEMBER } from '../lib/biomarkers.js';
 import { getStoredGuid } from '../lib/auth.js';
 import { loadStrategyConfig, DEFAULTS as STRATEGY_CFG_DEFAULTS } from '../lib/strategyConfig.js';
-import { draftFromRow, emptyPriority } from '../lib/strategyBuilder.js';
+import { draftFromRow, emptyDraft, loadStrategyDraft, latestReadingFor } from '../lib/strategyBuilder.js';
+import { loadNote } from '../lib/notes.js';
 import OptimalDrawer from '../components/OptimalDrawer.jsx';
+import CarryOverChooser from '../components/CarryOverChooser.jsx';
 import WhyModal from '../components/WhyModal.jsx';
 import PlotlyChart from '../components/PlotlyChart.jsx';
 import PersonalNote from '../components/PersonalNote.jsx';
@@ -206,6 +208,9 @@ export default function MyStrategyPage() {
   const [rawRows, setRawRows] = useState([]);      // raw strategy rows (need PK + effective_to for the builder)
   const [versionIdx, setVersionIdx] = useState(0); // which version is being viewed
   const [building, setBuilding] = useState(false); // Priority Builder open?
+  const [choosing, setChoosing] = useState(false); // carry-over chooser open?
+  const [carryNote, setCarryNote] = useState('');  // current "From the Top" text (for the chooser)
+  const [seed, setSeed] = useState(null);          // { initialDraft, initialWhyText } from the chooser
   const [reloadKey, setReloadKey] = useState(0);   // bump to re-fetch after promote
   const [labRows, setLabRows] = useState([]);
   const [relations, setRelations] = useState([]);
@@ -332,8 +337,42 @@ export default function MyStrategyPage() {
   // close the current version + prefill "new version"), and open/close handlers.
   const member = getStoredGuid() || DEV_MEMBER;
   const activeRawRow = rawRows.find((r) => !r.effective_to) || rawRows[rawRows.length - 1] || null;
-  const startBuild = () => setBuilding(true);
-  const onPromoted = () => { setBuilding(false); setReloadKey((k) => k + 1); };
+  // Start a new strategy. If there's an in-progress saved draft, resume it
+  // (skip the chooser). Otherwise, if a current strategy exists, offer the
+  // carry-over chooser; with no current strategy, open a blank builder.
+  const startBuild = async () => {
+    if (!activeRawRow) { setSeed(null); setBuilding(true); return; }
+    let saved = { payload: null };
+    try { saved = await loadStrategyDraft(member); } catch (e) { /* ignore */ }
+    if (saved.payload) { setSeed(null); setBuilding(true); return; }   // resume in-progress draft
+    let note = { text: '' };
+    try { note = await loadNote(member, 'strategy_why'); } catch (e) { /* ignore */ }
+    setCarryNote(note.text || '');
+    setChoosing(true);
+  };
+
+  // Chooser → build the seed draft from the ticked items, then open the builder.
+  const startFromChooser = (sel) => {
+    const prev = draftFromRow(activeRawRow);
+    const d = emptyDraft();
+    if (sel.has('tagline')) d.tagline = prev.tagline;
+    [1, 2, 3].forEach((n) => {
+      if (!sel.has(`p${n}`)) return;
+      const p = { ...prev.priorities[n - 1] };
+      const reading = latestReadingFor(labRows, p.primary_marker);   // refresh to the latest lab value
+      if (reading) { p.latest_value = reading.value; p.unit = reading.unit; p.latest_date = reading.date; }
+      d.priorities[n - 1] = p;
+    });
+    [1, 2, 3].forEach((n) => { if (sel.has(`m${n}`)) d.mhx[n - 1] = prev.mhx[n - 1]; });
+    if (sel.has('routines')) d.routines = { ...prev.routines };
+    if (sel.has('elements')) d.elements = { ...prev.elements };
+    setSeed({ initialDraft: d, initialWhyText: sel.has('fromtop') ? carryNote : '' });
+    setChoosing(false);
+    setBuilding(true);
+  };
+
+  const onPromoted = () => { setBuilding(false); setSeed(null); setReloadKey((k) => k + 1); };
+  const closeBuilder = () => { setBuilding(false); setSeed(null); };
   const buildBtnStyle = { border: 'none', background: MBH_SAGE, color: '#fff', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' };
 
   if (state === 'loading') {
@@ -346,7 +385,7 @@ export default function MyStrategyPage() {
           <em style={{ fontStyle: 'italic' }}>My</em>Strategy
         </h1>
         {building ? (
-          <StrategyBuilder member={member} initialDraft={null} labRows={labRows} currentActiveRow={null} onPromoted={onPromoted} onCancel={() => setBuilding(false)} />
+          <StrategyBuilder member={member} initialDraft={null} labRows={labRows} currentActiveRow={null} onPromoted={onPromoted} onCancel={closeBuilder} />
         ) : (
           <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af', fontSize: 14 }}>
             <div style={{ marginBottom: 16 }}>No strategy on file yet.</div>
@@ -367,6 +406,7 @@ export default function MyStrategyPage() {
     <div style={{ padding: '22px 16px 80px' }}>
       {optimalSignal && <OptimalDrawer signalName={optimalSignal} onClose={() => setOptimalSignal(null)} />}
       {why && <WhyModal title={why.title} body={why.body} onClose={() => setWhy(null)} />}
+      {choosing && <CarryOverChooser activeRow={activeRawRow} carryNote={carryNote} onStart={startFromChooser} onCancel={() => setChoosing(false)} />}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
         <h1 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 28, color: SLATE, fontWeight: 'normal' }}>
           <em style={{ fontStyle: 'italic' }}>My</em>Strategy
@@ -398,12 +438,13 @@ export default function MyStrategyPage() {
       {building && (
         <StrategyBuilder
           member={member}
-          initialDraft={{ ...draftFromRow(activeRawRow), priorities: [emptyPriority(), emptyPriority(), emptyPriority()] }}
+          initialDraft={seed ? seed.initialDraft : null}
+          initialWhyText={seed ? seed.initialWhyText : undefined}
           previousDraft={draftFromRow(activeRawRow)}
           labRows={labRows}
           currentActiveRow={activeRawRow}
           onPromoted={onPromoted}
-          onCancel={() => setBuilding(false)}
+          onCancel={closeBuilder}
         />
       )}
 

@@ -19,7 +19,7 @@ const lbl = { fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransf
 const input = { width: '100%', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '10px 12px', fontSize: 14, color: SLATE, background: OFFWHITE, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
 const area = { ...input, minHeight: 72, resize: 'vertical', lineHeight: 1.5 };
 
-export default function StrategyBuilder({ member, initialDraft, previousDraft, labRows, currentActiveRow, onPromoted, onCancel }) {
+export default function StrategyBuilder({ member, initialDraft, initialWhyText, previousDraft, labRows, currentActiveRow, onPromoted, onCancel }) {
   // Start from the prefill (a "new version from current strategy") or blank;
   // a persisted draft (if any) is loaded in the effect below and takes over.
   const [draft, setDraft] = useState(() => initialDraft || emptyDraft());
@@ -55,14 +55,26 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Always fetch the strategy_why note id so Promote can update it.
       let noteText = '', noteId = null;
       try { const n = await loadNote(member, 'strategy_why'); noteText = n.text || ''; noteId = n.id; } catch (e) { /* ignore */ }
+      if (cancelled) return;
+      setWhyNoteId(noteId);
+
+      // Seeded start (from the carry-over chooser, or an explicit blank build):
+      // use the seed as-is, ignore any saved blob. whyText comes from the seed.
+      if (initialDraft) {
+        setWhyText(typeof initialWhyText === 'string' ? initialWhyText : '');
+        setHydrated(true);
+        return;
+      }
+
+      // Otherwise resume the persisted draft blob, falling back to the note.
       let saved = { id: null, payload: null };
       try { saved = await loadStrategyDraft(member); } catch (e) { /* ignore */ }
       if (cancelled) return;
-      setWhyNoteId(noteId);
       setDraftId(saved.id);
-      if (saved.payload && !initialDraft) {
+      if (saved.payload) {
         if (saved.payload.draft) setDraft(saved.payload.draft);
         setWhyText(typeof saved.payload.whyText === 'string' ? saved.payload.whyText : noteText);
       } else {
