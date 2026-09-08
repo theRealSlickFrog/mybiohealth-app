@@ -1,5 +1,5 @@
 // Slide-out left navigation drawer.
-import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, CARD, BORDER, MBH_DROP_IMG, NAV_ITEMS, VERSION, RENEWAL } from '../lib/constants.js';
+import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, CARD, BORDER, MBH_DROP_IMG, NAV_ITEMS } from '../lib/constants.js';
 import { logout } from '../lib/auth.js';
 
 export default function Drawer({ activePage, onSelect, onClose }) {
@@ -73,10 +73,6 @@ export default function Drawer({ activePage, onSelect, onClose }) {
             <span style={{ fontSize: 14 }}>🚪</span>
             <span>Log out</span>
           </button>
-          <div style={{ fontSize: 12, color: '#374151' }}>v{VERSION} · renews {RENEWAL}</div>
-          <div style={{ fontSize: 11, color: '#374151', marginTop: 8, fontStyle: 'italic', opacity: 0.7 }}>
-            Built with Claude · Anthropic
-          </div>
         </div>
       </div>
     </>
