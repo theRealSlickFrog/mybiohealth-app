@@ -3,14 +3,14 @@
 // pick up to 3 priorities from priority_library (auto-fills name/marker + pulls
 // the latest reading), write each "Why", set up to 3 shared micro-habits, then
 // Promote to a new versioned mystrategy_report_ready row. The working draft is
-// NOT persisted — it lives only in this component's state for the session.
-// Leave without Promote and it's gone (with a warning first).
+// persisted server-side (member_info blob) — it autosaves as you edit and is
+// reloaded next time; Promote or Discard clears it.
 import { useEffect, useMemo, useState } from 'react';
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, OFFWHITE, CARD, BORDER, SOFT_RED, AMBER } from '../lib/constants.js';
 import {
   emptyDraft, emptyMhx, fetchPriorityCatalog, fetchMicrohabits, fetchPriorityWhys, fetchMarkerHabitLinks,
   applyLibraryPick, latestReadingFor,
-  promoteDraft, draftHasContent, setDraftDirty, DRAFT_LEAVE_MSG,
+  promoteDraft, draftHasContent, loadStrategyDraft, saveStrategyDraft, deleteStrategyDraft,
 } from '../lib/strategyBuilder.js';
 import { loadNote, saveNote } from '../lib/notes.js';
 import MicrohabitWizard from './MicrohabitWizard.jsx';
@@ -20,44 +20,109 @@ const input = { width: '100%', border: `1px solid ${BORDER}`, borderRadius: 8, p
 const area = { ...input, minHeight: 72, resize: 'vertical', lineHeight: 1.5 };
 
 export default function StrategyBuilder({ member, initialDraft, previousDraft, labRows, currentActiveRow, onPromoted, onCancel }) {
-  // Start from the prefill (a "new version from current strategy") or blank.
-  // Nothing is loaded from storage — the draft is session-only.
+  // Start from the prefill (a "new version from current strategy") or blank;
+  // a persisted draft (if any) is loaded in the effect below and takes over.
   const [draft, setDraft] = useState(() => initialDraft || emptyDraft());
   const [library, setLibrary] = useState([]);
   const [whyLib, setWhyLib] = useState({});   // priority_code -> standard Why (markdown)
   const [habitCatalog, setHabitCatalog] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  // "From the Top" — the member's goal statement (a single per-member note,
-  // strategy_why). Prefill from the existing note; saved on Promote.
+  // "From the Top" — the member's goal statement. Persisted inside the draft
+  // blob while editing; committed to the strategy_why note on Promote.
   const [whyText, setWhyText] = useState('');
-  const [whyOrig, setWhyOrig] = useState('');
   const [whyNoteId, setWhyNoteId] = useState(null);
   const [habitLinks, setHabitLinks] = useState([]);   // marker_x_microhabit, for the picker wizard
   const [wizardOpen, setWizardOpen] = useState(false);
+  // Draft persistence: the member_info row id, a "loaded yet?" gate (so autosave
+  // never fires before the initial load and clobbers the saved draft with a
+  // blank), and save status for the indicator.
+  const [draftId, setDraftId] = useState(null);
+  const [hydrated, setHydrated] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState(null);
+  const [nowTick, setNowTick] = useState(0);
 
   useEffect(() => { fetchPriorityCatalog().then(setLibrary); }, []);
   useEffect(() => { fetchPriorityWhys('EN').then(setWhyLib); }, []);
   useEffect(() => { fetchMicrohabits().then(setHabitCatalog); }, []);
   useEffect(() => { fetchMarkerHabitLinks().then(setHabitLinks); }, []);
+
+  // Initial load: read the committed "From the Top" note as the baseline, then a
+  // persisted draft blob (which overrides it) — one async pass, no races. When an
+  // explicit prefill was passed (new-version-from-current), the prefill wins and
+  // the saved draft is ignored. Sets `hydrated` last so autosave can start.
   useEffect(() => {
-    loadNote(member, 'strategy_why')
-      .then((n) => { setWhyText(n.text || ''); setWhyOrig(n.text || ''); setWhyNoteId(n.id); })
-      .catch(() => {});
+    let cancelled = false;
+    (async () => {
+      let noteText = '', noteId = null;
+      try { const n = await loadNote(member, 'strategy_why'); noteText = n.text || ''; noteId = n.id; } catch (e) { /* ignore */ }
+      let saved = { id: null, payload: null };
+      try { saved = await loadStrategyDraft(member); } catch (e) { /* ignore */ }
+      if (cancelled) return;
+      setWhyNoteId(noteId);
+      setDraftId(saved.id);
+      if (saved.payload && !initialDraft) {
+        if (saved.payload.draft) setDraft(saved.payload.draft);
+        setWhyText(typeof saved.payload.whyText === 'string' ? saved.payload.whyText : noteText);
+      } else {
+        setWhyText(noteText);
+      }
+      setHydrated(true);
+    })();
+    return () => { cancelled = true; };
   }, [member]);
 
-  // The draft is not persisted. Keep the module-level "unpromoted draft" flag in
-  // sync (so AppShell can block navigation) and warn on hard browser close/refresh
-  // while there's real content. Always clear the flag on unmount.
-  const dirty = draftHasContent(draft) || whyText !== whyOrig;
+  // Autosave (debounced ~1.5s after the last edit). Persists { draft, whyText }
+  // as the blob. Silent on failure — e.g. a read-only "view as client" session,
+  // whose writes the proxy refuses by design.
   useEffect(() => {
-    setDraftDirty(dirty);
-    if (!dirty) return undefined;
-    const warn = (e) => { e.preventDefault(); e.returnValue = ''; };
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty]);
-  useEffect(() => () => setDraftDirty(false), []);
+    if (!hydrated) return undefined;
+    const hasContent = draftHasContent(draft) || whyText.trim() !== '';
+    const t = setTimeout(async () => {
+      setSaving(true);
+      try {
+        if (!hasContent) {
+          // Emptied out — drop any previously-saved draft rather than store a blank.
+          if (draftId) { await deleteStrategyDraft(member, draftId); setDraftId(null); setSavedAt(null); }
+        } else {
+          const id = await saveStrategyDraft(member, { draft, whyText }, draftId);
+          if (id && id !== draftId) setDraftId(id);
+          setSavedAt(Date.now());
+        }
+      } catch (e) { /* non-fatal */ } finally { setSaving(false); }
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [draft, whyText, hydrated]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tick every 20s so the "Saved … ago" label stays roughly current.
+  useEffect(() => {
+    if (!savedAt) return undefined;
+    const iv = setInterval(() => setNowTick((n) => n + 1), 20000);
+    return () => clearInterval(iv);
+  }, [savedAt]);
+
+  // Immediate save for the explicit "Save draft" button.
+  async function saveNow() {
+    setSaving(true);
+    try {
+      const id = await saveStrategyDraft(member, { draft, whyText }, draftId);
+      if (id && id !== draftId) setDraftId(id);
+      setSavedAt(Date.now());
+    } catch (e) { setError('Could not save the draft.'); } finally { setSaving(false); }
+  }
+
+  // "Saved 12s ago" style label from savedAt (nowTick keeps it live).
+  const savedLabel = (() => {
+    void nowTick;
+    if (saving) return 'Saving…';
+    if (!savedAt) return '';
+    const secs = Math.max(0, Math.round((Date.now() - savedAt) / 1000));
+    if (secs < 5) return 'Saved just now';
+    if (secs < 60) return `Saved ${secs}s ago`;
+    const mins = Math.round(secs / 60);
+    return `Saved ${mins}m ago`;
+  })();
 
   const libByCode = useMemo(() => {
     const m = {}; library.forEach((l) => { m[l.priority_code] = l; }); return m;
@@ -141,10 +206,12 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
     } finally { setBusy(false); }
   }
 
-  // Leaving the builder without promoting: warn only if there's real content.
-  function discard() {
-    if (dirty && !confirm(DRAFT_LEAVE_MSG)) return;
-    setDraftDirty(false);
+  // Discard permanently removes the persisted draft, then closes. Only prompts
+  // when there's something to lose.
+  async function discard() {
+    const has = draftHasContent(draft) || whyText.trim() !== '' || draftId != null;
+    if (has && !confirm('Discard this draft? It will be permanently removed.')) return;
+    try { await deleteStrategyDraft(member, draftId); } catch (e) { /* ignore */ }
     onCancel && onCancel();
   }
 
@@ -168,8 +235,9 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
         </div>
         <button onClick={discard} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 20, cursor: 'pointer', lineHeight: 1 }} aria-label="Close builder">×</button>
       </div>
-      <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>
-        This draft isn’t saved — <strong>Promote</strong> it to a strategy, or it’s discarded when you leave.
+      <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span>Your draft autosaves as you go. <strong>Promote</strong> when it’s ready, or <strong>Discard</strong> to remove it.</span>
+        {savedLabel && <span style={{ color: MBH_SAGE, fontWeight: 600, whiteSpace: 'nowrap' }}>· {savedLabel}</span>}
       </div>
 
       {/* From the Top — the member's goal statement (strategy_why note) */}
@@ -290,6 +358,11 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 14 }}>
         <button onClick={discard} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Discard</button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {savedLabel && <span style={{ fontSize: 12, color: '#9ca3af', whiteSpace: 'nowrap' }}>{savedLabel}</span>}
+          <button onClick={saveNow} disabled={saving}
+            style={{ border: `1px solid ${BORDER}`, background: CARD, color: SLATE, borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: saving ? 'default' : 'pointer' }}>
+            {saving ? 'Saving…' : 'Save draft'}
+          </button>
           <button onClick={promote} disabled={busy}
             style={{ border: 'none', background: busy ? '#e5e7eb' : MBH_SAGE, color: busy ? '#9ca3af' : '#fff', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: busy ? 'default' : 'pointer' }}>
             {busy ? 'Promoting…' : 'Promote →'}

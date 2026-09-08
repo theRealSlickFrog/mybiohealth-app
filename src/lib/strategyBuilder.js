@@ -2,9 +2,11 @@
 // call) assemble a MyStrategy live instead of editing the table by hand.
 //
 // Model (per the Aug 19 stand-up): build a WORKING DRAFT that is not a real
-// strategy until "Promote". The draft lives in the browser (localStorage) so no
-// intermediate edit ever touches mystrategy_report_ready or its change log.
-// Promote then closes the current active row and inserts a new versioned row.
+// strategy until "Promote". The draft is persisted server-side as a JSON blob in
+// member_info (see loadStrategyDraft/saveStrategyDraft) so it survives browser
+// close, but no intermediate edit ever touches mystrategy_report_ready or its
+// change log. Promote closes the current active row, inserts a new versioned
+// row, and deletes the draft blob.
 //
 // The table is 114 flat columns but the human only fills a handful; everything
 // else is copied from priority_library on pick, pulled from report_ready_result,
@@ -212,16 +214,73 @@ function fmtMonthYear(d) {
   return `${MONTHS[m - 1]} ${y}`;
 }
 
-// ── Unsaved-draft guard ─────────────────────────────────────────────────────
-// The draft is NOT persisted anywhere — it lives only in the builder's React
-// state for the current session. Start building and leave without Promote and
-// it's gone. This module-level flag lets AppShell block SPA navigation (and the
-// builder warn on hard browser close) while an unpromoted draft with real
-// content is open, so it isn't silently lost.
+// ── Draft persistence ───────────────────────────────────────────────────────
+// The working draft is persisted server-side (so it survives browser close and
+// device switch) as a JSON blob in member_info.text_box_2 — one row per member,
+// feature='MYSTRATEGY_DRAFT'. text_box_2 is Text(64000); a draft is a few KB.
+// Using the existing member_info feature store means no new table and no proxy
+// change (member_info is already allowlisted). The blob is opaque to Caspio, so
+// the draft shape can grow without ever altering the table.
+// The stored payload is { draft, whyText } — the builder state plus the
+// "From the Top" text. On Promote the draft is flattened into mystrategy_report_ready
+// and this blob row is deleted.
+const DRAFT_FEATURE = 'MYSTRATEGY_DRAFT';
+
+// Returns { id, payload } — id is the member_info_id (null if no draft), payload
+// is the parsed { draft, whyText } or null.
+export async function loadStrategyDraft(member) {
+  const where = `member_id='${member}' AND feature='${DRAFT_FEATURE}'`;
+  const url = `${API_BASE}/rest/v2/tables/member_info/records?q.where=${encodeURIComponent(where)}&q.limit=1`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`draft load ${r.status}`);
+  const row = ((await r.json()).Result || [])[0];
+  if (!row) return { id: null, payload: null };
+  let payload = null;
+  try { payload = row.text_box_2 ? JSON.parse(row.text_box_2) : null; } catch (e) { payload = null; }
+  return { id: row.member_info_id, payload };
+}
+
+// Upsert the blob. Returns the row id (for subsequent PUTs). PUT by id when we
+// have one, else POST a fresh row.
+export async function saveStrategyDraft(member, payload, existingId) {
+  const blob = JSON.stringify(payload);
+  if (existingId) {
+    const url = `${API_BASE}/rest/v2/tables/member_info/records?q.where=${encodeURIComponent(`member_info_id=${existingId}`)}`;
+    const r = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text_box_2: blob }) });
+    if (!r.ok) throw new Error(`draft save ${r.status}`);
+    return existingId;
+  }
+  const url = `${API_BASE}/rest/v2/tables/member_info/records?response=rows`;
+  const r = await fetch(url, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ member_id: member, feature: DRAFT_FEATURE, text_box_2: blob }),
+  });
+  if (!r.ok) throw new Error(`draft save ${r.status}`);
+  try {
+    const j = JSON.parse(await r.text());
+    const id = j && j.Result && j.Result[0] && j.Result[0].member_info_id;
+    if (id) return id;
+  } catch (e) { /* fall through to reload */ }
+  return (await loadStrategyDraft(member)).id;
+}
+
+// Remove the persisted draft (on Promote or explicit Discard). Idempotent —
+// a 404 (already gone) is not an error.
+export async function deleteStrategyDraft(member, existingId) {
+  const where = existingId ? `member_info_id=${existingId}` : `member_id='${member}' AND feature='${DRAFT_FEATURE}'`;
+  const url = `${API_BASE}/rest/v2/tables/member_info/records?q.where=${encodeURIComponent(where)}`;
+  const r = await fetch(url, { method: 'DELETE' });
+  if (!r.ok && r.status !== 404) throw new Error(`draft delete ${r.status}`);
+}
+
+// ── Legacy dirty-guard shims ────────────────────────────────────────────────
+// The draft now persists server-side, so there's nothing to lose on navigation
+// and no beforeunload warning is needed. These no-op shims remain so AppShell's
+// existing imports keep working; the builder never marks the draft dirty now.
 let _draftDirty = false;
 export function setDraftDirty(v) { _draftDirty = !!v; }
 export function isDraftDirty() { return _draftDirty; }
-export const DRAFT_LEAVE_MSG = 'Promote this to a strategy, or it will be lost. Leave without promoting?';
+export const DRAFT_LEAVE_MSG = 'Discard this draft?';
 
 // ── Version label — date-based, matching the existing convention (YY.MM.DD.a) ─
 export function todayISO() {
@@ -332,7 +391,9 @@ export async function promoteDraft(draft, { member_id, currentActiveRow }) {
     throw new Error(`Couldn't create the new version (HTTP ${post.status}). ${detail.slice(0, 160)}`);
   }
 
-  // 3) clear the unsaved-draft guard (the draft state is dropped by the builder)
+  // 3) the new version is live — delete the persisted draft blob (best-effort;
+  //    a stale draft row is harmless and will be overwritten next time).
+  try { await deleteStrategyDraft(member_id); } catch (e) { /* non-fatal */ }
   setDraftDirty(false);
   return { version, effective_from };
 }
