@@ -266,7 +266,7 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
         />
       )}
       {!isNewFromScratch && (
-        <button onClick={back} title="Leave the builder and view your current strategy — your draft is saved and you can resume it"
+        <button onClick={back} data-tip="Leave the builder and view your current strategy — your draft is saved and you can resume it"
           style={{ background: 'none', border: 'none', color: MBH_SAGE, fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0, marginBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
           ← Back to current strategy
         </button>
@@ -275,7 +275,7 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
         <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 20, color: SLATE }}>
           {isNewFromScratch ? 'Build strategy' : 'New strategy version'}
         </div>
-        <button onClick={back} title="Close the builder — your draft is saved"
+        <button onClick={back} data-tip="Close the builder — your draft is saved"
           style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 20, cursor: 'pointer', lineHeight: 1 }} aria-label="Close builder (draft is kept)">×</button>
       </div>
       <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -370,7 +370,7 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', margin: '36px 0' }}>
         <button onClick={() => anyPriority && setWizardOpen(true)} disabled={!anyPriority}
-          title={anyPriority ? 'Open the wizard to pick up to three shared micro-habits — ranked by how many of your priorities each one moves' : 'Add at least one priority first'}
+          data-tip={anyPriority ? 'Open the wizard to pick up to three shared micro-habits — ranked by how many of your priorities each one moves' : 'Add at least one priority first'}
           style={{ border: `1px solid ${MBH_SAGE}`, background: anyPriority ? MBH_SAGE : '#e5e7eb', color: anyPriority ? '#fff' : '#9ca3af', borderRadius: 10, padding: '13px 32px', fontSize: 14, fontWeight: 700, cursor: anyPriority ? 'pointer' : 'default' }}>
           ✨ Pick Micro-habits
         </button>
@@ -401,18 +401,18 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
       {error && <div style={{ color: SOFT_RED, fontSize: 12, marginTop: 8 }}>{error}</div>}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <button onClick={discard} title="Delete this draft and leave the builder"
+          <button onClick={discard} data-tip="Delete this draft and leave the builder"
             style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Discard</button>
-          <button onClick={clearDraft} title="Erase everything and start this draft over — stays in the builder"
+          <button onClick={clearDraft} data-tip="Erase everything and start this draft over — stays in the builder"
             style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Clear</button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {savedLabel && <span style={{ fontSize: 12, color: '#9ca3af', whiteSpace: 'nowrap' }}>{savedLabel}</span>}
-          <button onClick={saveNow} disabled={saving} title="Save your progress now (it also autosaves as you type)"
+          <button onClick={saveNow} disabled={saving} data-tip="Save your progress now (it also autosaves as you type)"
             style={{ border: `1px solid ${BORDER}`, background: CARD, color: SLATE, borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: saving ? 'default' : 'pointer' }}>
             {saving ? 'Saving…' : 'Save draft'}
           </button>
-          <button onClick={promote} disabled={busy} title="Make this the member’s live strategy — creates a new version and files the current one as past"
+          <button onClick={promote} disabled={busy} data-tip="Make this the member’s live strategy — creates a new version and files the current one as past"
             style={{ border: 'none', background: busy ? '#e5e7eb' : MBH_SAGE, color: busy ? '#9ca3af' : '#fff', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: busy ? 'default' : 'pointer' }}>
             {busy ? 'Promoting…' : 'Promote →'}
           </button>
