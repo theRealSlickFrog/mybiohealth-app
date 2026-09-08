@@ -265,12 +265,6 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
           onClose={() => setWizardOpen(false)}
         />
       )}
-      {!isNewFromScratch && (
-        <button onClick={back} data-tip="Leave the builder and view your current strategy — your draft is saved and you can resume it"
-          style={{ background: 'none', border: 'none', color: MBH_SAGE, fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0, marginBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          ← Back to current strategy
-        </button>
-      )}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
         <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 20, color: SLATE }}>
           {isNewFromScratch ? 'Build strategy' : 'New strategy version'}
@@ -401,6 +395,12 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
       {error && <div style={{ color: SOFT_RED, fontSize: 12, marginTop: 8 }}>{error}</div>}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {!isNewFromScratch && (
+            <button onClick={back} data-tip="Leave the builder and view your current strategy — your draft is saved and you can resume it"
+              style={{ border: `1px solid ${BORDER}`, background: CARD, color: SLATE, borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              ← Back to current strategy
+            </button>
+          )}
           <button onClick={discard} data-tip="Delete this draft and leave the builder"
             style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Discard</button>
           <button onClick={clearDraft} data-tip="Erase everything and start this draft over — stays in the builder"
