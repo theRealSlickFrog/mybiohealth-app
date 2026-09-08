@@ -5,22 +5,22 @@
 //   choose   — habits grouped by how many priorities each moves (pre-selected
 //              with the current habits when adjusting)
 //   review   — coverage, set-cover tip, AI placeholder, frequency
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, OFFWHITE, CARD, BORDER } from '../lib/constants.js';
 
 const MAX = 3;
 const SERIF = "'DM Serif Display',serif";
 const STEP_LABEL = { intro: 'Priorities', existing: 'Your habits', choose: 'Choose habits', review: 'Review' };
 
-export default function MicrohabitWizard({ priorities, habitCatalog, links, whyLib, initialIds = [], initialFreq = {}, onDone, onClose }) {
-  const hasExisting = (initialIds || []).length > 0;
+export default function MicrohabitWizard({ priorities, habitCatalog, links, whyLib, initialHabits = [], onDone, onClose }) {
+  const hasExisting = (initialHabits || []).length > 0;
   const steps = hasExisting ? ['intro', 'existing', 'choose', 'review'] : ['intro', 'choose', 'review'];
 
   const [step, setStep] = useState(0);
   const [showAll, setShowAll] = useState(false);
-  // Pre-select the habits already on the strategy (adjust), else start empty.
-  const [selected, setSelected] = useState(() => (initialIds || []).slice(0, MAX));
-  const [freq, setFreq] = useState(() => ({ ...(initialFreq || {}) }));
+  const [selected, setSelected] = useState([]);   // seeded from initialHabits once the catalog loads
+  const [freq, setFreq] = useState({});
+  const [seeded, setSeeded] = useState(false);
 
   const stepKey = steps[step] || 'review';
 
@@ -43,6 +43,29 @@ export default function MicrohabitWizard({ priorities, habitCatalog, links, whyL
   }), [habitCatalog, habitMarkers, activePriorities]);
 
   const byId = useMemo(() => { const m = {}; candidates.forEach((c) => { m[c.id] = c; }); return m; }, [candidates]);
+
+  // Match a stored habit name to a catalog candidate: exact (case-insensitive)
+  // first, then by the text before the first comma — handles descriptive names
+  // carried from older strategies (e.g. "Daily Glucose Rest, > 3 hours, …" vs
+  // the catalog's "Daily Glucose Rest, > 3 hours during the daytime").
+  const norm = (s) => (s || '').trim().toLowerCase();
+  const firstSeg = (s) => norm(s).split(',')[0].trim();
+  const matchCandidate = (name) =>
+    candidates.find((c) => norm(c.name) === norm(name)) ||
+    candidates.find((c) => firstSeg(c.name) && firstSeg(c.name) === firstSeg(name)) || null;
+
+  // Once the catalog has loaded, pre-select the current habits (adjust flow).
+  useEffect(() => {
+    if (seeded || !hasExisting || candidates.length === 0) return;
+    const ids = []; const f = {};
+    (initialHabits || []).forEach((h) => {
+      const c = matchCandidate(h.name);
+      if (c && !ids.includes(c.id)) { ids.push(c.id); f[c.id] = h.frequency || ''; }
+    });
+    setSelected(ids.slice(0, MAX));
+    setFreq((prev) => ({ ...f, ...prev }));
+    setSeeded(true);
+  }, [candidates, seeded, hasExisting]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = (id) => setSelected((s) => s.includes(id) ? s.filter((x) => x !== id) : (s.length >= MAX ? s : [...s, id]));
 
@@ -101,7 +124,7 @@ export default function MicrohabitWizard({ priorities, habitCatalog, links, whyL
         <div style={{ background: SLATE, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ color: '#fff', fontSize: 15, fontWeight: 600 }}>{hasExisting ? 'Adjust Micro-habits' : 'Pick Micro-habits'}</div>
-            <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 2 }}>{STEP_LABEL[stepKey]} · {selected.length} of {MAX} chosen</div>
+            <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 2 }}>{STEP_LABEL[stepKey]} · Step {step + 1} of {steps.length}</div>
           </div>
           <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 16, cursor: 'pointer' }}>×</button>
         </div>
@@ -135,18 +158,19 @@ export default function MicrohabitWizard({ priorities, habitCatalog, links, whyL
             <p style={{ fontSize: 13, color: '#374151', margin: '14px 0 0' }}>{hasExisting ? 'Next you’ll see the habits already on this strategy, then you can adjust them.' : `On the next step you'll see habits ranked by how many of these priorities each one moves — pick up to ${MAX}. One habit that moves all three is better than three that each move one.`}</p>
           </>)}
 
-          {/* ── Existing habits (adjust only) ── */}
+          {/* ── Existing habits (adjust only) — the actual current habits, shown
+              straight from the strategy so nothing is hidden by a name mismatch ── */}
           {stepKey === 'existing' && (<>
             <h2 style={{ fontFamily: SERIF, fontSize: 21, color: SLATE, margin: '0 0 6px', fontWeight: 'normal' }}>Your current micro-habits</h2>
             <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 14px' }}>These are the micro-habits on this strategy right now. On the next step you can keep, swap, or add to them (up to {MAX}).</p>
-            {selected.length === 0 && <div style={{ fontSize: 13, color: '#6b7280' }}>None yet.</div>}
-            {selected.map((id) => { const c = byId[id]; if (!c) return null; return (
-              <div key={id} style={{ border: `1px solid ${BORDER}`, borderRadius: 10, background: CARD, padding: '11px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: SLATE }}>{c.name}</span>
-                {(freq[id] || c.frequency) && <span style={{ fontSize: 12, color: '#6b7280' }}>{freq[id] || c.frequency}</span>}
-                <span style={{ display: 'flex', gap: 4 }}>{c.moves.map((n) => chip(n))}</span>
+            {initialHabits.length === 0 && <div style={{ fontSize: 13, color: '#6b7280' }}>None yet.</div>}
+            {initialHabits.map((h, i) => (
+              <div key={i} style={{ border: `1px solid ${BORDER}`, borderRadius: 10, background: CARD, padding: '11px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: SLATE }}>{h.name}</span>
+                {h.frequency && <span style={{ fontSize: 12, color: '#6b7280' }}>{h.frequency}</span>}
+                <span style={{ display: 'flex', gap: 4 }}>{(h.moves || []).map((n) => chip(n))}</span>
               </div>
-            ); })}
+            ))}
           </>)}
 
           {/* ── Choose ── */}
@@ -232,7 +256,7 @@ export default function MicrohabitWizard({ priorities, habitCatalog, links, whyL
         <div style={{ borderTop: `1px solid ${BORDER}`, padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: CARD }}>
           <button onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={atFirst}
             style={{ border: `1px solid ${BORDER}`, background: atFirst ? '#f3f4f6' : OFFWHITE, color: atFirst ? '#d1d5db' : SLATE, borderRadius: 20, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: atFirst ? 'default' : 'pointer' }}>← Back</button>
-          <span style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>{selected.length} of {MAX}</span>
+          <span style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>{selected.length} of {MAX} chosen</span>
           {!atReview
             ? <button onClick={() => setStep((s) => s + 1)} style={{ border: 'none', background: SLATE, color: '#fff', borderRadius: 20, padding: '8px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{nextIsReview ? 'Review →' : 'Next →'}</button>
             : <button onClick={finish} disabled={selected.length === 0} style={{ border: 'none', background: selected.length ? MBH_SAGE : '#e5e7eb', color: selected.length ? '#fff' : '#9ca3af', borderRadius: 20, padding: '8px 20px', fontSize: 13, fontWeight: 700, cursor: selected.length ? 'pointer' : 'default' }}>Done ✓</button>}

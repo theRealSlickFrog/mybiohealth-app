@@ -201,19 +201,7 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
     });
     setWizardOpen(false);
   }
-  const currentHabitIds = () => draft.mhx.filter((m) => m.name)
-    .map((m) => { const h = habitCatalog.find((x) => x.microhabit_name === m.name); return h ? h.microhabit_id : null; })
-    .filter((x) => x != null);
-  // id → frequency, so the wizard can pre-fill the current habits' frequencies.
-  const currentHabitFreq = () => {
-    const m = {};
-    draft.mhx.filter((x) => x.name).forEach((x) => {
-      const h = habitCatalog.find((y) => y.microhabit_name === x.name);
-      if (h) m[h.microhabit_id] = x.frequency || '';
-    });
-    return m;
-  };
-  const pickedHabits = draft.mhx.filter((m) => m.name);   // for the on-page summary (no empty slots)
+  const pickedHabits = draft.mhx.filter((m) => m.name);   // on-page summary + wizard seed (no empty slots)
   const anyPriority = draft.priorities.some((p) => p.name);
 
   async function promote() {
@@ -271,8 +259,7 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
           habitCatalog={habitCatalog}
           links={habitLinks}
           whyLib={whyLib}
-          initialIds={currentHabitIds()}
-          initialFreq={currentHabitFreq()}
+          initialHabits={pickedHabits.map((m) => ({ name: m.name, frequency: m.frequency, moves: m.linked_priorities || [] }))}
           onDone={applyHabits}
           onClose={() => setWizardOpen(false)}
         />
