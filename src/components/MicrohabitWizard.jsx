@@ -1,19 +1,28 @@
-// MicrohabitWizard — guided 3-step modal for picking micro-habits.
-// Step 0: Intro — "here are your priorities and what they mean"
-// Step 1: Pick — habits grouped by how many priorities each moves
-// Step 2: Review — coverage, set-cover tip, AI placeholder, frequency
+// MicrohabitWizard — guided modal for picking / adjusting micro-habits.
+// Steps (named, so the flow is 3 or 4 long):
+//   intro    — "here are your priorities and what they mean"
+//   existing — "your current micro-habits" (only when some are already picked)
+//   choose   — habits grouped by how many priorities each moves (pre-selected
+//              with the current habits when adjusting)
+//   review   — coverage, set-cover tip, AI placeholder, frequency
 import { useState, useMemo } from 'react';
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, OFFWHITE, CARD, BORDER } from '../lib/constants.js';
 
 const MAX = 3;
 const SERIF = "'DM Serif Display',serif";
+const STEP_LABEL = { intro: 'Priorities', existing: 'Your habits', choose: 'Choose habits', review: 'Review' };
 
-export default function MicrohabitWizard({ priorities, habitCatalog, links, whyLib, onDone, onClose }) {
+export default function MicrohabitWizard({ priorities, habitCatalog, links, whyLib, initialIds = [], initialFreq = {}, onDone, onClose }) {
+  const hasExisting = (initialIds || []).length > 0;
+  const steps = hasExisting ? ['intro', 'existing', 'choose', 'review'] : ['intro', 'choose', 'review'];
+
   const [step, setStep] = useState(0);
   const [showAll, setShowAll] = useState(false);
-  // Always start fresh — never carry over the previous strategy's habits.
-  const [selected, setSelected] = useState([]);
-  const [freq, setFreq] = useState({});
+  // Pre-select the habits already on the strategy (adjust), else start empty.
+  const [selected, setSelected] = useState(() => (initialIds || []).slice(0, MAX));
+  const [freq, setFreq] = useState(() => ({ ...(initialFreq || {}) }));
+
+  const stepKey = steps[step] || 'review';
 
   const activePriorities = useMemo(
     () => priorities.map((p, i) => ({ n: i + 1, name: p.name, marker: p.primary_marker, anchor: p.anchor, target: p.target_text, code: p.priority_code }))
@@ -51,14 +60,15 @@ export default function MicrohabitWizard({ priorities, habitCatalog, links, whyL
     return { picks: chosen, uncovered: [...need] };
   }, [candidates, activePriorities]);
 
-  // Habits grouped by how many priorities they move (for the pick step)
+  // Habits grouped by how many priorities they move. Already-selected habits are
+  // always shown even in related-only view, so a pre-selected one never hides.
   const groups = useMemo(() => {
-    const base = showAll ? candidates : candidates.filter((c) => c.moves.length > 0);
+    const base = showAll ? candidates : candidates.filter((c) => c.moves.length > 0 || selected.includes(c.id));
     const sorted = base.slice().sort((a, b) => (b.moves.length - a.moves.length) || a.name.localeCompare(b.name));
     const byN = {};
     sorted.forEach((c) => (byN[c.moves.length] = byN[c.moves.length] || []).push(c));
     return Object.keys(byN).map(Number).sort((a, b) => b - a).map((n) => ({ n, items: byN[n] }));
-  }, [candidates, showAll]);
+  }, [candidates, showAll, selected]);
 
   // First meaningful paragraph from the Why library for a priority code
   const whySnippet = (code) => {
@@ -69,8 +79,8 @@ export default function MicrohabitWizard({ priorities, habitCatalog, links, whyL
     return firstPara.trim() || null;
   };
 
-  const chip = (n, opts = {}) => (
-    <span key={n} style={{ fontSize: 10, fontWeight: 700, color: opts.muted ? '#9ca3af' : SAGE_TEXT, background: opts.muted ? '#f3f4f6' : SAGE_BG, border: `1px solid ${opts.muted ? BORDER : MBH_SAGE + '55'}`, borderRadius: 6, padding: '1px 5px' }}>P{n}</span>
+  const chip = (n) => (
+    <span key={n} style={{ fontSize: 10, fontWeight: 700, color: SAGE_TEXT, background: SAGE_BG, border: `1px solid ${MBH_SAGE}55`, borderRadius: 6, padding: '1px 5px' }}>P{n}</span>
   );
 
   function finish() {
@@ -79,7 +89,9 @@ export default function MicrohabitWizard({ priorities, habitCatalog, links, whyL
     onDone(picks);
   }
 
-  const STEPS = ['Priorities', 'Choose habits', 'Review'];
+  const atFirst = step === 0;
+  const atReview = stepKey === 'review';
+  const nextIsReview = steps[step + 1] === 'review';
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(30,45,61,0.65)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
@@ -88,22 +100,22 @@ export default function MicrohabitWizard({ priorities, habitCatalog, links, whyL
         {/* header */}
         <div style={{ background: SLATE, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ color: '#fff', fontSize: 15, fontWeight: 600 }}>Pick Micro-habits</div>
-            <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 2 }}>{STEPS[step]} · {selected.length} of {MAX} chosen</div>
+            <div style={{ color: '#fff', fontSize: 15, fontWeight: 600 }}>{hasExisting ? 'Adjust Micro-habits' : 'Pick Micro-habits'}</div>
+            <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 2 }}>{STEP_LABEL[stepKey]} · {selected.length} of {MAX} chosen</div>
           </div>
           <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 16, cursor: 'pointer' }}>×</button>
         </div>
 
         {/* step dots */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: 6, padding: '10px 0 0' }}>
-          {STEPS.map((_, i) => <div key={i} style={{ width: i === step ? 22 : 6, height: 6, borderRadius: 3, background: i === step ? MBH_SAGE : (i < step ? `${MBH_SAGE}88` : '#d1d5db'), transition: 'all .2s' }} />)}
+          {steps.map((_, i) => <div key={i} style={{ width: i === step ? 22 : 6, height: 6, borderRadius: 3, background: i === step ? MBH_SAGE : (i < step ? `${MBH_SAGE}88` : '#d1d5db'), transition: 'all .2s' }} />)}
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 22px 18px' }}>
 
-          {/* ── Step 0: Intro ── */}
-          {step === 0 && (<>
-            <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 18px' }}>You have set {nP} {nP === 1 ? 'priority' : 'priorities'} for this strategy. Before picking habits, here's what each one means — and why it matters.</p>
+          {/* ── Intro ── */}
+          {stepKey === 'intro' && (<>
+            <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 18px' }}>You have set {nP} {nP === 1 ? 'priority' : 'priorities'} for this strategy. Before {hasExisting ? 'adjusting' : 'picking'} habits, here's what each one means — and why it matters.</p>
             {activePriorities.map((p) => {
               const snippet = whySnippet(p.code);
               return (
@@ -120,11 +132,25 @@ export default function MicrohabitWizard({ priorities, habitCatalog, links, whyL
                 </div>
               );
             })}
-            <p style={{ fontSize: 13, color: '#374151', margin: '14px 0 0' }}>On the next step you'll see habits ranked by how many of these priorities each one moves — pick up to {MAX}. One habit that moves all three is better than three that each move one.</p>
+            <p style={{ fontSize: 13, color: '#374151', margin: '14px 0 0' }}>{hasExisting ? 'Next you’ll see the habits already on this strategy, then you can adjust them.' : `On the next step you'll see habits ranked by how many of these priorities each one moves — pick up to ${MAX}. One habit that moves all three is better than three that each move one.`}</p>
           </>)}
 
-          {/* ── Step 1: Pick ── */}
-          {step === 1 && (<>
+          {/* ── Existing habits (adjust only) ── */}
+          {stepKey === 'existing' && (<>
+            <h2 style={{ fontFamily: SERIF, fontSize: 21, color: SLATE, margin: '0 0 6px', fontWeight: 'normal' }}>Your current micro-habits</h2>
+            <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 14px' }}>These are the micro-habits on this strategy right now. On the next step you can keep, swap, or add to them (up to {MAX}).</p>
+            {selected.length === 0 && <div style={{ fontSize: 13, color: '#6b7280' }}>None yet.</div>}
+            {selected.map((id) => { const c = byId[id]; if (!c) return null; return (
+              <div key={id} style={{ border: `1px solid ${BORDER}`, borderRadius: 10, background: CARD, padding: '11px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: SLATE }}>{c.name}</span>
+                {(freq[id] || c.frequency) && <span style={{ fontSize: 12, color: '#6b7280' }}>{freq[id] || c.frequency}</span>}
+                <span style={{ display: 'flex', gap: 4 }}>{c.moves.map((n) => chip(n))}</span>
+              </div>
+            ); })}
+          </>)}
+
+          {/* ── Choose ── */}
+          {stepKey === 'choose' && (<>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>Habits that move the most of your priorities appear first. A habit marked ⭐ moves all {nP}.</p>
               <button onClick={() => setShowAll((v) => !v)} style={{ flexShrink: 0, marginLeft: 10, border: `1px solid ${BORDER}`, background: CARD, color: SLATE, borderRadius: 20, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
@@ -140,7 +166,6 @@ export default function MicrohabitWizard({ priorities, habitCatalog, links, whyL
                 {g.items.map((c) => {
                   const on = selected.includes(c.id);
                   const blocked = !on && selected.length >= MAX;
-                  const others = c.moves.filter((n) => !activePriorities.map((p) => p.n).includes(n) || true); // all moves
                   return (
                     <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: `1px solid ${on ? MBH_SAGE : BORDER}`, background: on ? SAGE_BG : CARD, marginBottom: 6, cursor: blocked ? 'default' : 'pointer', opacity: blocked ? 0.45 : 1 }}>
                       <input type="checkbox" checked={on} disabled={blocked} onChange={() => toggle(c.id)} style={{ cursor: blocked ? 'default' : 'pointer' }} />
@@ -153,9 +178,9 @@ export default function MicrohabitWizard({ priorities, habitCatalog, links, whyL
             ))}
           </>)}
 
-          {/* ── Step 2: Review ── */}
-          {step === 2 && (<>
-            <h2 style={{ fontFamily: SERIF, fontSize: 21, color: SLATE, margin: '0 0 6px', fontWeight: 'normal' }}>Your three levers</h2>
+          {/* ── Review ── */}
+          {stepKey === 'review' && (<>
+            <h2 style={{ fontFamily: SERIF, fontSize: 21, color: SLATE, margin: '0 0 6px', fontWeight: 'normal' }}>Your levers</h2>
 
             {/* coverage */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -190,7 +215,7 @@ export default function MicrohabitWizard({ priorities, habitCatalog, links, whyL
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                     <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: SLATE }}>{c.name}</span>
                     <span style={{ display: 'flex', gap: 4 }}>{c.moves.map((n) => chip(n))}</span>
-                    <button onClick={() => { toggle(id); setStep(1); }} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>change</button>
+                    <button onClick={() => { toggle(id); setStep(steps.indexOf('choose')); }} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>change</button>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 11, color: '#6b7280' }}>Frequency</span>
@@ -205,11 +230,11 @@ export default function MicrohabitWizard({ priorities, habitCatalog, links, whyL
 
         {/* footer nav */}
         <div style={{ borderTop: `1px solid ${BORDER}`, padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: CARD }}>
-          <button onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}
-            style={{ border: `1px solid ${BORDER}`, background: step === 0 ? '#f3f4f6' : OFFWHITE, color: step === 0 ? '#d1d5db' : SLATE, borderRadius: 20, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: step === 0 ? 'default' : 'pointer' }}>← Back</button>
+          <button onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={atFirst}
+            style={{ border: `1px solid ${BORDER}`, background: atFirst ? '#f3f4f6' : OFFWHITE, color: atFirst ? '#d1d5db' : SLATE, borderRadius: 20, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: atFirst ? 'default' : 'pointer' }}>← Back</button>
           <span style={{ fontSize: 12, color: '#374151', fontWeight: 600 }}>{selected.length} of {MAX}</span>
-          {step < 2
-            ? <button onClick={() => setStep((s) => s + 1)} style={{ border: 'none', background: SLATE, color: '#fff', borderRadius: 20, padding: '8px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{step === 1 ? 'Review →' : 'Next →'}</button>
+          {!atReview
+            ? <button onClick={() => setStep((s) => s + 1)} style={{ border: 'none', background: SLATE, color: '#fff', borderRadius: 20, padding: '8px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{nextIsReview ? 'Review →' : 'Next →'}</button>
             : <button onClick={finish} disabled={selected.length === 0} style={{ border: 'none', background: selected.length ? MBH_SAGE : '#e5e7eb', color: selected.length ? '#fff' : '#9ca3af', borderRadius: 20, padding: '8px 20px', fontSize: 13, fontWeight: 700, cursor: selected.length ? 'pointer' : 'default' }}>Done ✓</button>}
         </div>
       </div>

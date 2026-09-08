@@ -204,6 +204,16 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
   const currentHabitIds = () => draft.mhx.filter((m) => m.name)
     .map((m) => { const h = habitCatalog.find((x) => x.microhabit_name === m.name); return h ? h.microhabit_id : null; })
     .filter((x) => x != null);
+  // id → frequency, so the wizard can pre-fill the current habits' frequencies.
+  const currentHabitFreq = () => {
+    const m = {};
+    draft.mhx.filter((x) => x.name).forEach((x) => {
+      const h = habitCatalog.find((y) => y.microhabit_name === x.name);
+      if (h) m[h.microhabit_id] = x.frequency || '';
+    });
+    return m;
+  };
+  const pickedHabits = draft.mhx.filter((m) => m.name);   // for the on-page summary (no empty slots)
   const anyPriority = draft.priorities.some((p) => p.name);
 
   async function promote() {
@@ -261,6 +271,8 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
           habitCatalog={habitCatalog}
           links={habitLinks}
           whyLib={whyLib}
+          initialIds={currentHabitIds()}
+          initialFreq={currentHabitFreq()}
           onDone={applyHabits}
           onClose={() => setWizardOpen(false)}
         />
@@ -362,11 +374,27 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', margin: '6px 0 8px' }}>
         Micro-habits <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>— up to three shared levers</span>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'center', margin: '36px 0' }}>
+      {/* Chosen habits — read-only summary (no empty slots). Edit via the wizard. */}
+      {pickedHabits.length > 0 && (
+        <div style={{ marginBottom: 6 }}>
+          {pickedHabits.map((m, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, border: `1px solid ${BORDER}`, borderRadius: 10, background: CARD, padding: '11px 14px', marginBottom: 8 }}>
+              <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: SLATE }}>{m.name}</span>
+              {m.frequency && <span style={{ fontSize: 12, color: '#6b7280' }}>{m.frequency}</span>}
+              <span style={{ display: 'flex', gap: 4 }}>
+                {(m.linked_priorities || []).map((n) => (
+                  <span key={n} style={{ fontSize: 10, fontWeight: 700, color: SAGE_TEXT, background: SAGE_BG, border: `1px solid ${MBH_SAGE}55`, borderRadius: 6, padding: '1px 5px' }}>P{n}</span>
+                ))}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: 'flex', justifyContent: 'center', margin: pickedHabits.length ? '10px 0 8px' : '36px 0' }}>
         <button onClick={() => anyPriority && setWizardOpen(true)} disabled={!anyPriority}
-          data-tip={anyPriority ? 'Open the wizard to pick up to three shared micro-habits — ranked by how many of your priorities each one moves' : 'Add at least one priority first'}
+          data-tip={anyPriority ? 'Open the wizard to choose up to three shared micro-habits — ranked by how many of your priorities each one moves' : 'Add at least one priority first'}
           style={{ border: `1px solid ${MBH_SAGE}`, background: anyPriority ? MBH_SAGE : '#e5e7eb', color: anyPriority ? '#fff' : '#9ca3af', borderRadius: 10, padding: '13px 32px', fontSize: 14, fontWeight: 700, cursor: anyPriority ? 'pointer' : 'default' }}>
-          ✨ Pick Micro-habits
+          ✨ {pickedHabits.length ? 'Adjust Micro-habits' : 'Pick Micro-habits'}
         </button>
       </div>
 
