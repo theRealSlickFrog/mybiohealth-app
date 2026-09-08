@@ -215,6 +215,18 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
     onCancel && onCancel();
   }
 
+  // Clear wipes the form back to blank and removes the saved draft, but STAYS in
+  // the builder so you can start fresh.
+  async function clearDraft() {
+    if (!confirm('Clear this draft and start from scratch? This can’t be undone.')) return;
+    try { await deleteStrategyDraft(member, draftId); } catch (e) { /* ignore */ }
+    setDraft(emptyDraft());
+    setWhyText('');
+    setDraftId(null);
+    setSavedAt(null);
+    setError(null);
+  }
+
   const isNewFromScratch = !currentActiveRow;
 
   return (
@@ -356,7 +368,10 @@ export default function StrategyBuilder({ member, initialDraft, previousDraft, l
       {/* Footer */}
       {error && <div style={{ color: SOFT_RED, fontSize: 12, marginTop: 8 }}>{error}</div>}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 14 }}>
-        <button onClick={discard} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Discard</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <button onClick={discard} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Discard</button>
+          <button onClick={clearDraft} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Clear</button>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {savedLabel && <span style={{ fontSize: 12, color: '#9ca3af', whiteSpace: 'nowrap' }}>{savedLabel}</span>}
           <button onClick={saveNow} disabled={saving}
