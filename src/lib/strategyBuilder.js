@@ -34,6 +34,7 @@ export function emptyPriority() {
 
 export function emptyMhx() {
   return {
+    code: '',                // microhabit_id — stable identity, never displayed
     name: '', frequency: '', end_game_kind: 'steady', end_game_signal: '',
     end_game_start: '', end_game_goal: '', renew_text: '', why_text: '',
     linked_priorities: [],   // e.g. [1,3]
@@ -82,6 +83,7 @@ export function draftFromRow(row) {
   }
   for (let n = 1; n <= 3; n++) {
     const m = d.mhx[n - 1];
+    m.code = row[`mhx${n}_code`] || '';
     m.name = row[`mhx${n}_name`] || '';
     m.frequency = row[`mhx${n}_frequency`] || '';
     m.end_game_kind = row[`mhx${n}_end_game_kind`] || 'steady';
@@ -323,6 +325,7 @@ export function flattenDraft(draft, { member_id, version, effective_from }) {
   draft.mhx.forEach((m, i) => {
     if (!m.name) return;
     const n = i + 1;
+    put(row, `mhx${n}_code`, m.code);
     put(row, `mhx${n}_name`, m.name);
     put(row, `mhx${n}_frequency`, m.frequency);
     put(row, `mhx${n}_end_game_kind`, m.end_game_kind);

@@ -54,12 +54,17 @@ export default function MicrohabitWizard({ priorities, habitCatalog, links, whyL
     candidates.find((c) => norm(c.name) === norm(name)) ||
     candidates.find((c) => firstSeg(c.name) && firstSeg(c.name) === firstSeg(name)) || null;
 
+  // Resolve a stored habit to a catalog candidate: by microhabit_id (code) when
+  // present — the reliable path — else fall back to name matching for legacy
+  // rows that predate mhx{n}_code.
+  const resolveHabit = (h) => (h.code != null && h.code !== '' && byId[h.code]) ? byId[h.code] : matchCandidate(h.name);
+
   // Once the catalog has loaded, pre-select the current habits (adjust flow).
   useEffect(() => {
     if (seeded || !hasExisting || candidates.length === 0) return;
     const ids = []; const f = {};
     (initialHabits || []).forEach((h) => {
-      const c = matchCandidate(h.name);
+      const c = resolveHabit(h);
       if (c && !ids.includes(c.id)) { ids.push(c.id); f[c.id] = h.frequency || ''; }
     });
     setSelected(ids.slice(0, MAX));
@@ -108,7 +113,7 @@ export default function MicrohabitWizard({ priorities, habitCatalog, links, whyL
 
   function finish() {
     const picks = selected.map((id) => byId[id]).filter(Boolean)
-      .map((c) => ({ name: c.name, moves: c.moves, frequency: (freq[c.id] ?? c.frequency) || '' }));
+      .map((c) => ({ code: c.id, name: c.name, moves: c.moves, frequency: (freq[c.id] ?? c.frequency) || '' }));
     onDone(picks);
   }
 

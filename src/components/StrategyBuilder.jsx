@@ -195,7 +195,7 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
     setDraft((d) => {
       const mhx = [emptyMhx(), emptyMhx(), emptyMhx()];
       picks.slice(0, 3).forEach((p, i) => {
-        mhx[i] = { ...emptyMhx(), name: p.name, frequency: p.frequency || '', linked_priorities: (p.moves || []).slice() };
+        mhx[i] = { ...emptyMhx(), code: p.code != null ? String(p.code) : '', name: p.name, frequency: p.frequency || '', linked_priorities: (p.moves || []).slice() };
       });
       return { ...d, mhx };
     });
@@ -259,7 +259,7 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
           habitCatalog={habitCatalog}
           links={habitLinks}
           whyLib={whyLib}
-          initialHabits={pickedHabits.map((m) => ({ name: m.name, frequency: m.frequency, moves: m.linked_priorities || [] }))}
+          initialHabits={pickedHabits.map((m) => ({ code: m.code, name: m.name, frequency: m.frequency, moves: m.linked_priorities || [] }))}
           onDone={applyHabits}
           onClose={() => setWizardOpen(false)}
         />
