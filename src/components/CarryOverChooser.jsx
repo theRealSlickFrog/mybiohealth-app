@@ -56,7 +56,10 @@ export default function CarryOverChooser({ activeRow, carryNote, onStart, onCanc
             <div style={{ fontSize: 13, color: '#6b7280', padding: '10px 0' }}>Nothing to carry over — you’ll start with a clean slate.</div>
           ) : (
             <>
-              <p style={{ fontSize: 12.5, color: '#6b7280', margin: '0 0 14px' }}>Tick what you’d like to bring across. Everything else starts fresh. Carried priorities pull your latest lab value.</p>
+              <p style={{ fontSize: 12.5, color: '#6b7280', margin: '0 0 14px' }}>
+                You’re creating a new <em style={{ fontStyle: 'italic' }}>My</em>Strategy. You can copy elements from your current strategy into it — tick the ones to bring across below. Anything you leave unticked starts fresh.
+                <span style={{ display: 'block', marginTop: 6, color: '#9ca3af' }}>Carried priorities pull your latest lab value.</span>
+              </p>
               {groups.map((g) => (
                 <div key={g.title} style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#9ca3af', marginBottom: 6 }}>{g.title}</div>
