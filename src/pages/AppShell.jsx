@@ -20,6 +20,7 @@ import JotsPage from './JotsPage.jsx';
 import UpNextPage from './UpNextPage.jsx';
 import ContextSignalsPage from './ContextSignalsPage.jsx';
 import RiskMeasuresPage from './RiskMeasuresPage.jsx';
+import VoiceTestPage from './VoiceTestPage.jsx';
 
 // Capture the GUID at module-load time, before any component renders. Doing
 // it in a useEffect means child components mount + run their own effects
@@ -167,6 +168,7 @@ export default function AppShell() {
         {activePage === 'upnext'             && <UpNextPage />}
         {activePage === 'context_signals'    && <ContextSignalsPage />}
         {activePage === 'risk_measures'      && <RiskMeasuresPage />}
+        {activePage === 'voice_test'         && <VoiceTestPage />}
       </div>
     </div>
   );

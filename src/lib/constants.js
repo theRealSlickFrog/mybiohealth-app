@@ -47,4 +47,6 @@ export const NAV_ITEMS = [
   { key: 'vault',               label: 'MyVault',                icon: '📁' },
   { key: 'library',             label: 'MBH Library',            icon: '📚' },
   { key: 'questions',           label: 'Questions',              icon: '✉️' },
+  // Test screens — dictation accuracy feedback, not part of the member journey.
+  { key: 'voice_test',          label: 'Voice Input Test',       icon: '🎤' },
 ];
