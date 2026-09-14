@@ -122,6 +122,51 @@ export function isSessionExpired() {
   return p.exp * 1000 <= Date.now();
 }
 
+// ── Leaving the app ───────────────────────────────────────────────────────────
+// Every URL below is a production Caspio endpoint, so following one in dev
+// drops you out of the local server and into the live app — losing the dev
+// session and whatever you were testing.
+//
+// The guard is `import.meta.env.DEV`, which Vite substitutes as a literal at
+// build time: in a production bundle the condition is `false`, the branch is
+// eliminated, and what ships is the bare assignment that was there before.
+// Deliberately not a hostname or NODE_ENV check — either of those is evaluated
+// at runtime and can therefore be wrong in a real build.
+
+function logSuppressed(label, url) {
+  console.info(
+    `[mbh] dev: suppressed the ${label} redirect. In production this would navigate to ${url}`,
+  );
+}
+
+/**
+ * Navigate out of the SPA to an external URL.
+ * @returns {boolean} whether navigation happened — always true in production.
+ */
+export function navigateExternal(url, label) {
+  if (import.meta.env.DEV) {
+    logSuppressed(label, url);
+    return false;
+  }
+  window.location.href = url;
+  return true;
+}
+
+/**
+ * onClick for an <a href> pointing at one of these URLs. Returns undefined in
+ * production, so the anchor keeps its plain default behaviour and nothing is
+ * added to the click path; in dev it cancels the navigation instead. The href
+ * itself is left intact either way, so "copy link" and middle-click still give
+ * the real destination while developing.
+ */
+export function devBlockExternalLink(url, label) {
+  if (!import.meta.env.DEV) return undefined;
+  return (e) => {
+    e.preventDefault();
+    logSuppressed(label, url);
+  };
+}
+
 // Caspio Authentication login URL (e2j2rj) — must use the vanity domain so
 // the auth cookie is set on the same origin as the destination DataPages.
 // Using the legacy d2hct674.caspio.app domain causes a cross-subdomain bounce:
@@ -155,7 +200,7 @@ export async function logout(currentPage, reason = 'manual', { redirect = true }
   // logActivity resolves the member from the stored GUID.
   await logActivity('logout', currentPage || '', reason);
   clearSession();
-  if (redirect) window.location.href = CASPIO_LOGOUT_URL;
+  if (redirect) navigateExternal(CASPIO_LOGOUT_URL, 'logout');
 }
 
 // ── Token handoff (new, secure path) ──────────────────────────────────────

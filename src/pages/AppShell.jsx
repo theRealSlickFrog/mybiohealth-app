@@ -1,7 +1,7 @@
 // App shell — sticky top bar, hamburger drawer, page routing.
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { SLATE, OFFWHITE, MBH_DROP_IMG, NAV_ITEMS } from '../lib/constants.js';
-import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity, logout, isAdminSession, isSessionExpired, setSessionExpiredHandler, REDIRECTOR_URL, CASPIO_LOGOUT_URL } from '../lib/auth.js';
+import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity, logout, isAdminSession, isSessionExpired, setSessionExpiredHandler, navigateExternal, REDIRECTOR_URL, CASPIO_LOGOUT_URL } from '../lib/auth.js';
 import { isDraftDirty, setDraftDirty, DRAFT_LEAVE_MSG } from '../lib/strategyBuilder.js';
 import useIdleTimeout from '../lib/useIdleTimeout.js';
 import { IdleWarningModal, SessionEndedScreen } from '../components/SessionTimeout.jsx';
@@ -118,7 +118,7 @@ export default function AppShell() {
     return (
       <SessionEndedScreen
         reason={expiredReason}
-        onSignIn={() => { window.location.href = CASPIO_LOGOUT_URL; }}
+        onSignIn={() => { navigateExternal(CASPIO_LOGOUT_URL, 'sign-in'); }}
       />
     );
   }
@@ -145,7 +145,7 @@ export default function AppShell() {
           </div>
         </div>
         {isAdminSession() && (
-          <button onClick={() => { window.location.href = REDIRECTOR_URL; }} title="Switch client / experience" style={{
+          <button onClick={() => { navigateExternal(REDIRECTOR_URL, 'redirector'); }} title="Switch client / experience" style={{
             background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', color: 'white',
             borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
             whiteSpace: 'nowrap', flexShrink: 0,
