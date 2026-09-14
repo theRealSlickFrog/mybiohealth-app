@@ -3,6 +3,7 @@ import { useCallback, useState, useEffect, useRef } from 'react';
 import { SLATE, OFFWHITE, MBH_DROP_IMG, NAV_ITEMS } from '../lib/constants.js';
 import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity, logout, isAdminSession, isSessionExpired, setSessionExpiredHandler, navigateExternal, REDIRECTOR_URL, CASPIO_LOGOUT_URL } from '../lib/auth.js';
 import { isDraftDirty, setDraftDirty, DRAFT_LEAVE_MSG } from '../lib/strategyBuilder.js';
+import { pageFromPath, pathForPage } from '../lib/routes.js';
 import useIdleTimeout from '../lib/useIdleTimeout.js';
 import { IdleWarningModal, SessionEndedScreen } from '../components/SessionTimeout.jsx';
 import Drawer from '../components/Drawer.jsx';
@@ -29,7 +30,14 @@ import VoiceTestPage from './VoiceTestPage.jsx';
 captureGuidFromUrl();
 
 export default function AppShell() {
-  const [activePage, setActivePage] = useState('strategy');
+  // The URL is the source of truth for which page is showing — read it on the
+  // first render so a reload or a deep link lands on the right page instead of
+  // resetting to the default.
+  const [activePage, setActivePage] = useState(pageFromPath);
+  // Mirrors activePage for the navigation callbacks, which are bound once and
+  // must read the current page without re-subscribing on every change.
+  const activePageRef = useRef(activePage);
+  activePageRef.current = activePage;
   const [drawerOpen, setDrawerOpen] = useState(false);
   // If we arrived via the secure ?t= handoff, exchange it for a session before
   // rendering pages. The legacy ?guid= path boots immediately (booting=false).
@@ -100,11 +108,56 @@ export default function AppShell() {
 
   // Guard navigation: an unpromoted strategy draft (StrategyBuilder) blocks
   // leaving until the user confirms — then it's discarded (nothing persisted).
-  const navigate = (page) => {
-    if (page !== activePage && isDraftDirty() && !window.confirm(DRAFT_LEAVE_MSG)) return;
+  //
+  // Reads the current page from a ref rather than from a state updater: under
+  // StrictMode React double-invokes updaters in development, which would ask
+  // for confirmation twice and push two history entries.
+  const navigate = useCallback((page) => {
+    const current = activePageRef.current;
+    if (page === current) return;
+    if (isDraftDirty() && !window.confirm(DRAFT_LEAVE_MSG)) return;
     setDraftDirty(false);
+    window.history.pushState({}, '', pathForPage(page));
+    activePageRef.current = page;
     setActivePage(page);
-  };
+  }, []);
+
+  // Back and Forward move between portal pages, so the draft guard has to cover
+  // them too — without it, Back silently discards a draft that in-app
+  // navigation explicitly protects. Declining puts the current page back on top
+  // of the history stack, since a popstate cannot be cancelled outright.
+  useEffect(() => {
+    const onPop = () => {
+      const next = pageFromPath();
+      const current = activePageRef.current;
+      if (next === current) return;
+      if (isDraftDirty() && !window.confirm(DRAFT_LEAVE_MSG)) {
+        window.history.pushState({}, '', pathForPage(current));
+        return;
+      }
+      setDraftDirty(false);
+      activePageRef.current = next;
+      setActivePage(next);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  // Keep the address and the visible page in agreement: a bare /app, or a slug
+  // we don't recognise, renders the default page, so rewrite the URL to say so.
+  //
+  // Rebuilds from the full URL rather than assigning a bare path because the
+  // query string must survive — the ?t= handoff token is read out of it during
+  // boot, and dropping it here would break sign-in. Held until booting finishes
+  // for the same reason.
+  useEffect(() => {
+    if (booting) return;
+    const want = pathForPage(activePage);
+    if (window.location.pathname === want) return;
+    const url = new URL(window.location.href);
+    url.pathname = want;
+    window.history.replaceState({}, '', url.toString());
+  }, [booting, activePage]);
 
   const pageLabel = NAV_ITEMS.find((n) => n.key === activePage)?.label;
   const showLabel = activePage !== 'strategy';
