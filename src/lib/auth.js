@@ -282,7 +282,8 @@ export const REDIRECTOR_URL = 'https://mybiohealth.caspio.app/mybiohealth/patien
 
 // True when an admin is driving this session — either logged in as an admin
 // (JWT role 'admin') or impersonating a client via "view as" (act present).
-// Gates the admin-only Redirector shortcut in the top bar.
+// Gates the admin-only shortcuts in the top bar: Redirector, and the button
+// to the voice test screen that is kept out of the member-facing drawer.
 export function isAdminSession() {
   const p = jwtPayload();
   if (!p) return false;

@@ -197,13 +197,23 @@ export default function AppShell() {
             {showLabel && <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> · {pageLabel}</span>}
           </div>
         </div>
-        {isAdminSession() && (
+        {/* Admin-only shortcuts. The voice test screen is deliberately absent
+            from the drawer (it is a test screen, and the drawer is what members
+            see), so this button is how anyone reaches it without typing the
+            URL. Icon-only: two full-width pills plus the page title overflow
+            the bar on a phone. */}
+        {isAdminSession() && (<>
+          <button onClick={() => navigate('voice_test')} title="Voice Input Test" aria-label="Voice Input Test" style={{
+            background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
+            borderRadius: 8, padding: 0, width: 30, height: 28, fontSize: 14, cursor: 'pointer',
+            display: 'grid', placeItems: 'center', flexShrink: 0, lineHeight: 1,
+          }}>🎤</button>
           <button onClick={() => { navigateExternal(REDIRECTOR_URL, 'redirector'); }} title="Switch client / experience" style={{
             background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', color: 'white',
             borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
             whiteSpace: 'nowrap', flexShrink: 0,
           }}>Redirector</button>
-        )}
+        </>)}
       </div>
 
       <div style={{ maxWidth: 740, margin: '0 auto' }}>

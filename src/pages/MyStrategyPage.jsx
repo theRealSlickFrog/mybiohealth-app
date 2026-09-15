@@ -18,6 +18,7 @@ import CarryOverChooser from '../components/CarryOverChooser.jsx';
 import WhyModal from '../components/WhyModal.jsx';
 import PlotlyChart from '../components/PlotlyChart.jsx';
 import PersonalNote from '../components/PersonalNote.jsx';
+import VoiceTextarea from '../components/VoiceTextarea.jsx';
 import WhyImHere from '../components/WhyImHere.jsx';
 import WeeklyCheckin from '../components/WeeklyCheckin.jsx';
 import StrategyBuilder from '../components/StrategyBuilder.jsx';
@@ -580,20 +581,22 @@ export default function MyStrategyPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 12, marginTop: 12, borderTop: `1px solid ${BORDER}` }}>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginBottom: 4 }}>Member Note</div>
-                  <textarea
+                  <VoiceTextarea
+                    label="the Member Note"
                     value={notes[`${p.n}_member`] || ''}
-                    onChange={(e) => setNotes((prev) => ({ ...prev, [`${p.n}_member`]: e.target.value }))}
+                    onChange={(v) => setNotes((prev) => ({ ...prev, [`${p.n}_member`]: v }))}
                     placeholder="Member's notes about this priority…"
-                    style={{ width: '100%', minHeight: 50, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '8px 10px', fontSize: 12, color: SLATE, background: OFFWHITE, resize: 'vertical', lineHeight: 1.5, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                    style={{ width: '100%', minHeight: 50, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '8px 10px', fontSize: 12, color: SLATE, background: OFFWHITE, resize: 'vertical', lineHeight: 1.5, outline: 'none', fontFamily: 'inherit' }}
                   />
                 </div>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: MBH_SAGE, marginBottom: 4 }}>MBH Note</div>
-                  <textarea
+                  <VoiceTextarea
+                    label="the MBH Note"
                     value={notes[`${p.n}_mbh`] || ''}
-                    onChange={(e) => setNotes((prev) => ({ ...prev, [`${p.n}_mbh`]: e.target.value }))}
+                    onChange={(v) => setNotes((prev) => ({ ...prev, [`${p.n}_mbh`]: v }))}
                     placeholder="Notes from MyBioHealth…"
-                    style={{ width: '100%', minHeight: 50, border: `1px solid ${MBH_SAGE}30`, borderRadius: 8, padding: '8px 10px', fontSize: 12, color: SLATE, background: SAGE_BG + '60', resize: 'vertical', lineHeight: 1.5, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                    style={{ width: '100%', minHeight: 50, border: `1px solid ${MBH_SAGE}30`, borderRadius: 8, padding: '8px 10px', fontSize: 12, color: SLATE, background: SAGE_BG + '60', resize: 'vertical', lineHeight: 1.5, outline: 'none', fontFamily: 'inherit' }}
                   />
                 </div>
               </div>

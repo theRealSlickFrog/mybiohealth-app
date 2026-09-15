@@ -7,6 +7,7 @@ import { SLATE, MBH_SAGE, SOFT_RED } from '../lib/constants.js';
 import { getStoredGuid } from '../lib/auth.js';
 import { DEV_MEMBER } from '../lib/biomarkers.js';
 import { loadNote, saveNote } from '../lib/notes.js';
+import VoiceTextarea from './VoiceTextarea.jsx';
 
 const NOTE_KEY = 'strategy_why';
 const SERIF = "'DM Serif Display',serif";
@@ -52,10 +53,12 @@ export default function WhyImHere({ heading, caption }) {
 
       {editing ? (
         <div>
-          <textarea
-            value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus
+          <VoiceTextarea
+            label="what brings you here"
+            dark
+            value={draft} onChange={setDraft} autoFocus
             placeholder="In your words — what brings you here, and what you want to protect…"
-            style={{ width: '100%', minHeight: 130, boxSizing: 'border-box', border: '1px solid rgba(255,255,255,.2)', borderRadius: 10, padding: '12px 14px', fontFamily: SERIF, fontSize: 16, lineHeight: 1.55, color: '#fff', background: 'rgba(255,255,255,.06)', resize: 'vertical', outline: 'none' }}
+            style={{ width: '100%', minHeight: 130, border: '1px solid rgba(255,255,255,.2)', borderRadius: 10, padding: '12px 14px', fontFamily: SERIF, fontSize: 16, lineHeight: 1.55, color: '#fff', background: 'rgba(255,255,255,.06)', resize: 'vertical', outline: 'none' }}
           />
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
             <button onClick={() => setEditing(false)} disabled={saving} style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', border: '1px solid rgba(255,255,255,.25)', background: 'transparent', color: 'rgba(255,255,255,.8)' }}>Cancel</button>

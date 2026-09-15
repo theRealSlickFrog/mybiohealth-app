@@ -6,16 +6,16 @@
 // prescriptions/supplements — because term accuracy depends on what is being
 // dictated, and a generic scratch box would not surface the same failures.
 //
-// The vocabulary is the member's own markers, fetched at runtime. It is never
-// hardcoded: the marker set is per-member and server-driven, so a baked-in list
-// would be stale for everyone and wrong for some. The built-in fallback exists
-// only so the page still demonstrates the idea when the fetch fails.
+// The vocabulary is the member's own markers, fetched at runtime and shared
+// with every other dictation field in the app (see lib/useVocabulary.js). It is
+// never hardcoded: the marker set is per-member and server-driven, so a
+// baked-in list would be stale for everyone and wrong for some. The built-in
+// fallback exists only so the page still demonstrates the idea when the fetch
+// fails.
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { AMBER, AMBER_BG, AMBER_TEXT, BORDER, CARD, SLATE, TEAL } from '../lib/constants.js';
-import { getStoredGuid } from '../lib/auth.js';
-import { loadBiomarkers, DEV_MEMBER } from '../lib/biomarkers.js';
-import { vocabularyFromMarkers, FALLBACK_TERMS } from '../lib/voiceCorrection.js';
+import useVocabulary from '../lib/useVocabulary.js';
 import VoiceField from '../components/VoiceField.jsx';
 
 const TRY_LINES = [
@@ -26,30 +26,11 @@ const TRY_LINES = [
 ];
 
 export default function VoiceTestPage() {
-  const [vocabulary, setVocabulary] = useState(null);
-  const [usingFallback, setUsingFallback] = useState(false);
+  const { vocabulary, usingFallback } = useVocabulary();
 
   const [reasoning, setReasoning] = useState('');
   const [physicianNote, setPhysicianNote] = useState('');
   const [prescriptions, setPrescriptions] = useState('');
-
-  useEffect(() => {
-    let cancelled = false;
-    const member = getStoredGuid() || DEV_MEMBER;
-    loadBiomarkers(member)
-      .then((markers) => {
-        if (cancelled) return;
-        const terms = vocabularyFromMarkers(markers);
-        setVocabulary(terms);
-        setUsingFallback(!markers || markers.length === 0);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setVocabulary(FALLBACK_TERMS.slice());
-        setUsingFallback(true);
-      });
-    return () => { cancelled = true; };
-  }, []);
 
   return (
     <div style={{ padding: '22px 16px 80px' }}>
@@ -101,7 +82,6 @@ export default function VoiceTestPage() {
         hint="The reasoning you'd want your physician to understand."
         value={reasoning}
         onChange={setReasoning}
-        vocabulary={vocabulary}
         rows={5}
       />
 
@@ -110,7 +90,6 @@ export default function VoiceTestPage() {
         hint="Anything you want raised at the next consultation."
         value={physicianNote}
         onChange={setPhysicianNote}
-        vocabulary={vocabulary}
         rows={5}
       />
 
@@ -119,7 +98,6 @@ export default function VoiceTestPage() {
         hint="Names, doses and units — this is where wrong units matter most, so read the corrections carefully."
         value={prescriptions}
         onChange={setPrescriptions}
-        vocabulary={vocabulary}
         rows={4}
       />
     </div>

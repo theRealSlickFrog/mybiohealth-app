@@ -1,6 +1,7 @@
 // Questions & Suggestions — submit + log. Stays hardcoded until backend table exists.
 import { useState } from 'react';
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, AMBER_BG, AMBER_TEXT, SLATE, OFFWHITE, CARD, BORDER } from '../lib/constants.js';
+import VoiceTextarea from '../components/VoiceTextarea.jsx';
 
 const LOG = [
   { type: 'question', text: 'Is there a way to track my supplement intake in the app?', date: 'Apr 15, 2026', status: 'Received' },
@@ -31,7 +32,9 @@ export default function QuestionsPage() {
         <div style={{ fontSize: 13, fontWeight: 600, color: SLATE, marginBottom: 10 }}>
           {tab === 'suggest' ? 'Suggest a Health Literacy topic' : 'Ask MBH a question'}
         </div>
-        <textarea value={text} onChange={(e) => { setText(e.target.value); setSent(false); }}
+        <VoiceTextarea
+          label={tab === 'suggest' ? 'your topic suggestion' : 'your question'}
+          value={text} onChange={(v) => { setText(v); setSent(false); }}
           placeholder={tab === 'suggest' ? "What would you like explained? e.g. 'Why does sleep affect glucose?'" : "What's on your mind?"}
           style={{ width: '100%', minHeight: 80, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '10px 12px', fontSize: 13, color: SLATE, background: OFFWHITE, resize: 'vertical', lineHeight: 1.55, outline: 'none', fontFamily: 'inherit' }} />
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>

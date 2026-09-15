@@ -5,6 +5,7 @@ import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, CARD, BORDER, OFFWHITE, SOFT_RED }
 import { getStoredGuid } from '../lib/auth.js';
 import { DEV_MEMBER } from '../lib/biomarkers.js';
 import { loadNote, saveNote } from '../lib/notes.js';
+import VoiceTextarea from './VoiceTextarea.jsx';
 
 export default function PersonalNote({ noteKey }) {
   const [note, setNote] = useState({ id: null, text: '', loaded: false });
@@ -56,10 +57,11 @@ export default function PersonalNote({ noteKey }) {
 
       {editing ? (
         <div style={{ marginTop: 10 }}>
-          <textarea
-            value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus
-            placeholder="Write a personal note for this page…"
-            style={{ width: '100%', minHeight: 90, boxSizing: 'border-box', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '10px 12px', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.6, color: SLATE, resize: 'vertical', outline: 'none', background: OFFWHITE }}
+          <VoiceTextarea
+            label="your note"
+            value={draft} onChange={setDraft} autoFocus
+            placeholder="Write a personal note for this page, or use the microphone…"
+            style={{ width: '100%', minHeight: 90, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '10px 12px', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.6, color: SLATE, resize: 'vertical', outline: 'none', background: OFFWHITE }}
           />
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
             <button onClick={() => setEditing(false)} disabled={saving} style={btn(false)}>Cancel</button>

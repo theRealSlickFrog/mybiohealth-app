@@ -3,10 +3,11 @@
 // from a LibreView CSV) instead of hardcoded data. Palette harmonised with the
 // rest of V2 (constants.js). The screen measures; people write the story in the
 // three voice boxes. 24h median is a number, never a line.
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { MBH_SAGE, SAGE_TEXT, AMBER, SLATE, OFFWHITE, CARD, SOFT_RED, TEAL } from '../lib/constants.js';
 import { getStoredGuid } from '../lib/auth.js';
 import { DEV_MEMBER } from '../lib/biomarkers.js';
+import VoiceTextarea from '../components/VoiceTextarea.jsx';
 
 const API_BASE = import.meta.env.DEV ? '/api' : 'https://kenises-api-proxy.netlify.app';
 
@@ -32,7 +33,6 @@ const VB_W = 720, VB_H = 300, PAD_L = 34, PAD_R = 14, PAD_T = 22, PAD_B = 26;
 const Y_MIN = 3, Y_MAX = 11.5; const yOf = g => PAD_T + (1 - (Math.min(Y_MAX, Math.max(Y_MIN, g)) - Y_MIN) / (Y_MAX - Y_MIN)) * (VB_H - PAD_T - PAD_B);
 const raw = p => p.map((q, i) => `${i ? 'L' : 'M'} ${q.x} ${q.y}`).join(' ');
 function Chevron({ dir }) { return (<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden><path d={dir === 'left' ? 'M10 3 L5 8 L10 13' : 'M6 3 L11 8 L6 13'} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>); }
-function MicIcon() { return (<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="9" y="2" width="6" height="12" rx="3" stroke="currentColor" strokeWidth="2" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>); }
 
 function Chart({ slices, win }) {
   const [onLo, onHi] = BAND.on, [dLo, dHi] = BAND.day;
@@ -172,25 +172,24 @@ function InfoModal({ k, onClose, onRoute }) {
     </div></div></div>);
 }
 
+// One of the three voices. Dictation here used to be a hand-rolled
+// SpeechRecognition call with no term correction, no error reporting, and no
+// lock between the three boxes — two mics could run at once, each writing into
+// its own field. It now uses the shared VoiceTextarea like every other
+// dictated field in the app.
 function VoiceBox({ label, value, onChange }) {
-  const [listening, setListening] = useState(false); const recRef = useRef(null);
-  const toggle = () => {
-    if (typeof window === 'undefined') return;
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { setListening(l => !l); return; }
-    try {
-      if (listening && recRef.current) { recRef.current.stop(); setListening(false); return; }
-      const r = new SR(); r.interimResults = false; r.continuous = true;
-      r.onresult = e => { let s = ''; for (let i = e.resultIndex; i < e.results.length; i++) s += e.results[i][0].transcript; onChange((value ? value + ' ' : '') + s.trim()); };
-      r.onend = () => setListening(false); recRef.current = r; r.start(); setListening(true);
-    } catch (_) { setListening(l => !l); }
-  };
   return (<div className="gv2-vb">
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
       <span style={{ font: `600 10px ${SANS}`, letterSpacing: '.09em', textTransform: 'uppercase', color: C.inkSoft }}>{label}</span>
-      <button className={'gv2-mic' + (listening ? ' on' : '')} onClick={toggle} aria-label={'Dictate ' + label}><MicIcon />{listening ? <span style={{ font: `500 10px ${SANS}` }}>listening…</span> : <span style={{ font: `500 10px ${SANS}` }}>dictate</span>}</button>
     </div>
-    <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={`${label} — type or dictate. The system shows the data; the words are yours.`} rows={2} className="gv2-ta" />
+    <VoiceTextarea
+      label={`the ${label} voice`}
+      value={value}
+      onChange={onChange}
+      rows={2}
+      className="gv2-ta"
+      placeholder={`${label} — type or dictate. The system shows the data; the words are yours.`}
+    />
   </div>);
 }
 
@@ -328,8 +327,6 @@ function GlucoseCycleView({ cyc, cycleIdx, cycleCount, onCycle }) {
       .gv2-sidetab button{border:0;background:transparent;font:600 10.5px ${SANS};color:${C.inkSoft};padding:5px 10px;border-radius:6px;cursor:pointer;}
       .gv2-sidetab button[aria-pressed=true]{background:${C.ink};color:${C.panel};}
       .gv2-vb{border:1px solid ${C.hair};border-radius:10px;background:${C.paper};padding:10px 12px;}
-      .gv2-mic{display:inline-flex;align-items:center;gap:5px;border:1px solid ${C.hair};background:${C.panel};border-radius:7px;padding:3px 8px;color:${C.inkSoft};cursor:pointer;}
-      .gv2-mic.on{border-color:${C.clay};color:${C.clay};}
       .gv2-ta{width:100%;box-sizing:border-box;border:1px solid ${C.hair};border-radius:8px;background:${C.panel};padding:8px 10px;font:400 13px/1.5 ${SANS};color:${C.ink};resize:vertical;}
       .gv2-foot{font:400 11px/1.6 ${SANS};color:${C.muted};padding:0 20px 16px;}
       .gv2-info{display:inline-grid;place-items:center;border:0;background:transparent;color:${C.muted};cursor:pointer;padding:0;width:15px;height:15px;flex-shrink:0;}
