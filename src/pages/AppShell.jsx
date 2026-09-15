@@ -1,8 +1,10 @@
 // App shell — sticky top bar, hamburger drawer, page routing.
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { SLATE, OFFWHITE, MBH_DROP_IMG, NAV_ITEMS } from '../lib/constants.js';
-import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity, isAdminSession, REDIRECTOR_URL } from '../lib/auth.js';
+import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity, logout, isAdminSession, REDIRECTOR_URL, CASPIO_LOGOUT_URL } from '../lib/auth.js';
 import { isDraftDirty, setDraftDirty, DRAFT_LEAVE_MSG } from '../lib/strategyBuilder.js';
+import useIdleTimeout from '../lib/useIdleTimeout.js';
+import { IdleWarningModal, SessionEndedScreen } from '../components/SessionTimeout.jsx';
 import Drawer from '../components/Drawer.jsx';
 import MyStrategyPage from './MyStrategyPage.jsx';
 import BioSignalsPage from './BioSignalsPage.jsx';
@@ -47,6 +49,32 @@ export default function AppShell() {
     sessionStorage.setItem('mbh_activity_session', '1');
   }, [activePage, booting]);
 
+  // Inactivity watchdog. Armed only once the ?t= handoff has resolved, so a
+  // slow exchange can't burn part of the idle budget before the session exists.
+  //
+  // The session is torn down locally here and the user is parked on a terminal
+  // screen; we deliberately don't bounce them to Caspio, so the reason they're
+  // back at a sign-in prompt is legible. `expiredOnce` keeps the logout row to
+  // one INSERT no matter how many things notice the session is over.
+  const [expired, setExpired] = useState(false);
+  const expiredOnce = useRef(false);
+
+  const endSession = useCallback((reason) => {
+    if (expiredOnce.current) return;
+    expiredOnce.current = true;
+    setExpired(true);
+    // Fire-and-forget: logout() awaits the activity row internally, and the
+    // screen below doesn't depend on it landing.
+    logout(activePage, reason, { redirect: false });
+  }, [activePage]);
+
+  const handleIdleExpire = useCallback(() => endSession('timeout'), [endSession]);
+
+  const { warning: idleWarning, msLeft: idleMsLeft, stayActive } = useIdleTimeout({
+    enabled: !booting && !expired,
+    onExpire: handleIdleExpire,
+  });
+
   // Guard navigation: an unpromoted strategy draft (StrategyBuilder) blocks
   // leaving until the user confirms — then it's discarded (nothing persisted).
   const navigate = (page) => {
@@ -62,8 +90,17 @@ export default function AppShell() {
     return <div style={{ fontFamily: "'DM Sans',sans-serif", background: OFFWHITE, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280', fontSize: 14 }}>Signing you in…</div>;
   }
 
+  // Terminal — the session is gone, so no page content may stay on screen.
+  if (expired) {
+    return <SessionEndedScreen onSignIn={() => { window.location.href = CASPIO_LOGOUT_URL; }} />;
+  }
+
   return (
     <div style={{ fontFamily: "'DM Sans',sans-serif", background: OFFWHITE, minHeight: '100vh', color: SLATE }}>
+      {idleWarning && (
+        <IdleWarningModal msLeft={idleMsLeft} draftAtRisk={isDraftDirty()} onStayActive={stayActive} />
+      )}
+
       {drawerOpen && <Drawer activePage={activePage} onSelect={navigate} onClose={() => setDrawerOpen(false)} />}
 
       <div style={{ position: 'sticky', top: 0, zIndex: 100, background: SLATE, padding: '13px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>

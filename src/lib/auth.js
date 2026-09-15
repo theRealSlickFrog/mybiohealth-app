@@ -42,16 +42,31 @@ export const CASPIO_LOGIN_URL = 'https://mybiohealth.caspio.app/users/e2j2rj/log
 // Caspio logout URL — must match the domain the auth cookie was set on.
 export const CASPIO_LOGOUT_URL = 'https://mybiohealth.caspio.app/users/e2j2rj/logout?redirect=https://mybiohealth.netlify.app';
 
-export async function logout(currentPage) {
-  // Log the logout event before navigating away. Awaited so the row lands
-  // first; keepalive is the safety net.
-  await logActivity('logout', currentPage || '', 'manual');
+// Drop every trace of the session from this tab. Split out of logout() so the
+// inactivity watchdog can end a session without also driving the navigation.
+export function clearSession() {
   clearStoredGuid();
   sessionStorage.removeItem(JWT_KEY);
   sessionStorage.removeItem(NAME_KEY);
   sessionStorage.removeItem(EMAIL_KEY);
   sessionStorage.removeItem(SESSION_KEY);
-  window.location.href = CASPIO_LOGOUT_URL;
+}
+
+// `reason` is the activity_log event_detail: 'manual' (the drawer button),
+// 'timeout' (inactivity watchdog), 'forced'.
+//
+// `redirect` exists because a timed-out session shows its own "session ended"
+// screen instead of bouncing straight to Caspio — the screen's button carries
+// the user on to CASPIO_LOGOUT_URL. Note that suppressing the redirect leaves
+// the Caspio auth cookie alive until then: this tab is signed out, the identity
+// provider is not.
+export async function logout(currentPage, reason = 'manual', { redirect = true } = {}) {
+  // Log the logout event before navigating away. Awaited so the row lands
+  // first; keepalive is the safety net. Must run before clearSession(), since
+  // logActivity resolves the member from the stored GUID.
+  await logActivity('logout', currentPage || '', reason);
+  clearSession();
+  if (redirect) window.location.href = CASPIO_LOGOUT_URL;
 }
 
 // ── Token handoff (new, secure path) ──────────────────────────────────────
