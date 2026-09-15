@@ -1,8 +1,9 @@
 // App shell — sticky top bar, hamburger drawer, page routing.
 import { useCallback, useState, useEffect, useRef } from 'react';
-import { SLATE, OFFWHITE, MBH_DROP_IMG, NAV_ITEMS } from '../lib/constants.js';
-import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity, logout, isAdminSession, isSessionExpired, setSessionExpiredHandler, REDIRECTOR_URL, CASPIO_LOGOUT_URL } from '../lib/auth.js';
+import { SLATE, OFFWHITE, MBH_DROP_IMG, ALL_PAGES } from '../lib/constants.js';
+import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity, logout, isAdminSession, isSessionExpired, setSessionExpiredHandler, navigateExternal, REDIRECTOR_URL, CASPIO_LOGOUT_URL } from '../lib/auth.js';
 import { isDraftDirty, setDraftDirty, DRAFT_LEAVE_MSG } from '../lib/strategyBuilder.js';
+import { pageFromPath, pathForPage } from '../lib/routes.js';
 import useIdleTimeout from '../lib/useIdleTimeout.js';
 import { IdleWarningModal, SessionEndedScreen } from '../components/SessionTimeout.jsx';
 import Drawer from '../components/Drawer.jsx';
@@ -20,6 +21,7 @@ import JotsPage from './JotsPage.jsx';
 import UpNextPage from './UpNextPage.jsx';
 import ContextSignalsPage from './ContextSignalsPage.jsx';
 import RiskMeasuresPage from './RiskMeasuresPage.jsx';
+import VoiceTestPage from './VoiceTestPage.jsx';
 
 // Capture the GUID at module-load time, before any component renders. Doing
 // it in a useEffect means child components mount + run their own effects
@@ -28,7 +30,14 @@ import RiskMeasuresPage from './RiskMeasuresPage.jsx';
 captureGuidFromUrl();
 
 export default function AppShell() {
-  const [activePage, setActivePage] = useState('strategy');
+  // The URL is the source of truth for which page is showing — read it on the
+  // first render so a reload or a deep link lands on the right page instead of
+  // resetting to the default.
+  const [activePage, setActivePage] = useState(pageFromPath);
+  // Mirrors activePage for the navigation callbacks, which are bound once and
+  // must read the current page without re-subscribing on every change.
+  const activePageRef = useRef(activePage);
+  activePageRef.current = activePage;
   const [drawerOpen, setDrawerOpen] = useState(false);
   // If we arrived via the secure ?t= handoff, exchange it for a session before
   // rendering pages. The legacy ?guid= path boots immediately (booting=false).
@@ -99,13 +108,58 @@ export default function AppShell() {
 
   // Guard navigation: an unpromoted strategy draft (StrategyBuilder) blocks
   // leaving until the user confirms — then it's discarded (nothing persisted).
-  const navigate = (page) => {
-    if (page !== activePage && isDraftDirty() && !window.confirm(DRAFT_LEAVE_MSG)) return;
+  //
+  // Reads the current page from a ref rather than from a state updater: under
+  // StrictMode React double-invokes updaters in development, which would ask
+  // for confirmation twice and push two history entries.
+  const navigate = useCallback((page) => {
+    const current = activePageRef.current;
+    if (page === current) return;
+    if (isDraftDirty() && !window.confirm(DRAFT_LEAVE_MSG)) return;
     setDraftDirty(false);
+    window.history.pushState({}, '', pathForPage(page));
+    activePageRef.current = page;
     setActivePage(page);
-  };
+  }, []);
 
-  const pageLabel = NAV_ITEMS.find((n) => n.key === activePage)?.label;
+  // Back and Forward move between portal pages, so the draft guard has to cover
+  // them too — without it, Back silently discards a draft that in-app
+  // navigation explicitly protects. Declining puts the current page back on top
+  // of the history stack, since a popstate cannot be cancelled outright.
+  useEffect(() => {
+    const onPop = () => {
+      const next = pageFromPath();
+      const current = activePageRef.current;
+      if (next === current) return;
+      if (isDraftDirty() && !window.confirm(DRAFT_LEAVE_MSG)) {
+        window.history.pushState({}, '', pathForPage(current));
+        return;
+      }
+      setDraftDirty(false);
+      activePageRef.current = next;
+      setActivePage(next);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  // Keep the address and the visible page in agreement: a bare /app, or a slug
+  // we don't recognise, renders the default page, so rewrite the URL to say so.
+  //
+  // Rebuilds from the full URL rather than assigning a bare path because the
+  // query string must survive — the ?t= handoff token is read out of it during
+  // boot, and dropping it here would break sign-in. Held until booting finishes
+  // for the same reason.
+  useEffect(() => {
+    if (booting) return;
+    const want = pathForPage(activePage);
+    if (window.location.pathname === want) return;
+    const url = new URL(window.location.href);
+    url.pathname = want;
+    window.history.replaceState({}, '', url.toString());
+  }, [booting, activePage]);
+
+  const pageLabel = ALL_PAGES.find((n) => n.key === activePage)?.label;
   const showLabel = activePage !== 'strategy';
 
   if (booting) {
@@ -117,7 +171,7 @@ export default function AppShell() {
     return (
       <SessionEndedScreen
         reason={expiredReason}
-        onSignIn={() => { window.location.href = CASPIO_LOGOUT_URL; }}
+        onSignIn={() => { navigateExternal(CASPIO_LOGOUT_URL, 'sign-in'); }}
       />
     );
   }
@@ -143,13 +197,23 @@ export default function AppShell() {
             {showLabel && <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> · {pageLabel}</span>}
           </div>
         </div>
-        {isAdminSession() && (
-          <button onClick={() => { window.location.href = REDIRECTOR_URL; }} title="Switch client / experience" style={{
+        {/* Admin-only shortcuts. The voice test screen is deliberately absent
+            from the drawer (it is a test screen, and the drawer is what members
+            see), so this button is how anyone reaches it without typing the
+            URL. Icon-only: two full-width pills plus the page title overflow
+            the bar on a phone. */}
+        {isAdminSession() && (<>
+          <button onClick={() => navigate('voice_test')} title="Voice Input Test" aria-label="Voice Input Test" style={{
+            background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
+            borderRadius: 8, padding: 0, width: 30, height: 28, fontSize: 14, cursor: 'pointer',
+            display: 'grid', placeItems: 'center', flexShrink: 0, lineHeight: 1,
+          }}>🎤</button>
+          <button onClick={() => { navigateExternal(REDIRECTOR_URL, 'redirector'); }} title="Switch client / experience" style={{
             background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', color: 'white',
             borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
             whiteSpace: 'nowrap', flexShrink: 0,
           }}>Redirector</button>
-        )}
+        </>)}
       </div>
 
       <div style={{ maxWidth: 740, margin: '0 auto' }}>
@@ -167,6 +231,7 @@ export default function AppShell() {
         {activePage === 'upnext'             && <UpNextPage />}
         {activePage === 'context_signals'    && <ContextSignalsPage />}
         {activePage === 'risk_measures'      && <RiskMeasuresPage />}
+        {activePage === 'voice_test'         && <VoiceTestPage />}
       </div>
     </div>
   );

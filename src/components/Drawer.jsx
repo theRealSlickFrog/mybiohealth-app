@@ -9,6 +9,8 @@ export default function Drawer({ activePage, onSelect, onClose }) {
     { label: 'Signals',   header: true,  keys: ['biosignals', 'glucose_v2', 'context_signals', 'dexa', 'risk_measures'] },
     { label: 'Member',    header: false, keys: ['account', 'calendar', 'vault', 'library', 'questions'] },
   ];
+  // The drawer renders only keys named above, so a NAV_ITEMS entry missing from
+  // every group is silently dropped rather than appearing unsorted at the end.
   return (
     <>
       <div onClick={onClose} style={{

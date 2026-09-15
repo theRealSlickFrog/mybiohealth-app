@@ -48,3 +48,15 @@ export const NAV_ITEMS = [
   { key: 'library',             label: 'MBH Library',            icon: '📚' },
   { key: 'questions',           label: 'Questions',              icon: '✉️' },
 ];
+
+// Pages that exist and are routable but are deliberately kept out of the
+// drawer. The drawer is a member-facing surface, and a test screen has no
+// business on it — these are reached by direct URL or an admin-only shortcut.
+export const UNLISTED_PAGES = [
+  { key: 'voice_test',          label: 'Voice Input Test',       icon: '🎤' },
+];
+
+// Every page the portal can show. NAV_ITEMS drives the drawer; this drives the
+// route table and the top-bar title, so an unlisted page still resolves from
+// its URL and still names itself once you are on it.
+export const ALL_PAGES = [...NAV_ITEMS, ...UNLISTED_PAGES];

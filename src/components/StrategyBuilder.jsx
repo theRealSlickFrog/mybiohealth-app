@@ -14,6 +14,7 @@ import {
 } from '../lib/strategyBuilder.js';
 import { loadNote, saveNote } from '../lib/notes.js';
 import MicrohabitWizard from './MicrohabitWizard.jsx';
+import VoiceTextarea from './VoiceTextarea.jsx';
 
 const lbl = { fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#374151', marginBottom: 4, display: 'block' };
 const input = { width: '100%', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '10px 12px', fontSize: 14, color: SLATE, background: OFFWHITE, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
@@ -279,7 +280,7 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
       {/* From the Top — the member's goal statement (strategy_why note) */}
       <div style={{ marginBottom: 16 }}>
         <label style={lbl}>From the Top <span style={{ fontWeight: 400, textTransform: 'none', color: '#9ca3af' }}>(the member’s goal, shown at the top of the strategy)</span></label>
-        <textarea style={area} value={whyText} onChange={(e) => setWhyText(e.target.value)}
+        <VoiceTextarea label="From the Top" style={area} value={whyText} onChange={setWhyText}
           placeholder="In their words — what brings them here, and what they want to protect…" />
       </div>
 
@@ -333,7 +334,7 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
             </div>
             <div style={{ marginBottom: 10 }}>
               <label style={lbl}>The Why</label>
-              <textarea style={area} value={p.why_text} onChange={(e) => setPriority(i, { why_text: e.target.value })} placeholder="Why this priority matters, in plain words…" />
+              <VoiceTextarea label="The Why" style={area} value={p.why_text} onChange={(v) => setPriority(i, { why_text: v })} placeholder="Why this priority matters, in plain words…" />
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <div style={{ flex: '1 1 160px' }}>
@@ -400,8 +401,8 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
       {[['sx', 'Medically-directed supplements'], ['lx', 'Lifestyle advice'], ['sm', 'Member-elected supplements'], ['rx', 'Prescriptions']].map(([k, title]) => (
         <div key={k} style={{ marginBottom: 10 }}>
           <label style={lbl}>{title}</label>
-          <textarea style={{ ...area, minHeight: 40 }} value={draft.elements[`${k}_items`]}
-            onChange={(e) => setDraft((d) => ({ ...d, elements: { ...d.elements, [`${k}_items`]: e.target.value } }))}
+          <VoiceTextarea label={`the ${title} list`} style={{ ...area, minHeight: 40 }} value={draft.elements[`${k}_items`]}
+            onChange={(v) => setDraft((d) => ({ ...d, elements: { ...d.elements, [`${k}_items`]: v } }))}
             placeholder={k === 'rx' ? 'None current' : ''} />
         </div>
       ))}
