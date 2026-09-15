@@ -72,12 +72,23 @@ export function IdleWarningModal({ msLeft, draftAtRisk, onStayActive }) {
   );
 }
 
+// Why the session ended, in the user's terms. 'timeout' is our own inactivity
+// watchdog; the rest come from the proxy or a dead `exp`, which from the user's
+// side is simply a session that ran out.
+const ENDED_COPY = {
+  timeout: 'We signed you out after a period of inactivity to keep your health information private.',
+  jwt_expired: 'Your sign-in session ran out. This happens after a while for your privacy.',
+  unauthorized: 'Your sign-in session is no longer valid. This can happen after a while, or if you signed in somewhere else.',
+};
+
+const ENDED_FALLBACK = 'Your sign-in session is no longer active.';
+
 /**
  * Terminal state — the session is already gone locally. The button completes
  * the Caspio sign-out, which clears the identity-provider cookie and lands the
  * user back on the app.
  */
-export function SessionEndedScreen({ onSignIn }) {
+export function SessionEndedScreen({ reason, onSignIn }) {
   return (
     <div style={{
       fontFamily: "'DM Sans',sans-serif", background: OFFWHITE, minHeight: '100vh',
@@ -90,8 +101,7 @@ export function SessionEndedScreen({ onSignIn }) {
         <img src={MBH_DROP_IMG} alt="MyBioHealth" style={{ width: 40, height: 40, objectFit: 'contain', marginBottom: 14 }} />
         <h1 style={{ margin: '0 0 8px', fontSize: 17, fontWeight: 600 }}>Your session has ended</h1>
         <p style={{ margin: '0 0 22px', fontSize: 13.5, color: '#4b5563', lineHeight: 1.6 }}>
-          We signed you out after a period of inactivity to keep your health
-          information private. Any unsaved changes were not kept.
+          {ENDED_COPY[reason] || ENDED_FALLBACK} Any unsaved changes were not kept.
         </p>
         <button
           onClick={onSignIn}

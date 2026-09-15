@@ -1,7 +1,7 @@
 // App shell — sticky top bar, hamburger drawer, page routing.
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { SLATE, OFFWHITE, MBH_DROP_IMG, NAV_ITEMS } from '../lib/constants.js';
-import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity, logout, isAdminSession, REDIRECTOR_URL, CASPIO_LOGOUT_URL } from '../lib/auth.js';
+import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity, logout, isAdminSession, isSessionExpired, setSessionExpiredHandler, REDIRECTOR_URL, CASPIO_LOGOUT_URL } from '../lib/auth.js';
 import { isDraftDirty, setDraftDirty, DRAFT_LEAVE_MSG } from '../lib/strategyBuilder.js';
 import useIdleTimeout from '../lib/useIdleTimeout.js';
 import { IdleWarningModal, SessionEndedScreen } from '../components/SessionTimeout.jsx';
@@ -49,20 +49,24 @@ export default function AppShell() {
     sessionStorage.setItem('mbh_activity_session', '1');
   }, [activePage, booting]);
 
-  // Inactivity watchdog. Armed only once the ?t= handoff has resolved, so a
-  // slow exchange can't burn part of the idle budget before the session exists.
+  // ── Session end ─────────────────────────────────────────────────────────────
+  // One path for every way a session can finish: the inactivity watchdog below,
+  // a dead `exp`, or the proxy refusing the token. The session is torn down
+  // locally and the user is parked on a terminal screen rather than bounced
+  // straight to Caspio, so the reason they're back at a sign-in prompt is
+  // legible. `expiredOnce` keeps that to one logout row no matter how many
+  // things notice at once.
   //
-  // The session is torn down locally here and the user is parked on a terminal
-  // screen; we deliberately don't bounce them to Caspio, so the reason they're
-  // back at a sign-in prompt is legible. `expiredOnce` keeps the logout row to
-  // one INSERT no matter how many things notice the session is over.
-  const [expired, setExpired] = useState(false);
+  // Holds the reason once ended ('timeout' | 'jwt_expired' | 'unauthorized'),
+  // null while the session is live — it drives both the screen and its copy.
+  const [expiredReason, setExpiredReason] = useState(null);
+  const expired = expiredReason !== null;
   const expiredOnce = useRef(false);
 
   const endSession = useCallback((reason) => {
     if (expiredOnce.current) return;
     expiredOnce.current = true;
-    setExpired(true);
+    setExpiredReason(reason || 'timeout');
     // Fire-and-forget: logout() awaits the activity row internally, and the
     // screen below doesn't depend on it landing.
     logout(activePage, reason, { redirect: false });
@@ -70,10 +74,28 @@ export default function AppShell() {
 
   const handleIdleExpire = useCallback(() => endSession('timeout'), [endSession]);
 
+  // Armed only once the ?t= handoff has resolved, so a slow exchange can't burn
+  // part of the idle budget before the session exists.
   const { warning: idleWarning, msLeft: idleMsLeft, stayActive } = useIdleTimeout({
     enabled: !booting && !expired,
     onExpire: handleIdleExpire,
   });
+
+  // Expiry the server decides, as opposed to inactivity we decide: the handoff
+  // JWT is short-lived, and auth.js's fetch wrapper reports a dead `exp` or a
+  // 401/403 into the same ended-session state the watchdog uses.
+  useEffect(() => {
+    setSessionExpiredHandler(endSession);
+    return () => setSessionExpiredHandler(null);
+  }, [endSession]);
+
+  // Catch a token that expired while the tab was closed or asleep, before any
+  // page has a chance to fetch with it. Re-runs on navigation, which costs
+  // nothing and covers a session that lapses mid-visit without a request.
+  useEffect(() => {
+    if (booting || expired) return;
+    if (isSessionExpired()) endSession('jwt_expired');
+  }, [booting, expired, endSession]);
 
   // Guard navigation: an unpromoted strategy draft (StrategyBuilder) blocks
   // leaving until the user confirms — then it's discarded (nothing persisted).
@@ -92,7 +114,12 @@ export default function AppShell() {
 
   // Terminal — the session is gone, so no page content may stay on screen.
   if (expired) {
-    return <SessionEndedScreen onSignIn={() => { window.location.href = CASPIO_LOGOUT_URL; }} />;
+    return (
+      <SessionEndedScreen
+        reason={expiredReason}
+        onSignIn={() => { window.location.href = CASPIO_LOGOUT_URL; }}
+      />
+    );
   }
 
   return (
