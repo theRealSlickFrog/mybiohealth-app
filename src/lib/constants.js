@@ -19,6 +19,13 @@ export const TEAL       = '#0f7d8c';
 export const VERSION = '26.04.24.a';
 export const RENEWAL = '26.07.23';
 
+// ── Session inactivity ────────────────────────────────────────────────────────
+// 25 minutes with no interaction opens a warning; ignoring that warning for a
+// further 5 minutes ends the session, so the hard ceiling is 30 minutes idle.
+export const IDLE_WARNING_MS = 25 * 60 * 1000;
+export const IDLE_GRACE_MS   =  5 * 60 * 1000;
+export const IDLE_TIMEOUT_MS = IDLE_WARNING_MS + IDLE_GRACE_MS;
+
 export const MBH_DROP_IMG = 'https://res.cloudinary.com/dai0low65/image/upload/v1763491944/logo_pp70kv.png';
 
 export const NAV_ITEMS = [

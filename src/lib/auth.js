@@ -14,23 +14,112 @@ const NAME_KEY = 'mbh_user_name';
 const EMAIL_KEY = 'mbh_user_email';
 const SESSION_KEY = 'mbh_activity_session';
 
+const isProxyUrl = (url) => url.startsWith('/api') || url.includes('kenises-api-proxy.netlify.app');
+
+// The handoff exchange is the one proxy call that legitimately runs without a
+// valid session, and a stale one-time token makes it fail. Reading that as an
+// expiry would raise the ended-session screen in the middle of signing in.
+const isSessionExchange = (url) => /\/session(\?|$)/.test(url);
+
 // Attach the session JWT to every proxy request, in one place, so no individual
 // fetch site can be missed when the proxy enforces auth. Only proxy URLs get the
 // header; everything else (CDNs, fonts) is untouched. Harmless while enforcement
 // is off (the proxy just ignores it).
+//
+// The same choke point detects a session that has ended server-side: an `exp`
+// already in the past on the way out, or a 401/403 on the way back. Before this,
+// nothing checked either — an expired JWT simply produced generic fetch errors
+// on every page and the user was never told to sign in again.
 if (typeof window !== 'undefined' && !window.__mbhFetchPatched) {
   window.__mbhFetchPatched = true;
   const _fetch = window.fetch.bind(window);
   window.fetch = (input, init = {}) => {
+    let url = '';
     try {
-      const url = typeof input === 'string' ? input : (input && input.url) || '';
+      url = typeof input === 'string' ? input : (input && input.url) || '';
+    } catch (e) { /* treat as non-proxy */ }
+
+    const watched = isProxyUrl(url) && !isSessionExchange(url);
+
+    try {
       const tok = sessionStorage.getItem(JWT_KEY);
-      if (tok && (url.startsWith('/api') || url.includes('kenises-api-proxy.netlify.app'))) {
+      if (tok && isProxyUrl(url)) {
         init = { ...init, headers: { ...(init.headers || {}), Authorization: `Bearer ${tok}` } };
       }
+      // Report before sending, but still send: the caller keeps its normal
+      // response or rejection, so this stays a pure observer of the request.
+      if (watched && isSessionExpired()) reportSessionExpired('jwt_expired');
     } catch (e) { /* never let the patch break a request */ }
-    return _fetch(input, init);
+
+    const res = _fetch(input, init);
+    if (!watched) return res;
+    // The proxy refusing our credentials is authoritative, whatever the local
+    // clock thinks. Rejections pass straight through untouched.
+    return res.then((r) => {
+      if ((r.status === 401 || r.status === 403) && hasSession()) {
+        reportSessionExpired('unauthorized');
+      }
+      return r;
+    });
   };
+}
+
+// ── Session expiry ────────────────────────────────────────────────────────────
+// auth.js lives outside React, so the UI registers a handler here and the fetch
+// wrapper reports into it.
+
+let sessionExpiredHandler = null;
+let sessionExpiredFired = false;
+let pendingExpiredReason = null;
+
+export function setSessionExpiredHandler(fn) {
+  sessionExpiredHandler = fn;
+  // A 401 can land before the handler is registered: React runs child effects
+  // before parent effects, so a page's fetch fires before AppShell's
+  // registration effect. Replay an early report rather than dropping it.
+  if (fn && pendingExpiredReason) {
+    const reason = pendingExpiredReason;
+    pendingExpiredReason = null;
+    fn(reason);
+  }
+}
+
+// Announce that the session is over. Idempotent per page load — many in-flight
+// requests can 401 at once, and that must produce one ended session, not one
+// per response. Deliberately does NOT clear storage: the handler logs the
+// logout row first, and logActivity resolves the member from the stored GUID.
+export function reportSessionExpired(reason) {
+  if (sessionExpiredFired) return;
+  sessionExpiredFired = true;
+  if (sessionExpiredHandler) sessionExpiredHandler(reason);
+  else pendingExpiredReason = reason;
+}
+
+export function hasSession() {
+  return !!(getStoredGuid() || getSessionToken());
+}
+
+// Decode a JWT payload (base64url, unverified — the proxy is what verifies).
+// Returns null for a missing or malformed token.
+function jwtPayload() {
+  try {
+    const tok = sessionStorage.getItem(JWT_KEY);
+    if (!tok) return null;
+    let b = tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    b += '='.repeat((4 - (b.length % 4)) % 4);
+    return JSON.parse(atob(b));
+  } catch (e) {
+    return null;
+  }
+}
+
+// True only when a JWT exists AND its exp has passed. A legacy ?guid= session
+// carries no token and so can never be "expired" here — that path has no
+// client-visible expiry at all.
+export function isSessionExpired() {
+  const p = jwtPayload();
+  if (!p || typeof p.exp !== 'number') return false;
+  return p.exp * 1000 <= Date.now();
 }
 
 // Caspio Authentication login URL (e2j2rj) — must use the vanity domain so
@@ -42,16 +131,31 @@ export const CASPIO_LOGIN_URL = 'https://mybiohealth.caspio.app/users/e2j2rj/log
 // Caspio logout URL — must match the domain the auth cookie was set on.
 export const CASPIO_LOGOUT_URL = 'https://mybiohealth.caspio.app/users/e2j2rj/logout?redirect=https://mybiohealth.netlify.app';
 
-export async function logout(currentPage) {
-  // Log the logout event before navigating away. Awaited so the row lands
-  // first; keepalive is the safety net.
-  await logActivity('logout', currentPage || '', 'manual');
+// Drop every trace of the session from this tab. Split out of logout() so the
+// inactivity watchdog can end a session without also driving the navigation.
+export function clearSession() {
   clearStoredGuid();
   sessionStorage.removeItem(JWT_KEY);
   sessionStorage.removeItem(NAME_KEY);
   sessionStorage.removeItem(EMAIL_KEY);
   sessionStorage.removeItem(SESSION_KEY);
-  window.location.href = CASPIO_LOGOUT_URL;
+}
+
+// `reason` is the activity_log event_detail: 'manual' (the drawer button),
+// 'timeout' (inactivity watchdog), 'forced'.
+//
+// `redirect` exists because a timed-out session shows its own "session ended"
+// screen instead of bouncing straight to Caspio — the screen's button carries
+// the user on to CASPIO_LOGOUT_URL. Note that suppressing the redirect leaves
+// the Caspio auth cookie alive until then: this tab is signed out, the identity
+// provider is not.
+export async function logout(currentPage, reason = 'manual', { redirect = true } = {}) {
+  // Log the logout event before navigating away. Awaited so the row lands
+  // first; keepalive is the safety net. Must run before clearSession(), since
+  // logActivity resolves the member from the stored GUID.
+  await logActivity('logout', currentPage || '', reason);
+  clearSession();
+  if (redirect) window.location.href = CASPIO_LOGOUT_URL;
 }
 
 // ── Token handoff (new, secure path) ──────────────────────────────────────
@@ -123,14 +227,8 @@ export function clearStoredGuid() {
 // Used to attribute impersonated activity to the admin (as an 'admin_view'
 // event) instead of polluting the client's own activity_log.
 export function impersonatingActor() {
-  try {
-    const tok = sessionStorage.getItem(JWT_KEY);
-    if (!tok) return null;
-    let b = tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    b += '='.repeat((4 - (b.length % 4)) % 4);
-    const payload = JSON.parse(atob(b));
-    return payload.act || null;
-  } catch (e) { return null; }
+  const p = jwtPayload();
+  return (p && p.act) || null;
 }
 
 // Post-login redirector — the Caspio Flex page that routes by App_Preference
@@ -141,14 +239,9 @@ export const REDIRECTOR_URL = 'https://mybiohealth.caspio.app/mybiohealth/patien
 // (JWT role 'admin') or impersonating a client via "view as" (act present).
 // Gates the admin-only Redirector shortcut in the top bar.
 export function isAdminSession() {
-  try {
-    const tok = sessionStorage.getItem(JWT_KEY);
-    if (!tok) return false;
-    let b = tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    b += '='.repeat((4 - (b.length % 4)) % 4);
-    const p = JSON.parse(atob(b));
-    return p.role === 'admin' || !!p.act;
-  } catch (e) { return false; }
+  const p = jwtPayload();
+  if (!p) return false;
+  return p.role === 'admin' || !!p.act;
 }
 
 // Shared activity writer — one INSERT per event into activity_log.

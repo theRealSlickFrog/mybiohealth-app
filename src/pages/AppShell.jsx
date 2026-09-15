@@ -1,8 +1,10 @@
 // App shell — sticky top bar, hamburger drawer, page routing.
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { SLATE, OFFWHITE, MBH_DROP_IMG, NAV_ITEMS } from '../lib/constants.js';
-import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity, isAdminSession, REDIRECTOR_URL } from '../lib/auth.js';
+import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity, logout, isAdminSession, isSessionExpired, setSessionExpiredHandler, REDIRECTOR_URL, CASPIO_LOGOUT_URL } from '../lib/auth.js';
 import { isDraftDirty, setDraftDirty, DRAFT_LEAVE_MSG } from '../lib/strategyBuilder.js';
+import useIdleTimeout from '../lib/useIdleTimeout.js';
+import { IdleWarningModal, SessionEndedScreen } from '../components/SessionTimeout.jsx';
 import Drawer from '../components/Drawer.jsx';
 import MyStrategyPage from './MyStrategyPage.jsx';
 import BioSignalsPage from './BioSignalsPage.jsx';
@@ -47,6 +49,54 @@ export default function AppShell() {
     sessionStorage.setItem('mbh_activity_session', '1');
   }, [activePage, booting]);
 
+  // ── Session end ─────────────────────────────────────────────────────────────
+  // One path for every way a session can finish: the inactivity watchdog below,
+  // a dead `exp`, or the proxy refusing the token. The session is torn down
+  // locally and the user is parked on a terminal screen rather than bounced
+  // straight to Caspio, so the reason they're back at a sign-in prompt is
+  // legible. `expiredOnce` keeps that to one logout row no matter how many
+  // things notice at once.
+  //
+  // Holds the reason once ended ('timeout' | 'jwt_expired' | 'unauthorized'),
+  // null while the session is live — it drives both the screen and its copy.
+  const [expiredReason, setExpiredReason] = useState(null);
+  const expired = expiredReason !== null;
+  const expiredOnce = useRef(false);
+
+  const endSession = useCallback((reason) => {
+    if (expiredOnce.current) return;
+    expiredOnce.current = true;
+    setExpiredReason(reason || 'timeout');
+    // Fire-and-forget: logout() awaits the activity row internally, and the
+    // screen below doesn't depend on it landing.
+    logout(activePage, reason, { redirect: false });
+  }, [activePage]);
+
+  const handleIdleExpire = useCallback(() => endSession('timeout'), [endSession]);
+
+  // Armed only once the ?t= handoff has resolved, so a slow exchange can't burn
+  // part of the idle budget before the session exists.
+  const { warning: idleWarning, msLeft: idleMsLeft, stayActive } = useIdleTimeout({
+    enabled: !booting && !expired,
+    onExpire: handleIdleExpire,
+  });
+
+  // Expiry the server decides, as opposed to inactivity we decide: the handoff
+  // JWT is short-lived, and auth.js's fetch wrapper reports a dead `exp` or a
+  // 401/403 into the same ended-session state the watchdog uses.
+  useEffect(() => {
+    setSessionExpiredHandler(endSession);
+    return () => setSessionExpiredHandler(null);
+  }, [endSession]);
+
+  // Catch a token that expired while the tab was closed or asleep, before any
+  // page has a chance to fetch with it. Re-runs on navigation, which costs
+  // nothing and covers a session that lapses mid-visit without a request.
+  useEffect(() => {
+    if (booting || expired) return;
+    if (isSessionExpired()) endSession('jwt_expired');
+  }, [booting, expired, endSession]);
+
   // Guard navigation: an unpromoted strategy draft (StrategyBuilder) blocks
   // leaving until the user confirms — then it's discarded (nothing persisted).
   const navigate = (page) => {
@@ -62,8 +112,22 @@ export default function AppShell() {
     return <div style={{ fontFamily: "'DM Sans',sans-serif", background: OFFWHITE, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280', fontSize: 14 }}>Signing you in…</div>;
   }
 
+  // Terminal — the session is gone, so no page content may stay on screen.
+  if (expired) {
+    return (
+      <SessionEndedScreen
+        reason={expiredReason}
+        onSignIn={() => { window.location.href = CASPIO_LOGOUT_URL; }}
+      />
+    );
+  }
+
   return (
     <div style={{ fontFamily: "'DM Sans',sans-serif", background: OFFWHITE, minHeight: '100vh', color: SLATE }}>
+      {idleWarning && (
+        <IdleWarningModal msLeft={idleMsLeft} draftAtRisk={isDraftDirty()} onStayActive={stayActive} />
+      )}
+
       {drawerOpen && <Drawer activePage={activePage} onSelect={navigate} onClose={() => setDrawerOpen(false)} />}
 
       <div style={{ position: 'sticky', top: 0, zIndex: 100, background: SLATE, padding: '13px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
