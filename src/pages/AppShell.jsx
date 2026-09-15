@@ -1,6 +1,6 @@
 // App shell — sticky top bar, hamburger drawer, page routing.
 import { useCallback, useState, useEffect, useRef } from 'react';
-import { SLATE, OFFWHITE, MBH_DROP_IMG, NAV_ITEMS } from '../lib/constants.js';
+import { SLATE, OFFWHITE, MBH_DROP_IMG, ALL_PAGES } from '../lib/constants.js';
 import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity, logout, isAdminSession, isSessionExpired, setSessionExpiredHandler, navigateExternal, REDIRECTOR_URL, CASPIO_LOGOUT_URL } from '../lib/auth.js';
 import { isDraftDirty, setDraftDirty, DRAFT_LEAVE_MSG } from '../lib/strategyBuilder.js';
 import { pageFromPath, pathForPage } from '../lib/routes.js';
@@ -159,7 +159,7 @@ export default function AppShell() {
     window.history.replaceState({}, '', url.toString());
   }, [booting, activePage]);
 
-  const pageLabel = NAV_ITEMS.find((n) => n.key === activePage)?.label;
+  const pageLabel = ALL_PAGES.find((n) => n.key === activePage)?.label;
   const showLabel = activePage !== 'strategy';
 
   if (booting) {

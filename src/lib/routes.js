@@ -5,17 +5,17 @@
 // linked to or bookmarked. Netlify already returns index.html for any non-asset
 // path (netlify.toml), so a deep link reaches the app instead of 404ing.
 //
-// Slugs are derived from the NAV_ITEMS key rather than written out separately:
+// Slugs are derived from the page key rather than written out separately:
 // a second hand-maintained list is a second thing to forget when adding a page,
 // and the drawer has already shown what a silently-missing entry costs.
 
-import { NAV_ITEMS } from './constants.js';
+import { ALL_PAGES } from './constants.js';
 
 export const DEFAULT_PAGE = 'strategy';
 
 const slugOf = (key) => key.replace(/_/g, '-');
 
-const BY_SLUG = new Map(NAV_ITEMS.map((n) => [slugOf(n.key), n.key]));
+const BY_SLUG = new Map(ALL_PAGES.map((n) => [slugOf(n.key), n.key]));
 
 const slugFromPath = (pathname) => {
   const m = pathname.match(/^\/app(?:\/([^/]*))?\/?$/);

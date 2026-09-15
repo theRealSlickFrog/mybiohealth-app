@@ -8,7 +8,6 @@ export default function Drawer({ activePage, onSelect, onClose }) {
     { label: 'Check-In',  header: true,  keys: ['checkin_priorities', 'jots', 'upnext'] },
     { label: 'Signals',   header: true,  keys: ['biosignals', 'glucose_v2', 'context_signals', 'dexa', 'risk_measures'] },
     { label: 'Member',    header: false, keys: ['account', 'calendar', 'vault', 'library', 'questions'] },
-    { label: 'Testing',   header: true,  keys: ['voice_test'] },
   ];
   // The drawer renders only keys named above, so a NAV_ITEMS entry missing from
   // every group is silently dropped rather than appearing unsorted at the end.
