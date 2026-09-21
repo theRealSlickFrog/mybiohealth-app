@@ -452,6 +452,10 @@ export default function MyStrategyPage() {
       {/* While building a new version, hide the current strategy below so the
           page isn't crowded with the old priorities + charts. */}
       {!building && (<>
+      <div style={{ marginTop: 16, marginBottom: 14 }}>
+        <WeeklyCheckin />
+      </div>
+
       <WhyImHere heading={cfg.whyHeading} caption={cfg.whyCaption} />
 
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', marginBottom: 10 }}>Priorities</div>
@@ -604,10 +608,6 @@ export default function MyStrategyPage() {
           </div>
         );
       })}
-
-      <div style={{ marginTop: 8, marginBottom: 14 }}>
-        <WeeklyCheckin />
-      </div>
 
       <div style={{ background: CARD, borderRadius: 14, padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: 14 }}>
         <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', marginBottom: 12 }}>Routines</div>
