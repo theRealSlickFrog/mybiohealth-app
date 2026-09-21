@@ -192,11 +192,38 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
 
   // Wizard result → fill the 3 mhx slots. Each pick brings its name, default
   // frequency, and the priorities it moves (auto Serves-links). Editable after.
+  // The wizard doesn't collect end_game_*, renew_text or why_text, so those are
+  // carried forward for a habit that was already on the draft and is still
+  // selected — re-running the wizard must not silently wipe them. Only a
+  // genuinely new habit starts from emptyMhx().
   function applyHabits(picks) {
     setDraft((d) => {
+      const norm = (s) => (s || '').trim().toLowerCase();
+      const prevByCode = {}, prevByName = {};
+      (d.mhx || []).forEach((m) => {
+        if (!m || !m.name) return;
+        if (m.code) prevByCode[String(m.code)] = m;
+        prevByName[norm(m.name)] = m;
+      });
       const mhx = [emptyMhx(), emptyMhx(), emptyMhx()];
       picks.slice(0, 3).forEach((p, i) => {
-        mhx[i] = { ...emptyMhx(), code: p.code != null ? String(p.code) : '', name: p.name, frequency: p.frequency || '', linked_priorities: (p.moves || []).slice() };
+        const code = p.code != null ? String(p.code) : '';
+        // Match on code first; fall back to the name for legacy draft rows
+        // saved before mhx{n}_code existed.
+        const prev = (code && prevByCode[code]) || prevByName[norm(p.name)] || null;
+        const base = emptyMhx();
+        mhx[i] = {
+          ...base,
+          ...(prev ? {
+            end_game_kind: prev.end_game_kind || base.end_game_kind,
+            end_game_signal: prev.end_game_signal || '',
+            end_game_start: prev.end_game_start || '',
+            end_game_goal: prev.end_game_goal || '',
+            renew_text: prev.renew_text || '',
+            why_text: prev.why_text || '',
+          } : {}),
+          code, name: p.name, frequency: p.frequency || '', linked_priorities: (p.moves || []).slice(),
+        };
       });
       return { ...d, mhx };
     });
