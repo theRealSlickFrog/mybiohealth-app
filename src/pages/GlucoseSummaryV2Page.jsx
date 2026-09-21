@@ -112,6 +112,7 @@ const sf = x => x == null ? '—' : x.toFixed(1);
 const kIcon = k => k === 'HIGH' ? '▲' : k === 'LOW' ? '▼' : '●', kColor = k => k === 'HIGH' ? C.amber : k === 'LOW' ? C.slate : C.muted;
 
 function DailyTARStrip({ cyc }) {
+  const [showNote, setShowNote] = useState(false);
   const per = cyc.m.map((x, i) => ({ i, min: x.tar, d: cyc.dates[i] }));
   const maxMin = Math.max(60, ...per.map(p => p.min));
   const sorted = per.map(p => p.min).slice().sort((a, b) => a - b);
@@ -122,22 +123,29 @@ function DailyTARStrip({ cyc }) {
   return (<div style={{ margin: '2px 0 14px', padding: '12px 14px', border: `1px solid ${C.hair}`, borderRadius: 10, background: C.paper }}>
     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
       <span style={{ font: `600 10px ${SANS}`, letterSpacing: '.09em', textTransform: 'uppercase', color: C.muted }}>Time above 7.8 · by day</span>
-      <span style={{ font: `400 10px ${MONO}`, color: C.inkSoft }}>{nGE1} of {per.length} days past the first hour · median {med.toFixed(1)} h · peak {lbl(peak.d)} {(peak.min / 60).toFixed(2)} h</span>
+      <span style={{ font: `400 10px ${MONO}`, color: C.inkSoft }}>On {nGE1} of {per.length} days, glucose was greater than 7.8 for more than one hour.</span>
     </div>
     <div style={{ position: 'relative', height: 52 }}>
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: `${Math.max(4, (60 / maxMin) * 48)}px`, background: C.healthy, borderRadius: 3, pointerEvents: 'none' }}><span style={{ position: 'absolute', right: 2, top: -11, font: `400 7.5px ${MONO}`, color: C.sageDeep }}>1 h</span></div>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', gap: 3 }}>
         {per.map(p => { const h = Math.max(3, (p.min / maxMin) * 48), isPk = p.i === peak.i; const col = p.min >= 60 ? C.amber : p.min > 0 ? C.sage : C.hair;
-          return (<div key={p.i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-            {isPk && <span style={{ font: `600 8.5px ${MONO}`, color: C.amber, marginBottom: 1 }}>{(p.min / 60).toFixed(1)}</span>}
+          return (<div key={p.i} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+            {p.min >= 60 && <span style={{ font: `600 8.5px ${MONO}`, color: C.amber, marginBottom: 1, lineHeight: 1, whiteSpace: 'nowrap' }}>{(p.min / 60).toFixed(1)}</span>}
             <div title={`${lbl(p.d)} · ${(p.min / 60).toFixed(2)} h`} style={{ width: '100%', maxWidth: 16, height: h, borderRadius: 2, background: col, opacity: isPk ? 1 : p.min > 0 ? 0.85 : 0.55, outline: isPk ? `1.5px solid ${C.ink}` : 'none' }} />
           </div>); })}
       </div>
     </div>
     <div style={{ display: 'flex', gap: 3, marginTop: 3 }}>
-      {per.map(p => (<span key={p.i} style={{ flex: 1, textAlign: 'center', font: `400 7.5px ${MONO}`, color: p.d.wknd ? C.slate : C.muted }}>{p.d.d.split(' ')[1]}</span>))}
+      {per.map(p => (<div key={p.i} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.25 }}>
+        <span style={{ font: `400 7.5px ${MONO}`, color: p.d.wknd ? C.slate : C.muted, whiteSpace: 'nowrap' }}>{p.d.d.split(' ')[1]}</span>
+        <span style={{ font: `400 7px ${MONO}`, color: p.d.wknd ? C.slate : C.muted, opacity: p.d.wknd ? 0.9 : 0.6 }}>{String(p.d.wd || '').charAt(0).toUpperCase()}</span>
+      </div>))}
     </div>
-    <div style={{ font: `400 9.5px/1.5 ${MONO}`, color: C.muted, marginTop: 8 }}>one bar, one day. the shaded band is the first hour — a well-regulated day stays within it. the median ({med.toFixed(1)} h) is the middle day; a few days carry most of the total, which is why a median can read calmer than the fortnight was.</div>
+    <button onClick={() => setShowNote(v => !v)} aria-expanded={showNote} style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 8, padding: 0, border: 'none', background: 'none', color: C.muted, font: `400 9.5px ${MONO}`, cursor: 'pointer' }}>
+      <span style={{ display: 'inline-flex', transform: showNote ? 'scale(.75) rotate(90deg)' : 'scale(.75)', transition: 'transform .15s' }}><Chevron dir="right" /></span>
+      How to read this
+    </button>
+    {showNote && <div style={{ font: `400 9.5px/1.5 ${MONO}`, color: C.muted, marginTop: 4 }}>one bar, one day. the shaded band is one hour — a well-regulated day stays within it. the median ({med.toFixed(1)} h) is the middle day; a few days carry most of the total, which is why a median can read calmer than the fortnight was.</div>}
   </div>);
 }
 
