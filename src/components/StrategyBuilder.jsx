@@ -299,7 +299,7 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
         <button onClick={back} data-tip="Close the builder — your draft is saved"
           style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 20, cursor: 'pointer', lineHeight: 1 }} aria-label="Close builder (draft is kept)">×</button>
       </div>
-      <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span>Your draft autosaves as you go. <strong>Promote</strong> when it’s ready, or <strong>Discard</strong> to remove it.</span>
         {savedLabel && <span style={{ color: MBH_SAGE, fontWeight: 600, whiteSpace: 'nowrap' }}>· {savedLabel}</span>}
       </div>
@@ -324,7 +324,7 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
         <div key={i} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '14px 14px', marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: p.name ? 12 : 0, flexWrap: 'wrap' }}>
             <span style={{ width: 22, height: 22, borderRadius: '50%', background: SLATE, color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>P{i + 1}</span>
-            <select style={{ ...input, width: 'auto', flex: '0 1 230px', background: CARD }} value={p.priority_code} onChange={(e) => pickLibrary(i, e.target.value)}>
+            <select className="sb-priority-select" style={{ ...input, width: 'auto', flex: '0 1 230px', background: CARD }} value={p.priority_code} onChange={(e) => pickLibrary(i, e.target.value)}>
               <option value="">— pick a priority —</option>
               {libCategories.map((cat) => (
                 <optgroup key={cat} label={cat}>
@@ -334,7 +334,7 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
               ))}
             </select>
             {previousDraft && previousDraft.priorities[i] && previousDraft.priorities[i].name && (
-              <span style={{ fontSize: 12, color: '#9ca3af', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 12, color: '#9ca3af' }}>
                 Previous: <span style={{ color: '#6b7280', fontWeight: 600 }}>{previousDraft.priorities[i].name}</span>
               </span>
             )}
@@ -342,15 +342,15 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
 
           {p.name && (<>
             <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-              <div style={{ flex: '1 1 120px' }}>
+              <div style={{ flex: '1 1 120px', minWidth: 0 }}>
                 <label style={lbl}>Latest value</label>
                 <input style={input} value={p.latest_value} onChange={(e) => setPriority(i, { latest_value: e.target.value })} placeholder="—" />
               </div>
-              <div style={{ flex: '1 1 90px' }}>
+              <div style={{ flex: '1 1 90px', minWidth: 0 }}>
                 <label style={lbl}>Unit</label>
                 <input style={input} value={p.unit} onChange={(e) => setPriority(i, { unit: e.target.value })} placeholder="g/L" />
               </div>
-              <div style={{ flex: '1 1 110px' }}>
+              <div style={{ flex: '1 1 110px', minWidth: 0 }}>
                 <label style={lbl}>Date</label>
                 <input style={input} value={p.latest_date} onChange={(e) => setPriority(i, { latest_date: e.target.value })} placeholder="Jan 2025" />
               </div>
@@ -375,10 +375,10 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
             </div>
             {p.kind === 'donut' && (
               <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
-                <div style={{ flex: '1 1 90px' }}><label style={lbl}>Hrs 7.8–10</label><input style={input} value={p.donut_hr78} onChange={(e) => setPriority(i, { donut_hr78: e.target.value })} placeholder="4.5" /></div>
-                <div style={{ flex: '1 1 90px' }}><label style={lbl}>Hrs &gt; 10</label><input style={input} value={p.donut_hr10} onChange={(e) => setPriority(i, { donut_hr10: e.target.value })} placeholder="0.4" /></div>
-                <div style={{ flex: '1 1 90px' }}><label style={lbl}>Target hr/day</label><input style={input} value={p.donut_target_hr} onChange={(e) => setPriority(i, { donut_target_hr: e.target.value })} placeholder="1" /></div>
-                <div style={{ flex: '1 1 160px' }}><label style={lbl}>Next text</label><input style={input} value={p.next_text} onChange={(e) => setPriority(i, { next_text: e.target.value })} placeholder="Next CGM cycle ~May 24" /></div>
+                <div style={{ flex: '1 1 90px', minWidth: 0 }}><label style={lbl}>Hrs 7.8–10</label><input style={input} value={p.donut_hr78} onChange={(e) => setPriority(i, { donut_hr78: e.target.value })} placeholder="4.5" /></div>
+                <div style={{ flex: '1 1 90px', minWidth: 0 }}><label style={lbl}>Hrs &gt; 10</label><input style={input} value={p.donut_hr10} onChange={(e) => setPriority(i, { donut_hr10: e.target.value })} placeholder="0.4" /></div>
+                <div style={{ flex: '1 1 90px', minWidth: 0 }}><label style={lbl}>Target hr/day</label><input style={input} value={p.donut_target_hr} onChange={(e) => setPriority(i, { donut_target_hr: e.target.value })} placeholder="1" /></div>
+                <div style={{ flex: '1 1 160px', minWidth: 0 }}><label style={lbl}>Next text</label><input style={input} value={p.next_text} onChange={(e) => setPriority(i, { next_text: e.target.value })} placeholder="Next CGM cycle ~May 24" /></div>
               </div>
             )}
           </>)}
@@ -393,8 +393,8 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
       {pickedHabits.length > 0 && (
         <div style={{ marginBottom: 6 }}>
           {pickedHabits.map((m, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, border: `1px solid ${BORDER}`, borderRadius: 10, background: CARD, padding: '11px 14px', marginBottom: 8 }}>
-              <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: SLATE }}>{m.name}</span>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, border: `1px solid ${BORDER}`, borderRadius: 10, background: CARD, padding: '11px 14px', marginBottom: 8, flexWrap: 'wrap' }}>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: SLATE }}>{m.name}</span>
               {m.frequency && <span style={{ fontSize: 12, color: '#6b7280' }}>{m.frequency}</span>}
               <span style={{ display: 'flex', gap: 4 }}>
                 {(m.linked_priorities || []).map((n) => (
@@ -416,9 +416,9 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
       {/* Routines */}
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#374151', margin: '6px 0 8px' }}>Routines</div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-        <div style={{ flex: '1 1 120px' }}><label style={lbl}>Sleep</label><input style={input} value={draft.routines.sleep} onChange={(e) => setDraft((d) => ({ ...d, routines: { ...d.routines, sleep: e.target.value } }))} placeholder="7–7.5 hrs" /></div>
-        <div style={{ flex: '1 1 120px' }}><label style={lbl}>Strength</label><input style={input} value={draft.routines.strength} onChange={(e) => setDraft((d) => ({ ...d, routines: { ...d.routines, strength: e.target.value } }))} placeholder="2–3 / 7" /></div>
-        <div style={{ flex: '1 1 120px' }}><label style={lbl}>Cardio</label><input style={input} value={draft.routines.cardio} onChange={(e) => setDraft((d) => ({ ...d, routines: { ...d.routines, cardio: e.target.value } }))} placeholder="> 250 min/wk" /></div>
+        <div style={{ flex: '1 1 120px', minWidth: 0 }}><label style={lbl}>Sleep</label><input style={input} value={draft.routines.sleep} onChange={(e) => setDraft((d) => ({ ...d, routines: { ...d.routines, sleep: e.target.value } }))} placeholder="7–7.5 hrs" /></div>
+        <div style={{ flex: '1 1 120px', minWidth: 0 }}><label style={lbl}>Strength</label><input style={input} value={draft.routines.strength} onChange={(e) => setDraft((d) => ({ ...d, routines: { ...d.routines, strength: e.target.value } }))} placeholder="2–3 / 7" /></div>
+        <div style={{ flex: '1 1 120px', minWidth: 0 }}><label style={lbl}>Cardio</label><input style={input} value={draft.routines.cardio} onChange={(e) => setDraft((d) => ({ ...d, routines: { ...d.routines, cardio: e.target.value } }))} placeholder="> 250 min/wk" /></div>
       </div>
 
       {/* Strategy elements */}
@@ -436,8 +436,8 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
 
       {/* Footer */}
       {error && <div style={{ color: SOFT_RED, fontSize: 12, marginTop: 8 }}>{error}</div>}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           {!isNewFromScratch && (
             <button onClick={back} data-tip="Leave the builder and view your current strategy — your draft is saved and you can resume it"
               style={{ border: `1px solid ${BORDER}`, background: CARD, color: SLATE, borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
@@ -449,7 +449,7 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
           <button onClick={clearDraft} data-tip="Erase everything and start this draft over — stays in the builder"
             style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Clear</button>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginLeft: 'auto' }}>
           {savedLabel && <span style={{ fontSize: 12, color: '#9ca3af', whiteSpace: 'nowrap' }}>{savedLabel}</span>}
           <button onClick={saveNow} disabled={saving} data-tip="Save your progress now (it also autosaves as you type)"
             style={{ border: `1px solid ${BORDER}`, background: CARD, color: SLATE, borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: saving ? 'default' : 'pointer' }}>
