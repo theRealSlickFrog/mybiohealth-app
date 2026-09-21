@@ -47,3 +47,12 @@ body {
   animation: tipIn 90ms ease-out forwards;
 }
 @keyframes tipIn { to { opacity: 1; } }
+
+/* Strategy builder priority dropdown. Its width comes from the widest
+   <option>, and as a flex item min-width:auto makes that an un-shrinkable
+   floor — wide enough on a phone to push the whole page sideways. Below
+   480px let it shrink and truncate instead. At 480px and above nothing
+   applies, so desktop renders exactly as before. */
+@media (max-width: 479px) {
+  .sb-priority-select { min-width: 0; max-width: 100%; }
+}
