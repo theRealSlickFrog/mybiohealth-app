@@ -368,9 +368,13 @@ function putNum(row, key, val, errors, label) {
 }
 
 // ── Promote — the only step that writes to mystrategy_report_ready ──────────
-// 1) close the current active row (effective_to = today), if one exists
-// 2) insert the new versioned row (effective_from = today, effective_to = null)
+// 1) insert the new versioned row (effective_from = today, effective_to = null)
+// 2) close the previous active row (effective_to = today), if one exists
 // 3) clear the browser draft
+// Insert first: if it fails nothing has been written. If the close then fails
+// the new version is still live and the result says closeFailed — two active
+// rows for a moment is recoverable (the read view shows the newest); no active
+// row is not.
 // currentActiveRow: the raw row whose effective_to is null (or null if first).
 export async function promoteDraft(draft, { member_id, currentActiveRow }) {
   const version = nextVersionLabel();
@@ -386,17 +390,7 @@ export async function promoteDraft(draft, { member_id, currentActiveRow }) {
     throw new Error(`${errors.join(' ')} Please fix ${errors.length === 1 ? 'it' : 'them'} and promote again.`);
   }
 
-  // 1) close the current active row
-  if (currentActiveRow && currentActiveRow.mystrategy_report_ready_id != null) {
-    const id = currentActiveRow.mystrategy_report_ready_id;
-    const put = await fetch(
-      `${API_BASE}/rest/v2/tables/${TABLE}/records?q.where=${encodeURIComponent(`mystrategy_report_ready_id=${id}`)}`,
-      { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ effective_to: effective_from }) }
-    );
-    if (!put.ok) throw new Error(`Couldn't close the current version (HTTP ${put.status}).`);
-  }
-
-  // 2) insert the new row
+  // 1) insert the new row
   const post = await fetch(`${API_BASE}/rest/v2/tables/${TABLE}/records`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(row),
   });
@@ -407,9 +401,23 @@ export async function promoteDraft(draft, { member_id, currentActiveRow }) {
     throw new Error(`Couldn't create the new version (HTTP ${post.status}). ${message}`);
   }
 
+  // 2) close the previous active row. Reported, not thrown: the new version is
+  //    already live, and throwing would leave the builder open to promote again.
+  let closeFailed = false;
+  if (currentActiveRow && currentActiveRow.mystrategy_report_ready_id != null) {
+    const id = currentActiveRow.mystrategy_report_ready_id;
+    try {
+      const close = await fetch(
+        `${API_BASE}/rest/v2/tables/${TABLE}/records?q.where=${encodeURIComponent(`mystrategy_report_ready_id=${id}`)}`,
+        { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ effective_to: effective_from }) }
+      );
+      if (!close.ok) closeFailed = true;
+    } catch (e) { closeFailed = true; }
+  }
+
   // 3) the new version is live — delete the persisted draft blob (best-effort;
   //    a stale draft row is harmless and will be overwritten next time).
   try { await deleteStrategyDraft(member_id); } catch (e) { /* non-fatal */ }
   setDraftDirty(false);
-  return { version, effective_from };
+  return { version, effective_from, closeFailed };
 }

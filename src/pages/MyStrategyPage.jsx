@@ -269,7 +269,10 @@ export default function MyStrategyPage() {
         if (cancelled) return;
         const unflattened = stratRows.map(unflattenRow);
         // Default to the active version (no effective_to); fall back to newest.
-        let defaultIdx = unflattened.findIndex((s) => !s.effectiveTo);
+        // Rows come oldest first, so search from the end: if a promote left two
+        // rows open, the one just promoted is the current one.
+        let defaultIdx = -1;
+        for (let k = unflattened.length - 1; k >= 0; k--) { if (!unflattened[k].effectiveTo) { defaultIdx = k; break; } }
         if (defaultIdx < 0) defaultIdx = unflattened.length - 1;
         setVersions(unflattened);
         setRawRows(stratRows);
@@ -337,7 +340,7 @@ export default function MyStrategyPage() {
   // Priority Builder plumbing — current member, the active raw row (needed to
   // close the current version + prefill "new version"), and open/close handlers.
   const member = getStoredGuid() || DEV_MEMBER;
-  const activeRawRow = rawRows.find((r) => !r.effective_to) || rawRows[rawRows.length - 1] || null;
+  const activeRawRow = rawRows.slice().reverse().find((r) => !r.effective_to) || rawRows[rawRows.length - 1] || null;   // newest open row
   // Start a new strategy. If there's an in-progress saved draft, resume it
   // (skip the chooser). Otherwise, if a current strategy exists, offer the
   // carry-over chooser; with no current strategy, open a blank builder.

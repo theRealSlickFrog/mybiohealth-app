@@ -236,8 +236,11 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
     if (!confirm('Promote this draft to a new live strategy version? The current version becomes a past version.')) return;
     setBusy(true); setError(null);
     try {
-      await promoteDraft(draft, { member_id: member, currentActiveRow });
+      const result = await promoteDraft(draft, { member_id: member, currentActiveRow });
       try { await saveNote(member, 'strategy_why', whyText.trim(), whyNoteId); } catch (e) { /* note save is non-fatal */ }
+      if (result && result.closeFailed) {
+        alert('The new version was saved, but the previous version couldn’t be closed. Please tell support so it can be closed by hand.');
+      }
       onPromoted && onPromoted();
     } catch (e) {
       setError(e.message || 'Promote failed.');
