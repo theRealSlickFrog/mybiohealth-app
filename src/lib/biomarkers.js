@@ -8,7 +8,7 @@
 // in production, call the deployed proxy directly. See vite.config.js.
 const API_BASE = import.meta.env.DEV ? '/api' : 'https://kenises-api-proxy.netlify.app';
 // Dev fallback only — used when no member GUID is in session (e.g. localhost,
-// where the Caspio ?guid= handoff hasn't run). Real members come from auth.
+// where the Caspio ?t= handoff hasn't run). Real members come from auth.
 export const DEV_MEMBER = '758645A00B0847708AA9313E75C80398';
 
 const numOrNull = (v) => (v === '' || v == null || isNaN(parseFloat(v))) ? null : parseFloat(v);

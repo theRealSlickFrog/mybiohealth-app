@@ -1,7 +1,7 @@
 // App shell — sticky top bar, hamburger drawer, page routing.
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { SLATE, OFFWHITE, MBH_DROP_IMG, ALL_PAGES } from '../lib/constants.js';
-import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity, logout, isAdminSession, isSessionExpired, setSessionExpiredHandler, navigateExternal, REDIRECTOR_URL, CASPIO_LOGOUT_URL } from '../lib/auth.js';
+import { exchangeHandoffToken, hasHandoffToken, logActivity, logout, isAdminSession, isSessionExpired, setSessionExpiredHandler, navigateExternal, REDIRECTOR_URL, CASPIO_LOGOUT_URL } from '../lib/auth.js';
 import { isDraftDirty, setDraftDirty, DRAFT_LEAVE_MSG } from '../lib/strategyBuilder.js';
 import { pageFromPath, pathForPage } from '../lib/routes.js';
 import useIdleTimeout from '../lib/useIdleTimeout.js';
@@ -23,12 +23,6 @@ import ContextSignalsPage from './ContextSignalsPage.jsx';
 import RiskMeasuresPage from './RiskMeasuresPage.jsx';
 import VoiceTestPage from './VoiceTestPage.jsx';
 
-// Capture the GUID at module-load time, before any component renders. Doing
-// it in a useEffect means child components mount + run their own effects
-// (which read sessionStorage) BEFORE this would have run — React runs child
-// effects before parent effects, so a useEffect here was too late.
-captureGuidFromUrl();
-
 export default function AppShell() {
   // The URL is the source of truth for which page is showing — read it on the
   // first render so a reload or a deep link lands on the right page instead of
@@ -39,8 +33,8 @@ export default function AppShell() {
   const activePageRef = useRef(activePage);
   activePageRef.current = activePage;
   const [drawerOpen, setDrawerOpen] = useState(false);
-  // If we arrived via the secure ?t= handoff, exchange it for a session before
-  // rendering pages. The legacy ?guid= path boots immediately (booting=false).
+  // If we arrived via the ?t= handoff, exchange it for a session before
+  // rendering pages.
   const [booting, setBooting] = useState(hasHandoffToken());
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 // Auth helpers for the Netlify app.
-// GUID arrives via ?guid= on first load (set by the Caspio redirector DataPage),
-// then we stash it in sessionStorage and scrub the URL so it isn't shareable.
+// Sign-in arrives as a one-time ?t= token from the Caspio minter, exchanged for
+// a session JWT and the member GUID (see exchangeHandoffToken).
 //
 // Activity logging mirrors patient footer.js (V1): every login / pageview /
 // logout is a plain INSERT into activity_log. No row updates, no log_id
@@ -113,9 +113,8 @@ function jwtPayload() {
   }
 }
 
-// True only when a JWT exists AND its exp has passed. A legacy ?guid= session
-// carries no token and so can never be "expired" here — that path has no
-// client-visible expiry at all.
+// True only when a JWT exists AND its exp has passed. Without a JWT there is
+// nothing to expire here.
 export function isSessionExpired() {
   const p = jwtPayload();
   if (!p || typeof p.exp !== 'number') return false;
@@ -203,11 +202,10 @@ export async function logout(currentPage, reason = 'manual', { redirect = true }
   if (redirect) navigateExternal(CASPIO_LOGOUT_URL, 'logout');
 }
 
-// ── Token handoff (new, secure path) ──────────────────────────────────────
+// ── Token handoff ─────────────────────────────────────────────────────────────
 // The Caspio "minter" redirects here with ?t=<one-time token>. We exchange it
 // once for a short-lived session JWT (the proxy derives the member server-side),
-// store the JWT + resolved GUID, and scrub the URL. The legacy ?guid= path
-// (captureGuidFromUrl) still works during the transition.
+// store the JWT + resolved GUID, and scrub the URL.
 export function hasHandoffToken() {
   return new URLSearchParams(window.location.search).has('t');
 }
@@ -240,23 +238,6 @@ export async function exchangeHandoffToken() {
   url.searchParams.delete('t');
   window.history.replaceState({}, '', url.toString());
   return getStoredGuid();
-}
-
-export function captureGuidFromUrl() {
-  const params = new URLSearchParams(window.location.search);
-  const guid = params.get('guid');
-  if (!guid) return getStoredGuid();
-
-  sessionStorage.setItem(GUID_KEY, guid);
-
-  // Scrub guid from URL so users don't share it
-  const url = new URL(window.location.href);
-  url.searchParams.delete('guid');
-  window.history.replaceState({}, '', url.toString());
-
-  // Note: login/pageview events are logged by AppShell's view-change effect,
-  // not here — so a refresh logs a pageview, not a duplicate login.
-  return guid;
 }
 
 export function getStoredGuid() {
