@@ -13,6 +13,8 @@
 // or set by Promote. See flattenDraft() for the exact column mapping the front
 // end (MyStrategyPage.unflattenRow) reads back.
 
+import { readCaspioNumber } from './caspioValues.js';
+
 // Dev routes /api/* through Vite (the proxy's CORS excludes localhost); prod
 // calls the proxy directly. Mirrors auth.js.
 const API_BASE = import.meta.env.DEV ? '/api' : 'https://kenises-api-proxy.netlify.app';
@@ -296,8 +298,10 @@ export function nextVersionLabel() {
 }
 
 // ── Flatten a draft into the 114-column row. Only non-empty scalars are
-// included so Caspio Number/Date columns aren't sent empty strings. ──────────
-export function flattenDraft(draft, { member_id, version, effective_from }) {
+// included so Caspio Number/Date columns aren't sent empty strings. Number
+// fields that can't be read as a number are pushed onto `errors` (if given)
+// and left out, so the caller can refuse to write anything. ──────────────────
+export function flattenDraft(draft, { member_id, version, effective_from, errors }) {
   const row = { member_id, version, minor_version: 'a', effective_from };
   put(row, 'tagline', draft.tagline);
 
@@ -310,16 +314,16 @@ export function flattenDraft(draft, { member_id, version, effective_from }) {
     put(row, `p${n}_kind`, p.kind);
     put(row, `p${n}_primary_marker`, p.primary_marker);
     put(row, `p${n}_target_text`, p.target_text);
-    put(row, `p${n}_latest_value`, p.latest_value);
+    putNum(row, `p${n}_latest_value`, p.latest_value, errors, `P${n} latest value`);
     put(row, `p${n}_unit`, p.unit);
     put(row, `p${n}_latest_date`, p.latest_date);
     put(row, `p${n}_next_text`, p.next_text);
     put(row, `p${n}_rx_text`, p.rx_text);
     put(row, `p${n}_why_text`, p.why_text);
     put(row, `p${n}_other_markers`, p.other_markers);
-    putNum(row, `p${n}_donut_hr78`, p.donut_hr78);
-    putNum(row, `p${n}_donut_hr10`, p.donut_hr10);
-    putNum(row, `p${n}_donut_target_hr`, p.donut_target_hr);
+    putNum(row, `p${n}_donut_hr78`, p.donut_hr78, errors, `P${n} hrs 7.8–10`);
+    putNum(row, `p${n}_donut_hr10`, p.donut_hr10, errors, `P${n} hrs > 10`);
+    putNum(row, `p${n}_donut_target_hr`, p.donut_target_hr, errors, `P${n} target hr/day`);
   });
 
   draft.mhx.forEach((m, i) => {
@@ -354,11 +358,13 @@ function put(row, key, val) {
   const v = (val == null ? '' : String(val)).trim();
   if (v !== '') row[key] = v;
 }
-function putNum(row, key, val) {
-  const v = (val == null ? '' : String(val)).trim();
-  if (v === '') return;
-  const n = Number(v);
-  if (!Number.isNaN(n)) row[key] = n;
+function putNum(row, key, val, errors, label) {
+  const r = readCaspioNumber(val, key);
+  if (!r.ok) {
+    if (errors) errors.push(`${label || key} "${String(val).trim()}" isn't a number.`);
+    return;
+  }
+  if (r.value !== null) row[key] = r.value;
 }
 
 // ── Promote — the only step that writes to mystrategy_report_ready ──────────
@@ -369,10 +375,15 @@ function putNum(row, key, val) {
 export async function promoteDraft(draft, { member_id, currentActiveRow }) {
   const version = nextVersionLabel();
   const effective_from = todayISO();
-  const row = flattenDraft(draft, { member_id, version, effective_from });
+  const errors = [];
+  const row = flattenDraft(draft, { member_id, version, effective_from, errors });
 
   if (!Object.keys(row).some((k) => /^p1_name$/.test(k))) {
     throw new Error('Add at least Priority 1 before promoting.');
+  }
+  // Checked before any request, so a bad value writes nothing.
+  if (errors.length) {
+    throw new Error(`${errors.join(' ')} Please fix ${errors.length === 1 ? 'it' : 'them'} and promote again.`);
   }
 
   // 1) close the current active row
@@ -391,7 +402,9 @@ export async function promoteDraft(draft, { member_id, currentActiveRow }) {
   });
   if (!post.ok) {
     const detail = await post.text().catch(() => '');
-    throw new Error(`Couldn't create the new version (HTTP ${post.status}). ${detail.slice(0, 160)}`);
+    let message = detail;
+    try { const j = JSON.parse(detail); if (j && j.Message) message = j.Message; } catch (e) { /* not JSON: show it as-is */ }
+    throw new Error(`Couldn't create the new version (HTTP ${post.status}). ${message}`);
   }
 
   // 3) the new version is live — delete the persisted draft blob (best-effort;

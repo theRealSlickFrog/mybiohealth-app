@@ -435,7 +435,7 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
       ))}
 
       {/* Footer */}
-      {error && <div style={{ color: SOFT_RED, fontSize: 12, marginTop: 8 }}>{error}</div>}
+      {error && <div style={{ color: SOFT_RED, fontSize: 12, marginTop: 8, overflowWrap: 'anywhere' }}>{error}</div>}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           {!isNewFromScratch && (
