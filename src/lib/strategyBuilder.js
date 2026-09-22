@@ -72,7 +72,7 @@ export function draftFromRow(row) {
     p.kind = row[`p${n}_kind`] || 'chart';
     p.primary_marker = row[`p${n}_primary_marker`] || '';
     p.target_text = row[`p${n}_target_text`] || '';
-    p.latest_value = row[`p${n}_latest_value`] || '';
+    p.latest_value = row[`p${n}_latest_value`] ?? '';   // ?? not ||: a stored 0 is a real value
     p.unit = row[`p${n}_unit`] || '';
     p.latest_date = row[`p${n}_latest_date`] || '';
     p.next_text = row[`p${n}_next_text`] || '';
