@@ -5,14 +5,14 @@
 //   1) marker history from report_ready_result (for the chart)
 //   2) related markers from marker_x_marker (for the "Related: X" pills)
 // Both are derived from a single bulk fetch each at load time.
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, AMBER, AMBER_BG, AMBER_TEXT, SOFT_RED, GAP_BG, GAP_TEXT, GAP_BORDER, SLATE, OFFWHITE, CARD, BORDER } from '../lib/constants.js';
 import { OPTIMAL_AUTHORITIES } from '../lib/optimal-authorities.js';
 import { markerZone, ZONE_LABEL, thresholdsFromRow, optimalText, DEV_MEMBER } from '../lib/biomarkers.js';
 import { getStoredGuid } from '../lib/auth.js';
 import { loadStrategyConfig, DEFAULTS as STRATEGY_CFG_DEFAULTS } from '../lib/strategyConfig.js';
 import { draftFromRow, emptyDraft, loadStrategyDraft, latestReadingFor } from '../lib/strategyBuilder.js';
-import { loadNote } from '../lib/notes.js';
+import { loadNote, saveNote } from '../lib/notes.js';
 import OptimalDrawer from '../components/OptimalDrawer.jsx';
 import CarryOverChooser from '../components/CarryOverChooser.jsx';
 import WhyModal from '../components/WhyModal.jsx';
@@ -196,13 +196,25 @@ function unflattenRow(row) {
   };
 }
 
+// Per-priority notes are stored like every other note in the app: one
+// member_info row per (member, key), feature='PAGE_NOTE' (see lib/notes.js and
+// PersonalNote). The key uses the priority CODE so a note follows its priority
+// into the next version — slot numbers move between versions. The slot number is
+// only a fallback for a priority saved without a code.
+const noteBase = (p) => p.code || `p${p.n}`;
+const noteKeyFor = (p, kind) => `strategy_${noteBase(p)}_${kind}`;
+
 export default function MyStrategyPage() {
   const [optimalSignal, setOptimalSignal] = useState(null);
   const [openPriorities, setOpenPriorities] = useState({ 1: true, 2: true, 3: true });
   const [why, setWhy] = useState(null);   // { title, body } for the WhyModal
-  // Per-priority note text. Keys are `${n}_member` and `${n}_mbh`.
-  // Local-only for now; load/save against member_info is a follow-on.
-  const [notes, setNotes] = useState({});
+  // Per-priority note text, loaded from and saved to member_info.
+  // Keys come from noteKeyFor(); see the comment above the helpers.
+  const [notes, setNotes] = useState({});        // note key -> text on screen
+  const [noteIds, setNoteIds] = useState({});    // note key -> member_info_id, null until first save
+  const [noteSaved, setNoteSaved] = useState({});// note key -> text as last loaded/saved (dirty check)
+  const [noteStatus, setNoteStatus] = useState({}); // card key -> 'saving' | 'saved' | an error message
+  const notesLoaded = useRef(new Set());         // note keys already fetched, so a re-render doesn't refetch
   const togglePriority = (n) => setOpenPriorities((p) => ({ ...p, [n]: !p[n] }));
 
   const [versions, setVersions] = useState([]);    // all strategy rows, oldest -> newest
@@ -341,6 +353,55 @@ export default function MyStrategyPage() {
   // close the current version + prefill "new version"), and open/close handlers.
   const member = getStoredGuid() || DEV_MEMBER;
   const activeRawRow = rawRows.slice().reverse().find((r) => !r.effective_to) || rawRows[rawRows.length - 1] || null;   // newest open row
+
+  // Load the notes for the version on screen. Browsing to an older version loads
+  // that version's priorities. A key is never fetched twice, and a box being
+  // edited is never overwritten by a late response.
+  useEffect(() => {
+    const shown = versions[versionIdx];
+    if (!shown) return undefined;
+    const keys = shown.priorities.filter((p) => p.name)
+      .flatMap((p) => [noteKeyFor(p, 'member'), noteKeyFor(p, 'mbh')])
+      .filter((k) => !notesLoaded.current.has(k));
+    keys.forEach((k) => notesLoaded.current.add(k));
+    let cancelled = false;
+    (async () => {
+      for (const k of keys) {
+        try {
+          const n = await loadNote(member, k);
+          if (cancelled) return;
+          setNoteIds((m) => ({ ...m, [k]: n.id }));
+          setNoteSaved((m) => ({ ...m, [k]: n.text }));
+          setNotes((m) => (k in m ? m : { ...m, [k]: n.text }));   // don't clobber typing
+        } catch (e) {
+          notesLoaded.current.delete(k);   // let a later render try again
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [versions, versionIdx, member]);
+
+  // One Save per card covering both boxes; only a box that changed is written.
+  // Same shape as PersonalNote: keep the row id so the next save is a PUT.
+  async function saveCardNotes(p) {
+    const card = noteBase(p);
+    setNoteStatus((st) => ({ ...st, [card]: 'saving' }));
+    try {
+      for (const kind of ['member', 'mbh']) {
+        const k = noteKeyFor(p, kind);
+        const text = (notes[k] || '').trim();
+        if (text === (noteSaved[k] || '')) continue;
+        const id = await saveNote(member, k, text, noteIds[k]);
+        setNoteIds((m) => ({ ...m, [k]: id ?? m[k] }));
+        setNoteSaved((m) => ({ ...m, [k]: text }));
+        setNotes((m) => ({ ...m, [k]: text }));
+      }
+      setNoteStatus((st) => ({ ...st, [card]: 'saved' }));
+      setTimeout(() => setNoteStatus((st) => (st[card] === 'saved' ? { ...st, [card]: null } : st)), 2500);
+    } catch (e) {
+      setNoteStatus((st) => ({ ...st, [card]: e.message || 'save failed' }));
+    }
+  }
   // Start a new strategy. If there's an in-progress saved draft, resume it
   // (skip the chooser). Otherwise, if a current strategy exists, offer the
   // carry-over chooser; with no current strategy, open a blank builder.
@@ -498,6 +559,16 @@ export default function MyStrategyPage() {
             servedBy.push({ type: 'MHx', name: m.name, serves: m.linkedPriorities });
           }
         });
+
+        // This card's notes: their keys, whether either box has unsaved text,
+        // and the save status shown next to the button.
+        const memberKey = noteKeyFor(p, 'member');
+        const mbhKey = noteKeyFor(p, 'mbh');
+        const notesDirty = (notes[memberKey] || '') !== (noteSaved[memberKey] || '')
+          || (notes[mbhKey] || '') !== (noteSaved[mbhKey] || '');
+        const noteState = noteStatus[noteBase(p)] || null;
+        const noteSaving = noteState === 'saving';
+        const noteError = noteState && noteState !== 'saving' && noteState !== 'saved' ? noteState : null;
         return (
           <div key={p.n} style={{ background: CARD, borderRadius: 14, padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: 12 }}>
             <div onClick={() => togglePriority(p.n)} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: isOpen ? 12 : 0, cursor: 'pointer' }}>
@@ -590,8 +661,8 @@ export default function MyStrategyPage() {
                   <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginBottom: 4 }}>Member Note</div>
                   <VoiceTextarea
                     label="the Member Note"
-                    value={notes[`${p.n}_member`] || ''}
-                    onChange={(v) => setNotes((prev) => ({ ...prev, [`${p.n}_member`]: v }))}
+                    value={notes[memberKey] || ''}
+                    onChange={(v) => setNotes((prev) => ({ ...prev, [memberKey]: v }))}
                     placeholder="Member's notes about this priority…"
                     style={{ width: '100%', minHeight: 50, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '8px 10px', fontSize: 12, color: SLATE, background: OFFWHITE, resize: 'vertical', lineHeight: 1.5, outline: 'none', fontFamily: 'inherit' }}
                   />
@@ -600,11 +671,21 @@ export default function MyStrategyPage() {
                   <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: MBH_SAGE, marginBottom: 4 }}>MBH Note</div>
                   <VoiceTextarea
                     label="the MBH Note"
-                    value={notes[`${p.n}_mbh`] || ''}
-                    onChange={(v) => setNotes((prev) => ({ ...prev, [`${p.n}_mbh`]: v }))}
+                    value={notes[mbhKey] || ''}
+                    onChange={(v) => setNotes((prev) => ({ ...prev, [mbhKey]: v }))}
                     placeholder="Notes from MyBioHealth…"
                     style={{ width: '100%', minHeight: 50, border: `1px solid ${MBH_SAGE}30`, borderRadius: 8, padding: '8px 10px', fontSize: 12, color: SLATE, background: SAGE_BG + '60', resize: 'vertical', lineHeight: 1.5, outline: 'none', fontFamily: 'inherit' }}
                   />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
+                  {noteError && <span style={{ fontSize: 11, color: SOFT_RED }}>Couldn’t save your note ({noteError}). Try again.</span>}
+                  {noteState === 'saved' && <span style={{ fontSize: 11, color: MBH_SAGE, fontWeight: 600 }}>Saved</span>}
+                  <button onClick={() => saveCardNotes(p)} disabled={noteSaving || !notesDirty}
+                    style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: 'inherit', border: 'none',
+                      background: (noteSaving || !notesDirty) ? '#e5e7eb' : MBH_SAGE, color: (noteSaving || !notesDirty) ? '#9ca3af' : 'white',
+                      cursor: (noteSaving || !notesDirty) ? 'default' : 'pointer' }}>
+                    {noteSaving ? 'Saving…' : 'Save'}
+                  </button>
                 </div>
               </div>
             </>)}
