@@ -21,6 +21,7 @@ import PersonalNote from '../components/PersonalNote.jsx';
 import VoiceTextarea from '../components/VoiceTextarea.jsx';
 import WhyImHere from '../components/WhyImHere.jsx';
 import WeeklyCheckin from '../components/WeeklyCheckin.jsx';
+import { Chevron } from '../components/UI.jsx';
 import StrategyBuilder from '../components/StrategyBuilder.jsx';
 
 // Dev routes /api/* through Vite (the proxy's CORS excludes localhost); prod
@@ -194,6 +195,29 @@ function unflattenRow(row) {
     ],
     strategyElements,
   };
+}
+
+// A collapsible block inside a priority card. The header text is the toggle and
+// carries the number of rows inside, so a member can see there is something
+// there without opening it.
+//
+// Open/closed is local state and deliberately not remembered: every visit
+// starts from the same place, which is how the card-level toggle already
+// behaves (openPriorities resets to all-open on load).
+function Section({ title, count, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <button onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }} aria-expanded={open}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: 0, border: 'none', background: 'none',
+          cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', color: '#374151', marginBottom: open ? 4 : 0 }}>
+        <Chevron open={open} />
+        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'underline', textUnderlineOffset: '3px' }}>{title}</span>
+        {count != null && <span style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af' }}>· {count}</span>}
+      </button>
+      {open && children}
+    </div>
+  );
 }
 
 // Per-priority notes are stored like every other note in the app: one
@@ -616,8 +640,7 @@ export default function MyStrategyPage() {
               )}
 
               {related.length > 0 && (
-                <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginBottom: 4, textDecoration: 'underline', textUnderlineOffset: '3px' }}>Related Blood Markers</div>
+                <Section title="Related Blood Markers" count={related.length}>
                   {/* Design-style signal cluster: name · current → optimal (one row each) */}
                   {related.map((r, i) => (
                     <div key={r.code} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 0', borderBottom: i < related.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
@@ -630,12 +653,11 @@ export default function MyStrategyPage() {
                       )}
                     </div>
                   ))}
-                </div>
+                </Section>
               )}
 
               {p.otherMarkers && p.otherMarkers.length > 0 && (
-                <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginBottom: 4, textDecoration: 'underline', textUnderlineOffset: '3px' }}>Related Other Markers</div>
+                <Section title="Related Other Markers" count={p.otherMarkers.length}>
                   {p.otherMarkers.map((r, i) => (
                     <div key={r.name} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 0', borderBottom: i < p.otherMarkers.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
                       <div style={{ fontSize: 12.5, fontWeight: 600, color: SLATE, width: 150, flexShrink: 0 }}>{r.name}</div>
@@ -644,16 +666,15 @@ export default function MyStrategyPage() {
                       </div>
                     </div>
                   ))}
-                </div>
+                </Section>
               )}
 
               {servedBy.length > 0 && (
-                <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#374151', marginBottom: 6, textDecoration: 'underline', textUnderlineOffset: '3px' }}>Served by — derived from shared signals</div>
+                <Section title="Served by — derived from shared signals" count={servedBy.length}>
                   <div>
                     {servedBy.map((lv, i) => <LeverChip key={i} type={lv.type} name={lv.name} serves={lv.serves} colours={cfg.leverColours[lv.type] || cfg.leverColours.MHx} />)}
                   </div>
-                </div>
+                </Section>
               )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 12, marginTop: 12, borderTop: `1px solid ${BORDER}` }}>
