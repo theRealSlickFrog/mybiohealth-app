@@ -7,20 +7,12 @@
 import { useState, useMemo, useEffect } from 'react';
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, OFFWHITE, CARD, BORDER } from '../lib/constants.js';
 import { getHabitGuidance } from '../lib/habitGuidance.js';
+import { Chevron } from './UI.jsx';
 
 const MAX = 3;
 const SERIF = "'DM Serif Display',serif";
 const STEPS = ['choose', 'frequency'];
 const STEP_LABEL = { choose: 'Choose your habits', frequency: 'How often' };
-
-function Chevron({ open }) {
-  return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden
-      style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s', flexShrink: 0 }}>
-      <path d="M6 3 L11 8 L6 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 export default function MicrohabitWizard({ priorities, habitCatalog, links, whyLib, initialHabits = [], onDone, onClose }) {
   const hasExisting = (initialHabits || []).length > 0;

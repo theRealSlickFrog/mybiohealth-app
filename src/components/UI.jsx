@@ -2,6 +2,19 @@
 import { MBH_SAGE, SAGE_BG, SAGE_TEXT, AMBER_BG, AMBER_TEXT, GAP_BG, GAP_TEXT, GAP_BORDER, AMBER, SOFT_RED, SLATE, OFFWHITE, CARD, BORDER } from '../lib/constants.js';
 import { OPTIMAL_AUTHORITIES } from '../lib/optimal-authorities.js';
 
+// Disclosure chevron: points right when closed, down when open. Shared so the
+// app has a single disclosure control (the MyStrategy priority sections and the
+// micro-habit wizard's "About your priorities"). The glucose page's Chevron is a
+// different thing — a left/right stepper arrow.
+export function Chevron({ open }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden
+      style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s', flexShrink: 0 }}>
+      <path d="M6 3 L11 8 L6 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function Divider() {
   return <div style={{ height: 1, background: BORDER, margin: '14px 0' }} />;
 }
