@@ -238,8 +238,17 @@ export default function StrategyBuilder({ member, initialDraft, initialWhyText, 
     try {
       const result = await promoteDraft(draft, { member_id: member, currentActiveRow });
       try { await saveNote(member, 'strategy_why', whyText.trim(), whyNoteId); } catch (e) { /* note save is non-fatal */ }
-      if (result && result.closeFailed) {
-        alert('The new version was saved, but the previous version couldn’t be closed. Please tell support so it can be closed by hand.');
+      // One dialog at most. A support problem outranks the informational cases.
+      const habits = (result && result.habits) || { failed: [], skipped: [], noPicks: false };
+      const problems = [];
+      if (result && result.closeFailed) problems.push('the previous version couldn’t be closed');
+      if (habits.failed.length) problems.push('your habits couldn’t be updated');
+      if (problems.length) {
+        alert(`The new version was saved, but ${problems.join(' and ')}. Please tell support so it can be put right.`);
+      } else if (habits.skipped.length) {
+        alert(`The new version was saved. These habits aren’t linked to the habit list, so they were not assigned: ${habits.skipped.join(', ')}. Re-pick them with the Micro-habits button.`);
+      } else if (habits.noPicks) {
+        alert('The new version was saved. It has no micro-habits, so the habits already being tracked were left as they are.');
       }
       onPromoted && onPromoted();
     } catch (e) {

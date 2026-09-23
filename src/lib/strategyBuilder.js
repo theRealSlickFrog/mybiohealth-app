@@ -14,6 +14,7 @@
 // end (MyStrategyPage.unflattenRow) reads back.
 
 import { readCaspioNumber } from './caspioValues.js';
+import { syncHabitAssignments } from './habitAssignments.js';
 
 // Dev routes /api/* through Vite (the proxy's CORS excludes localhost); prod
 // calls the proxy directly. Mirrors auth.js.
@@ -370,7 +371,8 @@ function putNum(row, key, val, errors, label) {
 // ── Promote — the only step that writes to mystrategy_report_ready ──────────
 // 1) insert the new versioned row (effective_from = today, effective_to = null)
 // 2) close the previous active row (effective_to = today), if one exists
-// 3) clear the browser draft
+// 3) sync member_x_microhabit, which is what the weekly check-in reads
+// 4) clear the browser draft
 // Insert first: if it fails nothing has been written. If the close then fails
 // the new version is still live and the result says closeFailed — two active
 // rows for a moment is recoverable (the read view shows the newest); no active
@@ -415,9 +417,18 @@ export async function promoteDraft(draft, { member_id, currentActiveRow }) {
     } catch (e) { closeFailed = true; }
   }
 
-  // 3) the new version is live — delete the persisted draft blob (best-effort;
+  // 3) point the habit assignments the weekly check-in reads at this version's
+  //    habits. Reported, not thrown: the version is already live.
+  let habits = { added: [], kept: [], closed: [], skipped: [], failed: [], noPicks: false };
+  try {
+    habits = await syncHabitAssignments(member_id, draft.mhx, effective_from);
+  } catch (e) {
+    habits = { ...habits, failed: [`couldn't update the habits (${e.message})`] };
+  }
+
+  // 4) the new version is live — delete the persisted draft blob (best-effort;
   //    a stale draft row is harmless and will be overwritten next time).
   try { await deleteStrategyDraft(member_id); } catch (e) { /* non-fatal */ }
   setDraftDirty(false);
-  return { version, effective_from, closeFailed };
+  return { version, effective_from, closeFailed, habits };
 }
