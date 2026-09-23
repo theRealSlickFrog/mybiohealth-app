@@ -155,7 +155,7 @@ const GUIDE = [
   ['One cycle, one chart', "You're looking at a single 14-day cycle. The day is cut into 96 fifteen-minute slices, and every picture on this screen is built from those same slices — what changes is how many days feed them and which hours you look at."],
   ['The bars', 'Each bar is one 15-minute slice. The tick across it is the median — the middle level at that time of day across the days in view. The box around it is the middle half of the days (the 25th to 75th percentile): a tall box means the days disagreed at that time, a short box means they agreed.'],
   ['Median, not average', 'Every number here is a median. An average lets one unusual day pull the whole figure; a median reports the middle and stays steady. That is why a single busy day does not move the picture much — and why the bars describe a usual day rather than any one day.'],
-  ['The four numbers', 'Time above 7.8 is a total — it adds every 15 minutes spent above 7.8 and takes the median across the days. The 24h median is a single middle level for the whole day, shown as a number on purpose. Overnight and daytime are the medians of those two stretches, each shown next to its reference band. Midnight–3 AM is a narrower window inside the night — the deep, food-free hours.'],
+  ['The numbers', 'Three sit together at the top. Time above 7.8 is a total — it adds every 15 minutes spent above 7.8 and takes the median across the days. The 24h median is a single middle level for the whole day, shown as a number on purpose. Midnight–3 AM is a narrower window inside the night — the deep, food-free hours. Above them, overnight and daytime are the medians of those two stretches, each shown next to its reference band.'],
   ['The reference band', 'The shaded band is a reference range drawn from non-diabetic glucose data for this phenotype — a backdrop for the eye, not a target to reach and not a diagnosis. A reading outside it is described by its distance from the band, never given a label.'],
   ['Days and window', 'Two controls, one chart. Days choose which days feed every slice — all of them, weekdays, weekends, or one real day. Window chooses which hours you look at.'],
   ['Watched moments', 'These are moments you chose to watch as they happened, kept at full resolution rather than averaged away. Each opens with context — the reading before and after, not just the peak.'],
@@ -308,6 +308,11 @@ function GlucoseCycleView({ cyc, cycleIdx, cycleCount, onCycle }) {
       : scope === 'weekend' ? { lab: 'weekends combined', on: cyc.weOn, dt: cyc.weDt, m24: cyc.median24, tar: cyc.weTar }
         : { lab: 'all days combined', on: cyc.overnight, dt: cyc.daytime, m24: cyc.median24, tar: cyc.tarHrs };
   const scopeWord = scope === 'weekday' ? 'weekday' : scope === 'weekend' ? 'weekend' : '';
+  // Said on every headline number, so "median" is on screen and none of them
+  // can be read as a mean. Same wording Time above 7.8 already used.
+  const scopeNote = scope === 'one' ? 'this day'
+    : scope === 'weekday' ? 'median weekday'
+      : scope === 'weekend' ? 'median weekend' : 'median day';
   const nDays = scope === 'weekday' ? wkCount : scope === 'weekend' ? weCount : DAYS;
 
   return (<div className="gv2-wrap">
@@ -328,6 +333,9 @@ function GlucoseCycleView({ cyc, cycleIdx, cycleCount, onCycle }) {
       .gv2-row:hover{background:rgba(30,45,61,.05)!important;}
       .gv2-measures{display:flex;flex-direction:column;gap:12px;margin:8px 0 12px;padding:16px;border:1px solid ${C.hair};border-radius:10px;background:${C.paper};}
       .gv2-grid4{display:grid;grid-template-columns:1fr 1fr;gap:14px 28px;}
+      /* Headline numbers. auto-fit keeps three across on a wide card and drops
+         to one per line on a phone, where three 42px figures cannot fit. */
+      .gv2-grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px 28px;}
       .gv2-divider{height:1px;background:${C.hair};}
       .gv2-method{font:400 10px/1.5 ${MONO};color:${C.muted};margin:12px 0;padding:8px 12px;border-radius:8px;background:rgba(30,45,61,.04);}
       .gv2-moment{margin-top:13px;padding:13px 15px;background:${C.paper};border:1px solid ${C.hair};border-radius:11px;}
@@ -378,14 +386,14 @@ function GlucoseCycleView({ cyc, cycleIdx, cycleCount, onCycle }) {
         <div className="gv2-main">
           <div className="gv2-measures">
             <div className="gv2-grid4">
-              <Measure label="Midnight–3 AM" value={sf(mid3)} unit="mmol/L" band={BAND.on} tone={ab(mid3, onHi)} onInfo={() => setInfoKey('mid3')} />
-              <Measure label="24h median" value={sf(iv.m24)} unit="mmol/L" tone={C.ink} />
               <Measure label="Overnight" value={sf(iv.on)} unit="mmol/L" band={BAND.on} tone={ab(iv.on, onHi)} small />
               <Measure label="Daytime" value={sf(iv.dt)} unit="mmol/L" band={BAND.day} tone={ab(iv.dt, dHi)} small />
             </div>
             <div className="gv2-divider" />
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <Measure big label="Time above 7.8" value={sf(iv.tar)} unit={scope === 'one' ? 'hrs · this day' : scope === 'weekday' ? 'hrs · median weekday' : scope === 'weekend' ? 'hrs · median weekend' : 'hrs · median day'} tone={iv.tar > 1 ? C.amber : C.ink} onInfo={() => setInfoKey('tar')} />
+            <div className="gv2-grid3">
+              <Measure big label="Time above 7.8" value={sf(iv.tar)} unit={`hrs · ${scopeNote}`} tone={iv.tar > 1 ? C.amber : C.ink} onInfo={() => setInfoKey('tar')} />
+              <Measure big label="24h median" value={sf(iv.m24)} unit={`mmol/L · ${scopeNote}`} tone={C.ink} />
+              <Measure big label="Midnight–3 AM" value={sf(mid3)} unit={`mmol/L · ${scopeNote}`} band={BAND.on} tone={ab(mid3, onHi)} onInfo={() => setInfoKey('mid3')} />
             </div>
           </div>
           {scope !== 'one' && <DailyTARStrip cyc={cyc} />}
