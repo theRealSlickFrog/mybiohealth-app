@@ -77,8 +77,12 @@ export default function PlotlyChart({ history, thresholds, reference, unit, mark
     const values = sliced.map((h) => parseFloat(h.value));
     const t = thresholds || {};
 
-    // Append reference point if we have one
-    const hasRef = !!(reference && reference.value != null && !isNaN(parseFloat(reference.value)));
+    // Append reference point if we have one — and only if it will actually be
+    // drawn. Gating on showReferenceTarget here (not just at render time) keeps
+    // a switched-off target out of the axis ranges below: it used to widen the
+    // y-range and push the x-range out to the target date, so a marker with a
+    // distant target drew with dead space and a squashed series.
+    const hasRef = !!(cfg.showReferenceTarget && reference && reference.value != null && !isNaN(parseFloat(reference.value)));
     const refValue = hasRef ? parseFloat(reference.value) : null;
     const refDate  = hasRef ? (reference.date ? reference.date.slice(0, 10) : null) : null;
     const refDirection = hasRef ? (reference.direction || '') : '';
