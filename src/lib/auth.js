@@ -173,6 +173,11 @@ export function devBlockExternalLink(url, label) {
 // auth succeeds, but redirect to a vanity-domain page finds no cookie there.
 export const CASPIO_LOGIN_URL = 'https://mybiohealth.caspio.app/users/e2j2rj/login';
 
+// Caspio sign-up DataPage — public form for creating a new member account.
+// The legacy d2hct674 domain is fine here: the form needs no login, so there
+// is no auth cookie to keep on the vanity domain.
+export const CASPIO_SIGNUP_URL = 'https://d2hct674.caspio.com/dp/a7ede0002b071fcc7d3a4ae3804a';
+
 // Caspio logout URL — must match the domain the auth cookie was set on.
 export const CASPIO_LOGOUT_URL = 'https://mybiohealth.caspio.app/users/e2j2rj/logout?redirect=https://mybiohealth.netlify.app';
 
