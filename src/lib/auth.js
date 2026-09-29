@@ -173,10 +173,13 @@ export function devBlockExternalLink(url, label) {
 // auth succeeds, but redirect to a vanity-domain page finds no cookie there.
 export const CASPIO_LOGIN_URL = 'https://mybiohealth.caspio.app/users/e2j2rj/login';
 
-// Caspio sign-up DataPage — public form for creating a new member account.
-// The legacy d2hct674 domain is fine here: the form needs no login, so there
-// is no auth cookie to keep on the vanity domain.
-export const CASPIO_SIGNUP_URL = 'https://d2hct674.caspio.com/dp/a7ede0002b071fcc7d3a4ae3804a';
+// Caspio Flex self-serve sign-up page — public form for creating a new member
+// account (name, email, password + required EULA/Privacy consent). Creates the
+// member as "Pending user activation" and emails a verification link; new rows
+// are tagged app_preference='netlify' + allowed_pages='all_pages', so the
+// post-login redirector sends them straight into V2. The consent checkbox links
+// to the /eula-v1 and /privacy-v1 pages served by this app.
+export const CASPIO_SIGNUP_URL = 'https://mybiohealth.caspio.app/sign-up';
 
 // Caspio logout URL — must match the domain the auth cookie was set on.
 export const CASPIO_LOGOUT_URL = 'https://mybiohealth.caspio.app/users/e2j2rj/logout?redirect=https://mybiohealth.netlify.app';
