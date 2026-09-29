@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { CASPIO_LOGIN_URL, devBlockExternalLink } from '../lib/auth.js';
+import { CASPIO_LOGIN_URL, CASPIO_SIGNUP_URL, devBlockExternalLink } from '../lib/auth.js';
 import './LandingPage.css';
 
 export default function LandingPage() {
@@ -24,6 +24,13 @@ export default function LandingPage() {
           onClick={devBlockExternalLink(CASPIO_LOGIN_URL, 'member login')}
         >
           Member Login
+        </a>
+        <a
+          className="cta-signup"
+          href={CASPIO_SIGNUP_URL}
+          onClick={devBlockExternalLink(CASPIO_SIGNUP_URL, 'sign up')}
+        >
+          Sign Up
         </a>
       </main>
     </div>

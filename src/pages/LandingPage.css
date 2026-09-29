@@ -33,6 +33,8 @@
 .landing .hero-center {
   flex: 1;
   display: flex;
+  flex-direction: column;
+  gap: 14px;
   align-items: center;
   justify-content: center;
   padding: 32px;
@@ -58,7 +60,31 @@
   transform: translateY(0);
 }
 
+/* Secondary to Member Login: same pill, outlined and a step smaller. */
+.landing .cta-signup {
+  display: inline-block;
+  background: transparent;
+  color: #1a1612;
+  border: 1.5px solid rgba(26, 22, 18, 0.35);
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 12px 32px;
+  border-radius: 999px;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+}
+.landing .cta-signup:hover {
+  border-color: #1a1612;
+  background: rgba(26, 22, 18, 0.04);
+  transform: translateY(-1px);
+}
+.landing .cta-signup:active {
+  transform: translateY(0);
+}
+
 @media (max-width: 600px) {
   .landing .nav-inner { padding: 14px 18px; }
   .landing .cta-login { font-size: 1rem; padding: 16px 32px; }
+  .landing .cta-signup { padding: 11px 28px; }
 }
