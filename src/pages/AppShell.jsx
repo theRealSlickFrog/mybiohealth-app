@@ -1,12 +1,14 @@
 // App shell — sticky top bar, hamburger drawer, page routing.
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { SLATE, OFFWHITE, MBH_DROP_IMG, ALL_PAGES } from '../lib/constants.js';
-import { captureGuidFromUrl, exchangeHandoffToken, hasHandoffToken, logActivity, logout, isAdminSession, isSessionExpired, setSessionExpiredHandler, navigateExternal, REDIRECTOR_URL, CASPIO_LOGOUT_URL } from '../lib/auth.js';
+import { captureGuidFromUrl, exchangeHandoffToken, getStoredGuid, hasHandoffToken, logActivity, logout, isAdminSession, isSessionExpired, setSessionExpiredHandler, navigateExternal, REDIRECTOR_URL, CASPIO_LOGOUT_URL } from '../lib/auth.js';
 import { isDraftDirty, setDraftDirty, DRAFT_LEAVE_MSG } from '../lib/strategyBuilder.js';
 import { pageFromPath, pathForPage } from '../lib/routes.js';
 import useIdleTimeout from '../lib/useIdleTimeout.js';
+import { markTourDone, shouldShowTour } from '../lib/welcomeTour.js';
 import { IdleWarningModal, SessionEndedScreen } from '../components/SessionTimeout.jsx';
 import Drawer from '../components/Drawer.jsx';
+import WelcomeTour from '../components/WelcomeTour.jsx';
 import MyStrategyPage from './MyStrategyPage.jsx';
 import BioSignalsPage from './BioSignalsPage.jsx';
 import GlucoseSummaryV2Page from './GlucoseSummaryV2Page.jsx';
@@ -159,6 +161,35 @@ export default function AppShell() {
     window.history.replaceState({}, '', url.toString());
   }, [booting, activePage]);
 
+  // ── Welcome tour ────────────────────────────────────────────────────────────
+  // Shown once to a signed-up member (see lib/welcomeTour.js for the rule).
+  // Never in an admin session: an admin viewing as a client must neither see
+  // it nor mark it done on the client's behalf.
+  //
+  // 'member' while showing for real, null when closed. In dev, ?tour_preview
+  // opens it as 'preview', which never reads from or writes to Caspio.
+  const [tour, setTour] = useState(() => (
+    import.meta.env.DEV && new URLSearchParams(window.location.search).has('tour_preview') ? 'preview' : null
+  ));
+
+  useEffect(() => {
+    if (booting || isAdminSession()) return;
+    const member = getStoredGuid();
+    if (!member) return;
+    let live = true;
+    shouldShowTour(member)
+      .then((show) => { if (live && show) setTour('member'); })
+      .catch(() => { /* no tour is the safe failure */ });
+    return () => { live = false; };
+  }, [booting]);
+
+  // Silent on failure: the worst case is the member sees the tour once more.
+  const closeTour = useCallback(() => {
+    const member = getStoredGuid();
+    if (tour === 'member' && member) markTourDone(member).catch(() => {});
+    setTour(null);
+  }, [tour]);
+
   const pageLabel = ALL_PAGES.find((n) => n.key === activePage)?.label;
   const showLabel = activePage !== 'strategy';
 
@@ -181,6 +212,8 @@ export default function AppShell() {
       {idleWarning && (
         <IdleWarningModal msLeft={idleMsLeft} draftAtRisk={isDraftDirty()} onStayActive={stayActive} />
       )}
+
+      {tour && <WelcomeTour onClose={closeTour} />}
 
       {drawerOpen && <Drawer activePage={activePage} onSelect={navigate} onClose={() => setDrawerOpen(false)} />}
 
