@@ -6,7 +6,7 @@ import { MBH_SAGE, SAGE_BG, SLATE, CARD, BORDER, OFFWHITE, SOFT_RED } from '../l
 import { getStoredGuid } from '../lib/auth.js';
 import { loadAccount, DEV_MEMBER } from '../lib/account.js';
 
-const STRIPE_CHECKOUT_URL = 'https://buy.stripe.com/eVqaEX2B03oecjV80YbbG01';
+const STRIPE_CHECKOUT_URL = 'https://buy.stripe.com/dRm4gzgrQ5wmdnZ2GEbbG02';
 
 function InfoRow({ label, value }) {
   return (
