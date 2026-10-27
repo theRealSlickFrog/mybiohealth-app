@@ -213,7 +213,7 @@ export default function AppShell() {
         <IdleWarningModal msLeft={idleMsLeft} draftAtRisk={isDraftDirty()} onStayActive={stayActive} />
       )}
 
-      {tour && <WelcomeTour onClose={closeTour} />}
+      {tour && <WelcomeTour onClose={closeTour} member={tour === 'member' ? getStoredGuid() : null} />}
 
       {drawerOpen && <Drawer activePage={activePage} onSelect={navigate} onClose={() => setDrawerOpen(false)} />}
 

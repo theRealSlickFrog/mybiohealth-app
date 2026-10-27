@@ -158,6 +158,9 @@ export async function loadDocCategories() {
   return recs.map((x) => ({ code: x.code, display: x.display_name, description: x.description || '' }));
 }
 
+// ~4.5MB to match the proxy's cap (Netlify function body limit).
+export const MAX_UPLOAD_BYTES = 4.5 * 1024 * 1024;
+
 // Upload a document through the proxy's /upload route. The proxy stamps
 // legal_entity_id from the session JWT server-side (the browser never sends a
 // member id — no GUID in any URL, and a user can only write to their own vault),
