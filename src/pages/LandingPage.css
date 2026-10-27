@@ -1,90 +1,99 @@
-/* Minimal landing — wordmark top-left, centered Member Login button. */
+/* Landing — the entry screen from Ken's onboarding prototype: one quiet column,
+   sage accent, DM Serif Display headline. Everything is scoped under .landing. */
 
 .landing {
+  --l-bg: #EDF1EF;
+  --l-ink: #17211E;
+  --l-muted: #58675F;
+  --l-accent: #3D6E58;
   min-height: 100vh;
-  background: #FAFAF7;
-  color: #1a1612;
-  display: flex;
-  flex-direction: column;
-  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  background: var(--l-bg);
+  color: var(--l-ink);
+  font-family: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  padding: 24px 16px 64px;
   -webkit-font-smoothing: antialiased;
 }
 .landing * { box-sizing: border-box; }
-.landing a { color: inherit; }
 
-.landing .nav {
-  background: rgba(250, 250, 247, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(0,0,0,0.06);
-}
-.landing .nav-inner {
-  max-width: 1280px;
+.landing .landing-top,
+.landing .landing-main {
+  max-width: 560px;
   margin: 0 auto;
-  padding: 18px 28px;
 }
-.landing .nav-logo {
-  font-size: 1.05rem;
-  letter-spacing: -0.02em;
-}
-.landing .nav-logo .italic { font-style: italic; font-weight: 400; }
-.landing .nav-logo .bold   { font-weight: 700; }
-
-.landing .hero-center {
-  flex: 1;
+.landing .landing-top {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 56px;
+}
+.landing .landing-brand {
+  margin: 0;
+  font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif;
+  font-size: 1.1rem;
+}
+.landing em { font-style: italic; }
+.landing .landing-toplinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 20px;
+}
+.landing .landing-toplinks a {
+  color: var(--l-muted);
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+
+.landing .landing-eyebrow {
+  margin: 0 0 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--l-muted);
+}
+.landing .landing-title {
+  margin: 0 0 32px;
+  font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  font-size: clamp(1.7rem, 5.5vw, 2.2rem);
+  line-height: 1.15;
+  text-wrap: balance;
+}
+.landing .landing-sub {
+  margin: -14px 0 36px;
+  max-width: 30rem;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--l-muted);
+}
+
+.landing .landing-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 48px;
+  margin-top: 8px;
+}
+.landing .landing-btn {
+  flex: 1 1 200px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 32px;
-}
-
-.landing .cta-login {
-  display: inline-block;
-  background: #1a1612;
-  color: white !important;
-  text-decoration: none;
-  font-size: 1.1rem;
+  min-height: 56px;
+  padding: 10px 28px;
+  border: 1px solid var(--l-accent);
+  border-radius: 6px;
+  background: var(--l-accent);
+  color: #FFFFFF;
   font-weight: 600;
-  letter-spacing: 0.01em;
-  padding: 18px 40px;
-  border-radius: 999px;
-  transition: opacity 0.2s, transform 0.15s;
-}
-.landing .cta-login:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-.landing .cta-login:active {
-  transform: translateY(0);
-}
-
-/* Secondary to Member Login: same pill, outlined and a step smaller. */
-.landing .cta-signup {
-  display: inline-block;
-  background: transparent;
-  color: #1a1612;
-  border: 1.5px solid rgba(26, 22, 18, 0.35);
   text-decoration: none;
-  font-size: 0.95rem;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  padding: 12px 32px;
-  border-radius: 999px;
-  transition: border-color 0.2s, background 0.2s, transform 0.15s;
 }
-.landing .cta-signup:hover {
-  border-color: #1a1612;
-  background: rgba(26, 22, 18, 0.04);
-  transform: translateY(-1px);
-}
-.landing .cta-signup:active {
-  transform: translateY(0);
-}
-
-@media (max-width: 600px) {
-  .landing .nav-inner { padding: 14px 18px; }
-  .landing .cta-login { font-size: 1rem; padding: 16px 32px; }
-  .landing .cta-signup { padding: 11px 28px; }
+.landing .landing-btn:hover { filter: brightness(1.06); }
+.landing .landing-btn:focus-visible { outline: 2px solid var(--l-accent); outline-offset: 3px; }
+.landing .landing-btn.alt {
+  background: transparent;
+  color: var(--l-accent);
 }

@@ -3,8 +3,8 @@
 
 .signup-page {
   min-height: 100vh;
-  background: #FAFAF7;
-  color: #1a1612;
+  background: #EDF1EF;
+  color: #17211E;
   display: flex;
   flex-direction: column;
   font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
@@ -14,8 +14,7 @@
 .signup-page * { box-sizing: border-box; }
 
 .signup-page .signup-nav {
-  background: rgba(250, 250, 247, 0.92);
-  border-bottom: 1px solid rgba(0,0,0,0.06);
+  border-bottom: 1px solid #C4CFC9;
 }
 .signup-page .signup-nav-inner {
   max-width: 1280px;
@@ -29,22 +28,21 @@
 .signup-page .signup-logo {
   color: inherit;
   text-decoration: none;
-  font-size: 1.05rem;
-  letter-spacing: -0.02em;
+  font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif;
+  font-size: 1.1rem;
 }
-.signup-page .signup-logo .italic { font-style: italic; font-weight: 400; }
-.signup-page .signup-logo .bold   { font-weight: 700; }
+.signup-page .signup-logo em { font-style: italic; }
 .signup-page .signup-login-link {
-  color: #1a1612;
+  color: #3D6E58;
   font-size: 0.9rem;
-  font-weight: 500;
+  font-weight: 600;
   text-decoration: none;
-  border: 1.5px solid rgba(26, 22, 18, 0.35);
-  border-radius: 999px;
+  border: 1px solid #3D6E58;
+  border-radius: 6px;
   padding: 8px 18px;
   white-space: nowrap;
 }
-.signup-page .signup-login-link:hover { border-color: #1a1612; }
+.signup-page .signup-login-link:hover { background: #DAE7E0; }
 
 .signup-page .signup-main {
   flex: 1;
@@ -63,14 +61,14 @@
 .signup-page .signup-sub {
   margin: 0 0 24px;
   text-align: center;
-  color: #6b7280;
+  color: #58675F;
   font-size: 0.95rem;
   line-height: 1.5;
 }
 .signup-page .signup-msg {
   margin: 0;
   text-align: center;
-  color: #6b7280;
+  color: #58675F;
   font-size: 0.95rem;
 }
 

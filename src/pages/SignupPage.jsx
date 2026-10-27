@@ -24,7 +24,7 @@ export default function SignupPage() {
       <nav className="signup-nav">
         <div className="signup-nav-inner">
           <a href="/" className="signup-logo">
-            <span className="italic">My</span><span className="bold">BioHealth.ca</span>
+            <em>My</em>BioHealth
           </a>
           <a
             className="signup-login-link"
