@@ -1,0 +1,175 @@
+/* Onboarding modal — the look of Ken's prototype ("MBH Onboarding Near Final"):
+   one quiet column, underlined inputs, serif headings, sage accent, a hairline
+   for progress. Everything is scoped under .mbh-onb. */
+
+.mbh-onb {
+  --o-bg: #EDF1EF;
+  --o-ink: #17211E;
+  --o-muted: #58675F;
+  --o-line: #C4CFC9;
+  --o-accent: #3D6E58;
+  --o-accent-soft: #DAE7E0;
+  --o-err: #A23B33;
+  --o-display: 'DM Serif Display', Georgia, 'Times New Roman', serif;
+  position: fixed;
+  inset: 0;
+  z-index: 450;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(23, 33, 30, 0.55);
+  font-family: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--o-ink);
+}
+.mbh-onb * { box-sizing: border-box; }
+.mbh-onb h2, .mbh-onb p, .mbh-onb ul, .mbh-onb ol { margin: 0; padding: 0; }
+.mbh-onb button, .mbh-onb input, .mbh-onb textarea, .mbh-onb select { font: inherit; color: inherit; }
+.mbh-onb em.my { font-style: italic; }
+
+.mbh-onb .card {
+  width: 100%;
+  max-width: 600px;
+  max-height: 92dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--o-bg);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  outline: none;
+  padding: 20px 24px 28px;
+}
+
+/* Brand row + hairline progress */
+.mbh-onb .top { display: flex; align-items: baseline; gap: 16px; margin-bottom: 14px; }
+.mbh-onb .brand { font-family: var(--o-display); font-size: 1.1rem; flex: 1; }
+.mbh-onb .top a { color: var(--o-muted); font-size: 0.85rem; line-height: 1.2; }
+.mbh-onb .close {
+  background: none; border: 0; padding: 0 2px; cursor: pointer;
+  color: var(--o-muted); font-size: 1.4rem; line-height: 1;
+}
+.mbh-onb .bar { height: 2px; background: var(--o-line); margin-bottom: 32px; }
+.mbh-onb .bar i { display: block; height: 100%; background: var(--o-accent); transition: width 0.3s ease; }
+
+.mbh-onb h2 {
+  font-family: var(--o-display);
+  font-weight: 400;
+  font-size: clamp(1.6rem, 5.5vw, 2.1rem);
+  line-height: 1.15;
+  text-wrap: balance;
+  margin-bottom: 28px;
+}
+.mbh-onb .lead { color: var(--o-muted); font-size: 0.92rem; margin: -16px 0 16px; }
+.mbh-onb .quiet { color: var(--o-muted); font-size: 0.875rem; margin-top: 12px; }
+.mbh-onb .echo { font-size: 0.875rem; color: var(--o-muted); margin-top: 6px; }
+.mbh-onb .err { color: var(--o-err); font-size: 0.875rem; margin-top: 10px; }
+
+/* Inputs: underlined, no visible labels (placeholders carry them). */
+.mbh-onb .fld { margin-bottom: 24px; position: relative; min-width: 0; }
+.mbh-onb .in {
+  display: block; width: 100%; min-width: 0; min-height: 48px; padding: 10px 0;
+  border: 0; border-bottom: 1px solid var(--o-line); border-radius: 0;
+  background: transparent; color: var(--o-ink); font-size: 1.1rem; line-height: 1.4; resize: none;
+}
+.mbh-onb .in::placeholder { color: var(--o-muted); opacity: 0.8; }
+.mbh-onb .in:focus { outline: none; border-bottom-color: var(--o-accent); box-shadow: 0 1px 0 var(--o-accent); }
+.mbh-onb .in.box { border: 1px solid var(--o-line); border-radius: 6px; padding: 12px 14px; min-height: 104px; line-height: 1.45; }
+.mbh-onb .in.box:focus { border-color: var(--o-accent); box-shadow: 0 0 0 1px var(--o-accent); }
+.mbh-onb select.in { cursor: pointer; }
+.mbh-onb .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.mbh-onb .loggedin { padding: 4px 0 10px; border-bottom: 1px solid var(--o-line); overflow-wrap: anywhere; }
+.mbh-onb .row { display: flex; flex-wrap: wrap; column-gap: 5ch; }
+.mbh-onb .row .fld { flex: 1 1 11rem; }
+
+/* "Perhaps…" suggestions */
+.mbh-onb .sugglist { list-style: none; margin-top: 6px; border-top: 1px solid var(--o-line); }
+.mbh-onb .sugglist li { border-bottom: 1px solid var(--o-line); }
+.mbh-onb .sug {
+  display: block; width: 100%; text-align: left; background: none; border: 0;
+  padding: 10px 2px; color: var(--o-ink); font-size: 0.95rem; line-height: 1.35; cursor: pointer;
+}
+.mbh-onb .sug:hover { color: var(--o-accent); }
+
+/* Radio rows */
+.mbh-onb .q { border: 0; margin: 0 0 20px; padding: 0; min-width: 0; }
+.mbh-onb .q legend { padding: 0; font-weight: 600; margin-bottom: 4px; }
+.mbh-onb .opt { position: relative; display: block; }
+.mbh-onb .opt input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.mbh-onb .opt span { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--o-line); }
+.mbh-onb .opt span::before {
+  content: ""; width: 16px; height: 16px; border: 1.5px solid var(--o-line); border-radius: 50%; flex: none;
+}
+.mbh-onb .opt input:checked + span::before { border-color: var(--o-accent); background: radial-gradient(var(--o-accent) 45%, transparent 50%); }
+.mbh-onb .opt input:focus-visible + span { outline: 2px solid var(--o-accent); outline-offset: 2px; }
+.mbh-onb .sep { border-top: 1px solid var(--o-ink); opacity: 0.35; margin: 14px 0 4px; }
+.mbh-onb .rcp { margin-top: 14px; }
+.mbh-onb .rcp .in { margin-top: 2px; }
+
+/* Pills (comms, add another) */
+.mbh-onb .comms { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.mbh-onb .clabel { color: var(--o-muted); font-size: 0.9rem; margin-right: 6px; }
+.mbh-onb .pill {
+  font-size: 0.92rem; background: transparent; border: 1px solid var(--o-line);
+  border-radius: 999px; padding: 7px 16px; cursor: pointer;
+}
+.mbh-onb .pill:hover { border-color: var(--o-accent); }
+.mbh-onb .pill[aria-checked="true"] { border-color: var(--o-accent); color: var(--o-accent); box-shadow: inset 0 0 0 1px var(--o-accent); }
+.mbh-onb .pill.add { margin-top: 14px; }
+
+/* Upload */
+.mbh-onb .drop {
+  position: relative; display: block; text-align: center; padding: 40px 16px;
+  border: 1px dashed var(--o-line); border-radius: 6px; cursor: pointer;
+}
+.mbh-onb .drop:hover, .mbh-onb .drop.over { border-color: var(--o-accent); background: var(--o-accent-soft); }
+.mbh-onb .drop:focus-within { outline: 2px solid var(--o-accent); outline-offset: 3px; }
+.mbh-onb .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.mbh-onb .drop strong { display: block; font-weight: 500; font-size: 1.05rem; }
+.mbh-onb .drop small { display: block; color: var(--o-muted); margin-top: 4px; }
+.mbh-onb .files { list-style: none; margin-top: 16px; }
+.mbh-onb .file {
+  display: grid; grid-template-columns: 1fr auto; gap: 16px; padding: 12px 0;
+  border-bottom: 1px solid var(--o-line); align-items: center;
+}
+.mbh-onb .file .name { overflow-wrap: anywhere; min-width: 0; }
+.mbh-onb .file .state { font-size: 0.875rem; color: var(--o-muted); white-space: nowrap; }
+.mbh-onb .file .state.bad { color: var(--o-err); }
+
+/* Thank you */
+.mbh-onb .two { list-style: none; margin: 0 0 30px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 18px; }
+.mbh-onb .two li { display: flex; align-items: flex-start; gap: 12px; }
+.mbh-onb .two li.arrow { color: var(--o-muted); padding-top: 1px; }
+.mbh-onb .two b { display: block; font-weight: 600; }
+.mbh-onb .two small { display: block; color: var(--o-muted); font-size: 0.85rem; margin-top: 2px; }
+.mbh-onb .num {
+  display: inline-grid; place-items: center; flex: none; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--o-ink); color: var(--o-bg); font-style: normal; font-size: 0.82rem; font-weight: 600;
+}
+.mbh-onb .book { max-width: 30rem; }
+
+/* Buttons */
+.mbh-onb .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 32px; }
+.mbh-onb .btn {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 48px; min-width: 160px;
+  margin-left: auto; padding: 10px 28px; border: 1px solid var(--o-accent); border-radius: 6px;
+  background: var(--o-accent); color: #FFFFFF; font-weight: 600; cursor: pointer; text-decoration: none;
+}
+.mbh-onb .btn:hover { filter: brightness(1.06); }
+.mbh-onb .btn[disabled] { opacity: 0.6; cursor: default; filter: none; }
+.mbh-onb .btn:focus-visible, .mbh-onb .link:focus-visible { outline: 2px solid var(--o-accent); outline-offset: 3px; }
+.mbh-onb .link {
+  background: none; border: 0; padding: 0; color: var(--o-muted);
+  text-decoration: underline; cursor: pointer; font-size: 0.9rem;
+}
+.mbh-onb .link.accent { color: var(--o-accent); }
+.mbh-onb .link[disabled] { opacity: 0.6; cursor: default; }
+
+@media (max-width: 520px) {
+  .mbh-onb { padding: 8px; }
+  .mbh-onb .card { padding: 16px 16px 24px; }
+  .mbh-onb .two { flex-direction: column; }
+  .mbh-onb .two li.arrow { display: none; }
+  .mbh-onb .btn { min-width: 0; flex: 1; }
+}

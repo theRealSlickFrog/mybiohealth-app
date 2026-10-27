@@ -11,10 +11,13 @@
 //   mobile             legal_entity.PhoneNumber
 //   comms preference   member_info, feature='COMMS_PREFERENCE', text_box_1=Email|Text|Both
 //   date of birth      member_info, feature='DATE_OF_BIRTH', text_box_1='YYYY-MM-DD'
-//   other members      member_info, feature='GROUP_MEMBERS', text_box_2=JSON [{first,last,email}]
+//   other members      member_info, feature='GROUP_MEMBERS', text_box_2=JSON [{name,email,how}]
+//                      (how = spoken|contact|advise, as in Ken's prototype)
 //   gift recipient     member_info, feature='GIFT_RECIPIENT', text_box_2=JSON {first,last,email}
-//   gift code          member_info, feature='GIFT_CODE', text_box_1=code
-//   doctor visit       member_info, feature='DOCTOR_VISIT', text_box_1=week|two_weeks|month
+//   gift code          member_info, feature='GIFT_CODE', text_box_1=gifter's email or
+//                      invitation code (gifted members, or "Have an invitation?")
+//   doctor visit       member_info, feature='DOCTOR_VISIT', text_box_1=week|two_weeks|month,
+//                      text_box_2=JSON {when, byDate:'YYYY-MM-DD', committedAt: ISO}
 //   progress           member_info, feature='ONBOARDING_STEP', text_box_1=step key
 //
 // legal_entity has no date-of-birth or comms-preference field (checked against a
@@ -85,9 +88,11 @@ export async function loadOnboarding(member) {
 }
 
 // One member_info row per (member, feature): update it if it exists, else insert.
-async function saveFeature(member, key, value) {
+// `detail`, when given, goes to text_box_2 as JSON beside a text_box_1 value.
+async function saveFeature(member, key, value, detail) {
   const feature = FEATURES[key];
   const body = JSON_KEYS.has(key) ? { text_box_2: JSON.stringify(value) } : { text_box_1: String(value ?? '') };
+  if (detail !== undefined) body.text_box_2 = JSON.stringify(detail);
   const where = `member_id='${q(member)}' AND feature='${feature}'`;
   const existing = await getRows('member_info', where);
   const r = existing.length
@@ -126,7 +131,8 @@ export const saveGroupMembers = (member, list) => saveFeature(member, 'group', l
 export const saveGiftRecipient = (member, recipient) => saveFeature(member, 'giftRecipient', recipient);
 // member_info GIFT_CODE, text_box_1
 export const saveGiftCode = (member, code) => saveFeature(member, 'giftCode', code);
-// member_info DOCTOR_VISIT, text_box_1
-export const saveDoctorVisit = (member, when) => saveFeature(member, 'doctorVisit', when);
+// member_info DOCTOR_VISIT: text_box_1 = when, text_box_2 = JSON with the by-date.
+export const saveDoctorVisit = (member, when, byDate) =>
+  saveFeature(member, 'doctorVisit', when, { when, byDate, committedAt: new Date().toISOString() });
 // member_info ONBOARDING_STEP, text_box_1 — where to resume after a refresh.
 export const saveStep = (member, step) => saveFeature(member, 'step', step);
