@@ -11,7 +11,7 @@ import { MBH_SAGE, SAGE_BG, AMBER_BG, SLATE, CARD, BORDER, SOFT_RED } from '../l
 import { getStoredGuid, isAdminSession } from '../lib/auth.js';
 import {
   loadDocuments, loadDocCategories, loadUploadCategories, loadDownloadCategories,
-  softDeleteDocument, uploadDocument, getDownloadUrl, markViewed, formatDate, DEV_MEMBER,
+  softDeleteDocument, uploadDocument, MAX_UPLOAD_BYTES, getDownloadUrl, markViewed, formatDate, DEV_MEMBER,
 } from '../lib/vault.js';
 
 const ALL = '__all__';
@@ -133,9 +133,6 @@ export default function VaultPage() {
     setUploadOpen(false);
     resetUpload();
   }
-
-  // ~4.5MB to match the proxy's cap (Netlify function body limit).
-  const MAX_UPLOAD_BYTES = 4.5 * 1024 * 1024;
 
   async function doUpload(e) {
     e.preventDefault();
