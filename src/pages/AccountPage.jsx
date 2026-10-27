@@ -2,11 +2,9 @@
 // reading through the proxy + JWT (lib/account.js). Payment is a Stripe hosted-
 // checkout link (the V1 page's approach); an embedded buy-button can come later.
 import { useEffect, useState } from 'react';
-import { MBH_SAGE, SAGE_BG, SLATE, CARD, BORDER, OFFWHITE, SOFT_RED } from '../lib/constants.js';
+import { MBH_SAGE, SAGE_BG, SLATE, CARD, BORDER, OFFWHITE, SOFT_RED, STRIPE_CHECKOUT_URL } from '../lib/constants.js';
 import { getStoredGuid } from '../lib/auth.js';
 import { loadAccount, DEV_MEMBER } from '../lib/account.js';
-
-const STRIPE_CHECKOUT_URL = 'https://buy.stripe.com/dRm4gzgrQ5wmdnZ2GEbbG02';
 
 function InfoRow({ label, value }) {
   return (
