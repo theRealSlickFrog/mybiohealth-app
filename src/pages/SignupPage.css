@@ -1,4 +1,4 @@
-/* /signup — our header with the Caspio sign-up DataPage embedded and centred.
+/* /signup: our header with the Caspio Flex sign-up form framed and centred.
    Everything is scoped under .signup-page so nothing leaks into the app shell. */
 
 .signup-page {
@@ -49,7 +49,7 @@
 .signup-page .signup-main {
   flex: 1;
   width: 100%;
-  max-width: 560px;
+  max-width: 680px;
   margin: 0 auto;
   padding: 40px 16px 64px;
 }
@@ -67,7 +67,6 @@
   font-size: 0.95rem;
   line-height: 1.5;
 }
-.signup-page .signup-card { min-height: 80px; }
 .signup-page .signup-msg {
   margin: 0;
   text-align: center;
@@ -75,42 +74,31 @@
   font-size: 0.95rem;
 }
 
-/* The DataPage's own header CSS is written for Caspio's hosted page: it makes
-   body a padded, centred flex box, which shrinks the app root to the form's
-   width. Undo that, but only while this page is mounted. */
-body:has(.signup-page) {
-  display: block !important;
-  padding: 0 !important;
-  height: auto !important;
+/* Caspio's Flex form in a frame. A cross-origin frame can't report its height,
+   so it gets a fixed one sized to the form plus room for validation messages;
+   the frame scrolls inside itself if Caspio ever shows more. The wrapper's
+   background matches the Flex page so the spare space reads as one panel. */
+.signup-page .signup-frame-wrap {
+  position: relative;
+  background: #2e3558;
+  border-radius: 14px;
+  overflow: hidden;
 }
-
-/* Caspio pins every cell to a fixed grid row and column (label left, field
-   right), which squeezes the fields to a sliver on a phone. Re-flow it: each
-   label sits above a full-width field, and a checkbox stays beside its label. */
-.signup-page .signup-embed { width: 100%; max-width: 100%; }
-.signup-page .signup-embed section[class*="cbFormSection"] {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) auto !important;
-  width: 100% !important;
-  column-gap: 12px;
+.signup-page .signup-frame-wrap .signup-msg {
+  position: absolute;
+  inset: 24px 0 auto;
+  color: rgba(255, 255, 255, 0.75);
 }
-.signup-page .signup-embed section[class*="cbFormSection"] > div {
-  grid-row: auto !important;
-  grid-column: 1 / -1 !important;
-  min-width: 0;
+.signup-page .signup-frame {
+  display: block;
+  width: 100%;
+  height: 560px;
+  border: 0;
 }
-.signup-page .signup-embed section[class*="cbFormSection"] > .cbFormLabelCell:has(+ .cbFormFieldCell input[type="checkbox"]) {
-  grid-column: 1 !important;
-  align-self: center;
-}
-.signup-page .signup-embed section[class*="cbFormSection"] > .cbFormFieldCell:has(input[type="checkbox"]) {
-  grid-column: 2 !important;
-  align-self: center;
-}
-.signup-page .signup-embed .cbFormTextField { width: 100% !important; max-width: 100%; }
 
 @media (max-width: 600px) {
   .signup-page .signup-nav-inner { padding: 14px 16px; }
   .signup-page .signup-main { padding: 28px 16px 48px; }
   .signup-page .signup-title { font-size: 1.6rem; }
+  .signup-page .signup-frame { height: 760px; }
 }
