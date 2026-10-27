@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import LandingPage from './pages/LandingPage.jsx';
 import AppShell from './pages/AppShell.jsx';
 import LegalPage from './pages/LegalPage.jsx';
+import SignupPage from './pages/SignupPage.jsx';
 
 // Trivial top-level routing (in-app pages under /app are handled in AppShell via
 // lib/routes.js). Netlify's SPA fallback serves index.html for every path, so
@@ -10,6 +11,7 @@ import LegalPage from './pages/LegalPage.jsx';
 function getRoute() {
   const path = window.location.pathname;
   if (path === '/app' || path.startsWith('/app/')) return { name: 'app' };
+  if (/^\/signup\/?$/i.test(path)) return { name: 'signup' };
   // Public legal pages, optionally version-pinned: /eula, /eula-v1, /privacy, /privacy-v2 …
   const legal = path.match(/^\/(eula|privacy)(?:-v\d+)?\/?$/i);
   if (legal) return { name: legal[1].toLowerCase() };
@@ -27,6 +29,7 @@ export default function App() {
 
   switch (route.name) {
     case 'app':     return <AppShell />;
+    case 'signup':  return <SignupPage />;
     case 'eula':    return <LegalPage doc="eula" />;
     case 'privacy': return <LegalPage doc="privacy" />;
     default:        return <LandingPage />;
