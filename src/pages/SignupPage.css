@@ -67,12 +67,7 @@
   font-size: 0.95rem;
   line-height: 1.5;
 }
-.signup-page .signup-card {
-  background: #ffffff;
-  border: 1px solid #ede9e3;
-  border-radius: 14px;
-  padding: 24px;
-}
+.signup-page .signup-card { min-height: 80px; }
 .signup-page .signup-msg {
   margin: 0;
   text-align: center;
@@ -80,19 +75,42 @@
   font-size: 0.95rem;
 }
 
-/* Caspio injects its own markup; keep it inside the card and let its fixed-width
-   tables and inputs shrink instead of pushing the page sideways. */
-.signup-page .signup-embed { width: 100%; max-width: 100%; overflow-x: auto; }
-.signup-page .signup-embed form,
-.signup-page .signup-embed table,
-.signup-page .signup-embed section { max-width: 100% !important; margin-left: auto; margin-right: auto; }
-.signup-page .signup-embed input,
-.signup-page .signup-embed select,
-.signup-page .signup-embed textarea { max-width: 100%; }
+/* The DataPage's own header CSS is written for Caspio's hosted page: it makes
+   body a padded, centred flex box, which shrinks the app root to the form's
+   width. Undo that, but only while this page is mounted. */
+body:has(.signup-page) {
+  display: block !important;
+  padding: 0 !important;
+  height: auto !important;
+}
+
+/* Caspio pins every cell to a fixed grid row and column (label left, field
+   right), which squeezes the fields to a sliver on a phone. Re-flow it: each
+   label sits above a full-width field, and a checkbox stays beside its label. */
+.signup-page .signup-embed { width: 100%; max-width: 100%; }
+.signup-page .signup-embed section[class*="cbFormSection"] {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  width: 100% !important;
+  column-gap: 12px;
+}
+.signup-page .signup-embed section[class*="cbFormSection"] > div {
+  grid-row: auto !important;
+  grid-column: 1 / -1 !important;
+  min-width: 0;
+}
+.signup-page .signup-embed section[class*="cbFormSection"] > .cbFormLabelCell:has(+ .cbFormFieldCell input[type="checkbox"]) {
+  grid-column: 1 !important;
+  align-self: center;
+}
+.signup-page .signup-embed section[class*="cbFormSection"] > .cbFormFieldCell:has(input[type="checkbox"]) {
+  grid-column: 2 !important;
+  align-self: center;
+}
+.signup-page .signup-embed .cbFormTextField { width: 100% !important; max-width: 100%; }
 
 @media (max-width: 600px) {
   .signup-page .signup-nav-inner { padding: 14px 16px; }
   .signup-page .signup-main { padding: 28px 16px 48px; }
   .signup-page .signup-title { font-size: 1.6rem; }
-  .signup-page .signup-card { padding: 16px; }
 }

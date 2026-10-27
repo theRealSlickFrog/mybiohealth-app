@@ -13,11 +13,11 @@ import { CASPIO_LOGIN_URL, devBlockExternalLink } from '../lib/auth.js';
 import './SignupPage.css';
 
 const CONFIG = {
-  // TODO: the sign-up DataPage's AppKey, i.e. the XXXXXXXX in
-  // https://mybiohealth.caspio.app/dp/XXXXXXXX/emb (Caspio: DataPage > Deploy >
-  // Embedded). Until it's set the page shows a placeholder instead of the form.
-  DATAPAGE_KEY: '',
-  CASPIO_HOST: 'https://mybiohealth.caspio.app',
+  // Sign-up DataPage (Caspio: DataPage > Deploy > Embedded). DataPage embeds are
+  // served from the account's legacy host; mybiohealth.caspio.app is the Flex
+  // app and doesn't serve /dp/ scripts.
+  DATAPAGE_KEY: 'a7ede0002b071fcc7d3a4ae3804a',
+  CASPIO_HOST: 'https://d2hct674.caspio.com',
 };
 
 export default function SignupPage() {
@@ -30,25 +30,17 @@ export default function SignupPage() {
 
   useEffect(() => {
     const host = hostRef.current;
-    if (!CONFIG.DATAPAGE_KEY || !host) return;
+    // Already loaded: StrictMode runs this effect twice in dev, and a second
+    // script would embed a second copy of the form.
+    if (!CONFIG.DATAPAGE_KEY || !host || host.querySelector('script')) return;
 
-    // Caspio's embed script document.write()s the form where the <script> tag
-    // sits. A script added after page load can't do that, so while it runs,
-    // route document.write into our container instead.
-    const origWrite = document.write;
-    document.write = (...html) => host.insertAdjacentHTML('beforeend', html.join(''));
-    const restore = () => { document.write = origWrite; };
-
+    // Caspio's async embed finds its own <script> tag, puts an anchor <div>
+    // right after it, and renders the form into that.
     const s = document.createElement('script');
     s.src = `${CONFIG.CASPIO_HOST}/dp/${CONFIG.DATAPAGE_KEY}/emb`;
-    s.onload = () => { restore(); setStatus('ready'); };
-    s.onerror = () => { restore(); setStatus('error'); };
+    s.onload = () => setStatus('ready');
+    s.onerror = () => setStatus('error');
     host.appendChild(s);
-
-    return () => {
-      restore();
-      host.innerHTML = '';
-    };
   }, []);
 
   return (
@@ -70,7 +62,7 @@ export default function SignupPage() {
 
       <main className="signup-main">
         <h1 className="signup-title">Create your account</h1>
-        <p className="signup-sub">Start with your name, email and a password. The rest comes after you sign in.</p>
+        <p className="signup-sub">Start with your name and email. The rest comes after you sign in.</p>
 
         <div className="signup-card">
           {status === 'unconfigured' && (
