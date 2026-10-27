@@ -1,0 +1,102 @@
+/* /signup: our header with the Caspio Flex sign-up form framed and centred.
+   Everything is scoped under .signup-page so nothing leaks into the app shell. */
+
+.signup-page {
+  min-height: 100vh;
+  background: #EDF1EF;
+  color: #17211E;
+  display: flex;
+  flex-direction: column;
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+.signup-page * { box-sizing: border-box; }
+
+.signup-page .signup-nav {
+  border-bottom: 1px solid #C4CFC9;
+}
+.signup-page .signup-nav-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 18px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.signup-page .signup-logo {
+  color: inherit;
+  text-decoration: none;
+  font-family: 'DM Serif Display', Georgia, 'Times New Roman', serif;
+  font-size: 1.1rem;
+}
+.signup-page .signup-logo em { font-style: italic; }
+.signup-page .signup-login-link {
+  color: #3D6E58;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid #3D6E58;
+  border-radius: 6px;
+  padding: 8px 18px;
+  white-space: nowrap;
+}
+.signup-page .signup-login-link:hover { background: #DAE7E0; }
+
+.signup-page .signup-main {
+  flex: 1;
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 40px 16px 64px;
+}
+.signup-page .signup-title {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-weight: 400;
+  font-size: 2rem;
+  margin: 0 0 8px;
+  text-align: center;
+}
+.signup-page .signup-sub {
+  margin: 0 0 24px;
+  text-align: center;
+  color: #58675F;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.signup-page .signup-msg {
+  margin: 0;
+  text-align: center;
+  color: #58675F;
+  font-size: 0.95rem;
+}
+
+/* Caspio's Flex form in a frame. A cross-origin frame can't report its height,
+   so it gets a fixed one sized to the form plus room for validation messages;
+   the frame scrolls inside itself if Caspio ever shows more. The wrapper's
+   background matches the Flex page so the spare space reads as one panel. */
+.signup-page .signup-frame-wrap {
+  position: relative;
+  background: #2e3558;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.signup-page .signup-frame-wrap .signup-msg {
+  position: absolute;
+  inset: 24px 0 auto;
+  color: rgba(255, 255, 255, 0.75);
+}
+.signup-page .signup-frame {
+  display: block;
+  width: 100%;
+  height: 560px;
+  border: 0;
+}
+
+@media (max-width: 600px) {
+  .signup-page .signup-nav-inner { padding: 14px 16px; }
+  .signup-page .signup-main { padding: 28px 16px 48px; }
+  .signup-page .signup-title { font-size: 1.6rem; }
+  .signup-page .signup-frame { height: 760px; }
+}
