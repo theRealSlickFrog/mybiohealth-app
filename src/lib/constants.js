@@ -26,6 +26,11 @@ export const IDLE_WARNING_MS = 25 * 60 * 1000;
 export const IDLE_GRACE_MS   =  5 * 60 * 1000;
 export const IDLE_TIMEOUT_MS = IDLE_WARNING_MS + IDLE_GRACE_MS;
 
+// Stripe hosted checkout for a single membership. Shared by the Account page and
+// the onboarding flow. Nothing in this app handles the return from Stripe: the
+// member record is not updated here after payment.
+export const STRIPE_CHECKOUT_URL = 'https://buy.stripe.com/dRm4gzgrQ5wmdnZ2GEbbG02';
+
 export const MBH_DROP_IMG = 'https://res.cloudinary.com/dai0low65/image/upload/v1763491944/logo_pp70kv.png';
 
 export const NAV_ITEMS = [
