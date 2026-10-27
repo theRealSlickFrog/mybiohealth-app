@@ -17,9 +17,10 @@
 //   doctor visit       member_info, feature='DOCTOR_VISIT', text_box_1=week|two_weeks|month
 //   progress           member_info, feature='ONBOARDING_STEP', text_box_1=step key
 //
-// No date-of-birth or comms-preference field turns up anywhere in this codebase,
-// and the proxy won't list legal_entity's fields without a session, so those two
-// sit in member_info for now. Move them if legal_entity already has a home.
+// legal_entity has no date-of-birth or comms-preference field (checked against a
+// table export, Oct 2026: UserGUID, names, alias, PhoneNumber, Email, password,
+// user_role, dates, allowed_pages, is_admin, app_preference, eula_*), so those
+// two live in member_info.
 // All values are text: nothing here writes to a Caspio Number field.
 import { loadNote, saveNote } from './notes.js';
 
