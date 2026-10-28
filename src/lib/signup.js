@@ -4,8 +4,9 @@
 // The proxy does the Caspio work server-side (the REST credentials never reach
 // the browser): it creates the member in the Caspio directory, activates them,
 // tags the legal_entity row the way the Flex form did (app_preference='netlify',
-// allowed_pages='all_pages') and hands back a one-time token — the same kind the
-// Caspio minter sends after a normal login. The app then opens /app?t=<token>,
+// allowed_pages='all_pages'), adds the member_info WELCOME_TOUR='pending' row
+// that opens the Welcome popup (lib/welcomeTour.js), and hands back a one-time
+// token — the same kind the Caspio minter sends after a normal login. The app then opens /app?t=<token>,
 // and the existing exchange in AppShell (lib/auth.js exchangeHandoffToken) turns
 // it into a session.
 //

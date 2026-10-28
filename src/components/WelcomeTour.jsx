@@ -3,8 +3,10 @@
 // lib/welcomeTour.js); closing it by any route counts as done.
 //
 // Screens, wording, prices and look follow Ken's prototype ("MBH Onboarding
-// Near Final"), minus what sign-up already covers: login, first/last name and
-// the EULA (accepted on the Caspio sign-up form).
+// Near Final"), minus what sign-up already covers: login and first/last name.
+// The Member Agreement (EULA) comes first, before any personal details are
+// asked, and only for a member who hasn't accepted it yet (members who signed
+// up on the old Caspio form ticked it there). It can't be closed or skipped.
 //
 // Each step is saved to Caspio on Continue (lib/onboarding.js says where every
 // answer lands) and loaded back on open, so a refresh resumes mid-flow.
@@ -16,7 +18,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { STRIPE_CHECKOUT_URL } from '../lib/constants.js';
 import {
-  loadOnboarding, saveDoctorVisit, saveExpectations, saveGiftCode, saveGiftRecipient,
+  loadOnboarding, saveDoctorVisit, saveEulaAccepted, saveExpectations, saveGiftCode, saveGiftRecipient,
   saveGroupMembers, saveMemberDetails, saveMembershipType, saveStep,
 } from '../lib/onboarding.js';
 import { MAX_UPLOAD_BYTES, uploadDocument } from '../lib/vault.js';
@@ -56,10 +58,21 @@ const APPROACH = [['spoken', 'Already spoken with them'], ['contact', 'Please co
 const COMMS = ['Email', 'Text', 'Both'];
 const WHEN = [['week', 'This week', 7], ['two_weeks', 'Within two weeks', 14], ['month', 'Within a month', 30]];
 const DOCTOR_DOCS = ['Lab requisition template', 'Physician explainer'];
+// From the prototype: the plain-language summary of the agreement.
+const TERMS = [
+  ['Your health is yours.', 'We use your data to serve you. We will never sell information that identifies you to anyone, for any reason.'],
+  ['We use anonymized data.', 'Once your personal identifiers are removed, we may use or share that data — including with researchers — to advance population health. Your name, contact details, and exact location are never part of that.'],
+  ['We own the platform and co-authored content.', 'Notes, strategies, and consultation records created on MyBioHealth belong to MyBioHealth Inc. You have the right to view and print them while your account is active.'],
+  ['Closing your account removes your access.', 'It does not immediately delete your data, which we retain for legitimate legal and business purposes.'],
+  ['You are consenting to these terms.', 'Clicking ‘I Agree’ creates a binding agreement. The exact version of this agreement and the time of your acceptance are recorded.'],
+];
+const ACCEPT_TEXT = 'BY CLICKING “I AGREE” YOU CONFIRM THAT YOU HAVE READ AND UNDERSTOOD THIS AGREEMENT, THAT YOU ARE 18 YEARS OF AGE OR OLDER, AND THAT YOU CONSENT TO ITS TERMS INCLUDING THE USE OF YOUR ANONYMIZED DATA AS DESCRIBED IN SECTION 6.';
+// Full agreement, served by this app (pages/LegalPage.jsx).
+const EULA_URL = '/eula-v1';
 
-function stepsFor(type) {
+function stepsFor(type, eulaAccepted) {
   return [
-    'type', 'expectations', 'details', ...(type === 'gift' ? ['giftRecipient'] : []),
+    ...(eulaAccepted ? [] : ['eula']), 'type', 'expectations', 'details', ...(type === 'gift' ? ['giftRecipient'] : []),
     'upload', 'doctor', type === 'gifted' ? 'claim' : 'pay', 'thanks',
   ];
 }
@@ -85,9 +98,9 @@ export default function WelcomeTour({ onClose, member }) {
   const [a, setA] = useState({
     email: preview ? 'preview@example.com' : '', type: '', group: [], giftRecipient: emptyPerson(),
     expectations: '', expectationsId: null, giftCode: '',
-    mobile: '', comms: 'Both', dobText: '', doctorVisit: '',
+    mobile: '', comms: 'Both', dobText: '', doctorVisit: '', eulaAccepted: false,
   });
-  const [step, setStep] = useState('type');
+  const [step, setStep] = useState(preview ? 'eula' : 'type');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [uploads, setUploads] = useState([]); // { name, status: 'uploading'|'done'|'error', note? }
@@ -98,7 +111,7 @@ export default function WelcomeTour({ onClose, member }) {
   const cardRef = useRef(null);
 
   const set = (patch) => { setA((prev) => ({ ...prev, ...patch })); setError(''); };
-  const steps = stepsFor(a.type);
+  const steps = stepsFor(a.type, a.eulaAccepted);
   const idx = Math.max(steps.indexOf(step), 0);
 
   useEffect(() => { cardRef.current?.focus({ preventScroll: true }); }, []);
@@ -119,8 +132,11 @@ export default function WelcomeTour({ onClose, member }) {
           expectations: d.expectations || '', expectationsId: d.expectationsId, giftCode: d.giftCode || '',
           mobile: fmtMobile(d.mobile), comms: d.comms || 'Both',
           dobText: dob ? fmtShort(dob.iso) : '', doctorVisit: d.doctorVisit || '',
+          eulaAccepted: d.eulaAccepted,
         }));
-        if (d.step && stepsFor(d.type).includes(d.step)) setStep(d.step);
+        // Until the agreement is accepted, that's where it starts, whatever was saved.
+        if (!d.eulaAccepted) setStep('eula');
+        else if (d.step && stepsFor(d.type, true).includes(d.step)) setStep(d.step);
         setLoaded(true);
       })
       .catch((e) => { console.warn('Onboarding load failed:', e); if (live) setLoadError(true); });
@@ -150,7 +166,26 @@ export default function WelcomeTour({ onClose, member }) {
   function goNext() {
     const problem = validate(step, a, uploads);
     if (problem) { setError(problem); return; }
-    advance(stepsFor(a.type)[stepsFor(a.type).indexOf(step) + 1], () => saveCurrent(step, a, member, (id) => setA((p) => ({ ...p, expectationsId: id }))));
+    advance(steps[idx + 1], () => saveCurrent(step, a, member, (id) => setA((p) => ({ ...p, expectationsId: id }))));
+  }
+
+  // I Agree. Once saved, the agreement drops out of the steps, so the next
+  // screen is shown as the first one (no Back into the agreement).
+  async function agree() {
+    setBusy(true); setError('');
+    try {
+      if (!preview) {
+        await saveEulaAccepted(member);
+        await saveStep(member, 'type');
+      }
+      setA((p) => ({ ...p, eulaAccepted: true }));
+      setStep('type');
+    } catch (e) {
+      console.error('Onboarding save failed:', e);
+      setError("Couldn't save that. Please check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
   }
   const goBack = () => { setError(''); setPayOpened(false); setCodeOpen(false); setHeld(false); setStep(steps[idx - 1]); };
 
@@ -215,6 +250,18 @@ export default function WelcomeTour({ onClose, member }) {
 
   function renderStep() {
     switch (step) {
+      case 'eula':
+        return (
+          <>
+            <h2>Member Agreement (EULA)</h2>
+            <ul className="terms">
+              {TERMS.map(([lead, text]) => <li key={lead}><strong>{withMy(lead)}</strong> <span>{withMy(text)}</span></li>)}
+            </ul>
+            <p className="quiet"><a className="link accent" href={EULA_URL} target="_blank" rel="noopener noreferrer">Read the full agreement</a></p>
+            <p className="legal">{ACCEPT_TEXT}</p>
+          </>
+        );
+
       case 'type':
         return (
           <>
@@ -447,7 +494,8 @@ export default function WelcomeTour({ onClose, member }) {
   // Bottom-right button for each screen.
   let primary = null;
   if (loaded && !loadError) {
-    if (step === 'pay') primary = { label: 'Continue to payment', onClick: openPayment, disabled: busy || !payUrl };
+    if (step === 'eula') primary = { label: busy ? 'Saving…' : 'I Agree', onClick: agree, disabled: busy };
+    else if (step === 'pay') primary = { label: 'Continue to payment', onClick: openPayment, disabled: busy || !payUrl };
     else if (step === 'claim') {
       primary = held
         ? { label: 'Continue', onClick: () => advance('thanks'), disabled: busy }
@@ -472,7 +520,8 @@ export default function WelcomeTour({ onClose, member }) {
         <div className="top">
           <p className="brand" id="mbh-tour-title">Welcome to <em className="my">My</em>BioHealth</p>
           <a href={CONFIG.ZOOM_URL} target="_blank" rel="noopener noreferrer">Book a Zoom</a>
-          <button type="button" className="close" onClick={onClose} aria-label="Close">&times;</button>
+          {/* Closing counts as done, so it's not offered until the agreement is accepted. */}
+          {step !== 'eula' && <button type="button" className="close" onClick={onClose} aria-label="Close">&times;</button>}
         </div>
         <div className="bar" aria-hidden="true"><i style={{ width: `${((idx + 1) / steps.length) * 100}%` }} /></div>
 
@@ -572,6 +621,9 @@ async function saveCurrent(step, a, member, onNoteId) {
     default: break;
   }
 }
+
+// "MyBioHealth" with the My in italics, as everywhere else in the modal.
+const withMy = (t) => String(t).split(/(My(?=[A-Z]))/).map((p, i) => (p === 'My' ? <em className="my" key={i}>My</em> : p));
 
 function Opt({ name, checked, onChange, children }) {
   return (

@@ -173,3 +173,11 @@
   .mbh-onb .two li.arrow { display: none; }
   .mbh-onb .btn { min-width: 0; flex: 1; }
 }
+
+/* Member Agreement (EULA) step */
+.mbh-onb .terms { list-style: none; margin: 0; padding: 0; }
+.mbh-onb .terms li { padding: 12px 0; border-top: 1px solid var(--o-line); font-size: 0.92rem; line-height: 1.5; }
+.mbh-onb .terms li:first-child { border-top: 0; padding-top: 0; }
+.mbh-onb .terms strong { font-weight: 600; }
+.mbh-onb .terms span { color: var(--o-muted); }
+.mbh-onb .legal { margin: 16px 0 0; font-size: 0.72rem; line-height: 1.55; letter-spacing: 0.02em; color: var(--o-muted); }
