@@ -100,3 +100,85 @@
   .signup-page .signup-title { font-size: 1.6rem; }
   .signup-page .signup-frame { height: 760px; }
 }
+
+/* Our own sign-up form (SignupPage CONFIG.OWN_FORM): one card in the landing
+   page's sage palette. */
+.signup-page .signup-form {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 28px 24px 24px;
+  background: #FFFFFF;
+  border: 1px solid #C4CFC9;
+  border-radius: 10px;
+}
+.signup-page .signup-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 14px;
+}
+.signup-page .signup-field { margin-bottom: 16px; }
+.signup-page .signup-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.signup-page .signup-field input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid #C4CFC9;
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: #17211E;
+  font: inherit;
+  font-size: 1rem;
+}
+.signup-page .signup-field input:focus {
+  outline: 2px solid #3D6E58;
+  outline-offset: 1px;
+  border-color: #3D6E58;
+}
+.signup-page .signup-field input[aria-invalid='true'] { border-color: #B3402E; }
+.signup-page .signup-pw { position: relative; }
+.signup-page .signup-show {
+  position: absolute;
+  top: 30px;
+  right: 6px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  background: none;
+  color: #3D6E58;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.signup-page .signup-pw input { padding-right: 64px; }
+.signup-page .signup-err {
+  margin: 6px 0 0;
+  color: #B3402E;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.signup-page .signup-form-err { margin: 0 0 14px; }
+.signup-page .signup-submit {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 6px;
+  border: 1px solid #3D6E58;
+  border-radius: 6px;
+  background: #3D6E58;
+  color: #FFFFFF;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.signup-page .signup-submit:hover:not(:disabled) { filter: brightness(1.06); }
+.signup-page .signup-submit:disabled { opacity: 0.7; cursor: default; }
+
+@media (max-width: 600px) {
+  .signup-page .signup-form { padding: 22px 16px 18px; }
+  .signup-page .signup-row { grid-template-columns: 1fr; }
+}

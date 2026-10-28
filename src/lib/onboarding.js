@@ -19,6 +19,8 @@
 //   doctor visit       member_info, feature='DOCTOR_VISIT', text_box_1=week|two_weeks|month,
 //                      text_box_2=JSON {when, byDate:'YYYY-MM-DD', committedAt: ISO}
 //   progress           member_info, feature='ONBOARDING_STEP', text_box_1=step key
+//   EULA accepted      legal_entity.eula_version='v1', eula_accepted_date (the same
+//                      fields the Caspio sign-up checkbox filled)
 //
 // legal_entity has no date-of-birth or comms-preference field (checked against a
 // table export, Oct 2026: UserGUID, names, alias, PhoneNumber, Email, password,
@@ -29,6 +31,8 @@ import { loadNote, saveNote } from './notes.js';
 
 const API_BASE = import.meta.env.DEV ? '/api' : 'https://kenises-api-proxy.netlify.app';
 const EXPECTATIONS_KEY = 'ONBOARDING_EXPECTATIONS';
+// Matches what the Caspio sign-up form wrote, and the /eula-v1 page.
+export const EULA_VERSION = 'v1';
 
 const FEATURES = {
   type: 'MEMBERSHIP_TYPE',
@@ -74,6 +78,7 @@ export async function loadOnboarding(member) {
   return {
     email: me.Email || '',
     mobile: me.PhoneNumber || '',
+    eulaAccepted: !!(me.eula_version || '').trim(),
     expectations: note.text,
     expectationsId: note.id,
     type: read('type'),
@@ -123,6 +128,16 @@ export async function saveMemberDetails(member, { mobile, comms, dob }) {
   });
   if (!r.ok) throw new Error(`save legal_entity ${r.status}`);
   await Promise.all([saveFeature(member, 'comms', comms), saveFeature(member, 'dob', dob)]);
+}
+
+// legal_entity.eula_version + eula_accepted_date (UTC, no zone suffix, the
+// format Caspio Date/Time fields take): the member clicked I Agree.
+export async function saveEulaAccepted(member) {
+  const r = await fetch(recordsUrl('legal_entity', `UserGUID='${q(member)}'`), {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ eula_version: EULA_VERSION, eula_accepted_date: new Date().toISOString().slice(0, 19) }),
+  });
+  if (!r.ok) throw new Error(`save legal_entity ${r.status}`);
 }
 
 // member_info GROUP_MEMBERS, text_box_2 (JSON list)
