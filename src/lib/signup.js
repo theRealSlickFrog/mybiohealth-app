@@ -1,22 +1,23 @@
 // Self sign-up through our own form: no activation email to wait for.
 //
-// Our Netlify function (netlify/functions/signup.mjs) does the Caspio work
-// server-side, so the API credentials never reach the browser: it creates the
-// member in the Caspio directory (tagged app_preference='netlify',
-// allowed_pages='all_pages', as the Flex form did), adds the member_info
+// The API proxy's POST /signup does the Caspio work server-side, so the API
+// credentials never reach the browser: it creates the member in the Caspio
+// directory (tagged app_preference='netlify', allowed_pages='all_pages', as
+// the Flex form did), adds the member_info
 // WELCOME_TOUR='pending' row that opens the Welcome popup (lib/welcomeTour.js),
 // and activates them without the email. What comes back is Caspio's activation
 // link; the browser goes straight there, the member sets a password, then signs
 // in once.
 //
-// Contract (POST /.netlify/functions/signup):
+// Contract (POST {proxy}/signup; it only accepts this site's origin):
 //   request  { firstName, lastName, email, website }   website = honeypot, always ''
 //   200      { activationUrl }
 //   409      { error: 'email_taken' }
 //   400      { error: 'invalid', message }  message is shown as-is
 //   other    anything else -> generic error
 
-const ENDPOINT = '/.netlify/functions/signup';
+const API_BASE = import.meta.env.DEV ? '/api' : 'https://kenises-api-proxy.netlify.app';
+const ENDPOINT = `${API_BASE}/signup`;
 
 // The link must be Caspio's, never anywhere else.
 const isCaspioUrl = (u) => {

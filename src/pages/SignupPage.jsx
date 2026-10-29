@@ -1,12 +1,12 @@
 // Public sign-up page at /signup.
 //
 // Two versions while we move off Caspio's form:
-//  - Our own form (CONFIG.OWN_FORM): name and email, posted to our Netlify
-//    function (lib/signup.js). The member is created and goes straight to
+//  - Our own form (CONFIG.OWN_FORM): name and email, posted to the API proxy's
+//    /signup (lib/signup.js). The member is created and goes straight to
 //    Caspio's set-password page, then signs in once: no activation email. No
 //    password here (the Caspio API can't set one) and no EULA (it's the first
 //    step of the Welcome popup).
-//  - Until the function is set up on Netlify: Caspio's Flex sign-up form in a
+//  - Until the proxy update is deployed: Caspio's Flex sign-up form in a
 //    frame. Its skin can't be restyled from here, and it ends in an activation email.
 // In dev, ?own_form previews our form whatever the flag says.
 import { useEffect, useState } from 'react';
@@ -15,7 +15,7 @@ import { SignupError, signUp } from '../lib/signup.js';
 import './SignupPage.css';
 
 const CONFIG = {
-  // TODO: turn on once the function's Caspio settings are in Netlify and a test
+  // TODO: turn on once the proxy update with /signup is deployed and a test
   // sign-up has gone through.
   OWN_FORM: false,
 };
