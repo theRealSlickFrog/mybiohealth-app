@@ -17,7 +17,7 @@ import './SignupPage.css';
 const CONFIG = {
   // TODO: turn on once the proxy update with /signup is deployed and a test
   // sign-up has gone through.
-  OWN_FORM: false,
+  OWN_FORM: true,
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
