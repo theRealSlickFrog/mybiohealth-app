@@ -1,20 +1,22 @@
 // Public sign-up page at /signup.
 //
 // Two versions while we move off Caspio's form:
-//  - Our own form (CONFIG.OWN_FORM): name, email, password, posted to the proxy's
-//    /signup (lib/signup.js). The member is created and signed in in one go and
-//    lands in the app: no activation email, no second login. The EULA is no
-//    longer asked here.
-//  - Until the proxy endpoint exists: Caspio's Flex sign-up form in a frame.
-//    Its skin can't be restyled from here, and it ends in an activation email.
+//  - Our own form (CONFIG.OWN_FORM): name and email, posted to our Netlify
+//    function (lib/signup.js). The member is created and goes straight to
+//    Caspio's set-password page, then signs in once: no activation email. No
+//    password here (the Caspio API can't set one) and no EULA (it's the first
+//    step of the Welcome popup).
+//  - Until the function is set up on Netlify: Caspio's Flex sign-up form in a
+//    frame. Its skin can't be restyled from here, and it ends in an activation email.
 // In dev, ?own_form previews our form whatever the flag says.
 import { useEffect, useState } from 'react';
 import { CASPIO_LOGIN_URL, CASPIO_SIGNUP_URL, devBlockExternalLink } from '../lib/auth.js';
-import { MIN_PASSWORD, SignupError, signUp } from '../lib/signup.js';
+import { SignupError, signUp } from '../lib/signup.js';
 import './SignupPage.css';
 
 const CONFIG = {
-  // TODO: turn on once the proxy's POST /signup is live.
+  // TODO: turn on once the function's Caspio settings are in Netlify and a test
+  // sign-up has gone through.
   OWN_FORM: false,
 };
 
@@ -47,7 +49,11 @@ export default function SignupPage() {
 
       <main className="signup-main">
         <h1 className="signup-title">Create your account</h1>
-        <p className="signup-sub">Start with your name, email and a password. The rest comes after you sign in.</p>
+        <p className="signup-sub">
+          {ownForm
+            ? 'Start with your name and email. Next you’ll choose a password, then sign in.'
+            : 'Start with your name, email and a password. The rest comes after you sign in.'}
+        </p>
         {ownForm ? <SignupForm /> : <CaspioFrame />}
       </main>
     </div>
@@ -55,8 +61,7 @@ export default function SignupPage() {
 }
 
 function SignupForm() {
-  const [f, setF] = useState({ firstName: '', lastName: '', email: '', password: '', confirm: '' });
-  const [showPw, setShowPw] = useState(false);
+  const [f, setF] = useState({ firstName: '', lastName: '', email: '', website: '' });
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -71,8 +76,6 @@ function SignupForm() {
     if (!f.firstName.trim()) e.firstName = 'Enter your first name.';
     if (!f.lastName.trim()) e.lastName = 'Enter your last name.';
     if (!EMAIL_RE.test(f.email.trim())) e.email = 'Enter a valid email address.';
-    if (f.password.length < MIN_PASSWORD) e.password = `Use at least ${MIN_PASSWORD} characters.`;
-    else if (f.confirm !== f.password) e.confirm = "Passwords don't match.";
     return e;
   }
 
@@ -86,13 +89,14 @@ function SignupForm() {
 
     setBusy(true);
     try {
-      const t = await signUp({
+      const url = await signUp({
         firstName: f.firstName.trim(),
         lastName: f.lastName.trim(),
         email: f.email.trim().toLowerCase(),
-        password: f.password,
+        website: f.website,
       });
-      window.location.assign(`/app?t=${encodeURIComponent(t)}`);
+      // Caspio's set-password page. Busy stays on until the browser leaves.
+      window.location.assign(url);
     } catch (err) {
       setBusy(false);
       const code = err instanceof SignupError ? err.code : 'failed';
@@ -130,18 +134,14 @@ function SignupForm() {
         {field('lastName', 'Last name', { autoComplete: 'family-name' })}
       </div>
       {field('email', 'Email', { type: 'email', autoComplete: 'email', inputMode: 'email' })}
-      <div className="signup-pw">
-        {field('password', 'Password', { type: showPw ? 'text' : 'password', autoComplete: 'new-password' })}
-        <button type="button" className="signup-show" onClick={() => setShowPw(!showPw)}>
-          {showPw ? 'Hide' : 'Show'}
-        </button>
-      </div>
-      {field('confirm', 'Confirm password', { type: showPw ? 'text' : 'password', autoComplete: 'new-password' })}
+      {/* Honeypot for bots: off-screen, skipped by keyboard and screen readers. */}
+      <input className="signup-hp" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true"
+        value={f.website} onChange={set('website')} />
 
       {formError && <p className="signup-err signup-form-err" role="alert">{formError}</p>}
 
       <button type="submit" className="signup-submit" disabled={busy}>
-        {busy ? 'Creating your account…' : 'Create account'}
+        {busy ? 'Creating your account…' : 'Continue'}
       </button>
     </form>
   );

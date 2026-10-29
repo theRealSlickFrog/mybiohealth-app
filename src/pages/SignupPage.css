@@ -140,22 +140,13 @@
   border-color: #3D6E58;
 }
 .signup-page .signup-field input[aria-invalid='true'] { border-color: #B3402E; }
-.signup-page .signup-pw { position: relative; }
-.signup-page .signup-show {
+.signup-page .signup-hp {
   position: absolute;
-  top: 30px;
-  right: 6px;
-  min-height: 36px;
-  padding: 0 10px;
-  border: 0;
-  background: none;
-  color: #3D6E58;
-  font: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
 }
-.signup-page .signup-pw input { padding-right: 64px; }
 .signup-page .signup-err {
   margin: 6px 0 0;
   color: #B3402E;
