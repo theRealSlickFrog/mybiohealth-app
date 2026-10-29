@@ -1,26 +1,31 @@
-// Self sign-up through our own form, so a new member goes straight into the app
-// with no activation email and no second login.
+// Self sign-up through our own form: no activation email to wait for.
 //
-// The proxy does the Caspio work server-side (the REST credentials never reach
-// the browser): it creates the member in the Caspio directory, activates them,
-// tags the legal_entity row the way the Flex form did (app_preference='netlify',
-// allowed_pages='all_pages'), adds the member_info WELCOME_TOUR='pending' row
-// that opens the Welcome popup (lib/welcomeTour.js), and hands back a one-time
-// token — the same kind the Caspio minter sends after a normal login. The app then opens /app?t=<token>,
-// and the existing exchange in AppShell (lib/auth.js exchangeHandoffToken) turns
-// it into a session.
+// The API proxy's POST /signup does the Caspio work server-side, so the API
+// credentials never reach the browser: it creates the member in the Caspio
+// directory (tagged app_preference='netlify', allowed_pages='all_pages', as
+// the Flex form did), adds the member_info
+// WELCOME_TOUR='pending' row that opens the Welcome popup (lib/welcomeTour.js),
+// and activates them without the email. What comes back is Caspio's activation
+// link; the browser goes straight there, the member sets a password, then signs
+// in once.
 //
-// Contract (POST /signup on the proxy — TODO: not built yet, see SignupPage):
-//   request  { firstName, lastName, email, password }
-//   200      { t }                          one-time handoff token
+// Contract (POST {proxy}/signup; it only accepts this site's origin):
+//   request  { firstName, lastName, email, website }   website = honeypot, always ''
+//   200      { activationUrl }
 //   409      { error: 'email_taken' }
 //   400      { error: 'invalid', message }  message is shown as-is
 //   other    anything else -> generic error
 
 const API_BASE = import.meta.env.DEV ? '/api' : 'https://kenises-api-proxy.netlify.app';
+const ENDPOINT = `${API_BASE}/signup`;
 
-// TODO: match the Caspio directory's password policy once it's confirmed.
-export const MIN_PASSWORD = 8;
+// The link must be Caspio's, never anywhere else.
+const isCaspioUrl = (u) => {
+  try {
+    const { protocol, hostname } = new URL(u);
+    return protocol === 'https:' && /(^|\.)caspio\.(app|com)$/.test(hostname);
+  } catch { return false; }
+};
 
 export class SignupError extends Error {
   constructor(code, message) {
@@ -29,19 +34,19 @@ export class SignupError extends Error {
   }
 }
 
-export async function signUp({ firstName, lastName, email, password }) {
+export async function signUp({ firstName, lastName, email, website = '' }) {
   let r;
   try {
-    r = await fetch(`${API_BASE}/signup`, {
+    r = await fetch(ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ firstName, lastName, email, password }),
+      body: JSON.stringify({ firstName, lastName, email, website }),
     });
   } catch {
     throw new SignupError('network');
   }
   const d = await r.json().catch(() => ({}));
-  if (r.ok && d.t) return d.t;
+  if (r.ok && isCaspioUrl(d.activationUrl)) return d.activationUrl;
   if (r.status === 409 || d.error === 'email_taken') throw new SignupError('email_taken');
   if (r.status === 400 && d.message) throw new SignupError('invalid', d.message);
   throw new SignupError('failed');
