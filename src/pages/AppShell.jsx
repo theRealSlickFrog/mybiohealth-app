@@ -261,7 +261,7 @@ export default function AppShell() {
         {activePage === 'questions'          && <QuestionsPage />}
         {activePage === 'checkin_priorities' && <CheckinPrioritiesPage />}
         {activePage === 'jots'               && <JotsPage />}
-        {activePage === 'upnext'             && <UpNextPage />}
+        {activePage === 'upnext'             && <UpNextPage onNavigate={navigate} />}
         {activePage === 'context_signals'    && <ContextSignalsPage />}
         {activePage === 'risk_measures'      && <RiskMeasuresPage />}
         {activePage === 'voice_test'         && <VoiceTestPage />}
