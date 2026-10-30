@@ -167,7 +167,7 @@ function Group({ g, st, renderTask }) {
   );
 }
 
-export default function UpNextPage() {
+export default function UpNextPage({ onNavigate }) {
   const member = getStoredGuid();
   const preview = import.meta.env.DEV && new URLSearchParams(window.location.search).has('up_next_preview');
   const [st, setSt] = useState(preview ? emptyState() : null);
@@ -231,6 +231,7 @@ export default function UpNextPage() {
   };
   const isDone = (g) => (g.items ? g.items.every((i) => st.tasks[i.id]) : g.form === 'address' ? !!a : !!st.tasks[g.id]);
   const ordered = [...UP_NEXT.filter((g) => !isDone(g)), ...UP_NEXT.filter(isDone)];
+  const allDone = UP_NEXT.every(isDone);
 
   return (
     <div className="un-page">
@@ -239,6 +240,13 @@ export default function UpNextPage() {
         <p className="un-lead">Nudges, tasks and appointments, in order: blood pressure readings, the end of cycle review, labs, consultations and blood draws.</p>
       </div>
       {saveErr && <p className="un-err" role="alert">That last change didn't save. Please try again.</p>}
+      {allDone && (
+        <div className="un-complete" role="status">
+          <h2>You&rsquo;re all set.</h2>
+          <p>Nothing is waiting.</p>
+          <button type="button" className="un-btn" onClick={() => onNavigate?.('strategy')}>Go to <em>My</em>Strategy</button>
+        </div>
+      )}
       {ordered.map((g) => (g.items
         ? <Group key={g.id} g={g} st={st} renderTask={renderTask} />
         : <div key={g.id}>{renderTask(g)}</div>))}
