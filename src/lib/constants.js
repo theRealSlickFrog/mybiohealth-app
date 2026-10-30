@@ -30,7 +30,10 @@ export const IDLE_TIMEOUT_MS = IDLE_WARNING_MS + IDLE_GRACE_MS;
 // CA$500 billed annually; link from the client, 29 Oct). Shared by the Account
 // page and the onboarding flow. Nothing in this app handles the return from
 // Stripe: the member record is not updated here after payment.
-export const STRIPE_CHECKOUT_URL = 'https://buy.stripe.com/eVq9ATdfEaQGes3chebbG05';
+export const STRIPE_CHECKOUT_URL = 'https://buy.stripe.com/dRmdR97Vk1g60BdftqbbG0b';
+// Membership for Others, also used to gift one. Gifted Membership is a $0 product.
+export const STRIPE_OTHER_URL = 'https://buy.stripe.com/dRmbJ17Vk4si1Fh80YbbG0c';
+export const STRIPE_GIFTED_URL = 'https://buy.stripe.com/3cIaEX6Rgf6WdnZ6WUbbG0d';
 
 export const MBH_DROP_IMG = 'https://res.cloudinary.com/dai0low65/image/upload/v1763491944/logo_pp70kv.png';
 

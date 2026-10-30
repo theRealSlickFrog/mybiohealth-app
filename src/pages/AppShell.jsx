@@ -178,10 +178,10 @@ export default function AppShell() {
     if (!member) return;
     let live = true;
     shouldShowTour(member)
-      .then((show) => { if (live && show) setTour('member'); })
+      .then((show) => { if (live && show) { setTour('member'); navigate('upnext'); } })
       .catch(() => { /* no tour is the safe failure */ });
     return () => { live = false; };
-  }, [booting]);
+  }, [booting, navigate]);
 
   // Silent on failure: the worst case is the member sees the tour once more.
   const closeTour = useCallback(() => {

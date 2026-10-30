@@ -181,3 +181,6 @@
 .mbh-onb .terms strong { font-weight: 600; }
 .mbh-onb .terms span { color: var(--o-muted); }
 .mbh-onb .legal { margin: 16px 0 0; font-size: 0.72rem; line-height: 1.55; letter-spacing: 0.02em; color: var(--o-muted); }
+
+/* Full agreement, expanded in place on the agreement step. */
+.mbh-onb .full-agreement { max-height: 320px; overflow-y: auto; margin-top: 12px; padding: 0 14px; border: 1px solid #C4CFC9; border-radius: 6px; }

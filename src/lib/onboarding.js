@@ -19,8 +19,11 @@
 //   doctor visit       member_info, feature='DOCTOR_VISIT', text_box_1=week|two_weeks|month,
 //                      text_box_2=JSON {when, byDate:'YYYY-MM-DD', committedAt: ISO}
 //   progress           member_info, feature='ONBOARDING_STEP', text_box_1=step key
-//   EULA accepted      legal_entity.eula_version='v1', eula_accepted_date (the same
+//   EULA accepted      legal_entity.eula_version, eula_accepted_date (the same
 //                      fields the Caspio sign-up checkbox filled)
+//
+// Membership type and expectations are asked on /signup, before an account
+// exists. They wait in this browser (savePreSignup) and go to Caspio at first login.
 //
 // legal_entity has no date-of-birth or comms-preference field (checked against a
 // table export, Oct 2026: UserGUID, names, alias, PhoneNumber, Email, password,
@@ -31,8 +34,33 @@ import { loadNote, saveNote } from './notes.js';
 
 const API_BASE = import.meta.env.DEV ? '/api' : 'https://kenises-api-proxy.netlify.app';
 const EXPECTATIONS_KEY = 'ONBOARDING_EXPECTATIONS';
-// Matches what the Caspio sign-up form wrote, and the /eula-v1 page.
-export const EULA_VERSION = 'v1';
+// The version printed on the agreement (content/member-agreement.md).
+export const EULA_VERSION = 'MBH-EULA-v1.0';
+
+export const MEMBERSHIP_TYPES = [
+  ['one', 'One Membership'],
+  ['one_plus', 'One + Memberships'],
+  ['gift', 'Gift a Membership'],
+];
+export const EXPECTATION_SUGGESTIONS = [
+  'Understand which small changes will make an outsized difference to my health.',
+  'Have a more informed conversation with my doctor.',
+  'Know what deserves my attention, and what doesn’t.',
+  'Get ahead of something I’ve been told to watch, such as cholesterol or A1C.',
+  'Get ahead of what runs in my family.',
+  'Something recent has my attention, such as a milestone birthday, a loss, or an illness.',
+];
+
+const PRE_KEY = 'mbh_pre_signup';
+export function savePreSignup(answers) {
+  try { localStorage.setItem(PRE_KEY, JSON.stringify(answers)); } catch { /* asked again after login */ }
+}
+export function loadPreSignup() {
+  try { return JSON.parse(localStorage.getItem(PRE_KEY)) || null; } catch { return null; }
+}
+export function clearPreSignup() {
+  try { localStorage.removeItem(PRE_KEY); } catch { /* nothing to clear */ }
+}
 
 const FEATURES = {
   type: 'MEMBERSHIP_TYPE',
@@ -77,6 +105,8 @@ export async function loadOnboarding(member) {
   };
   return {
     email: me.Email || '',
+    firstName: me.First_Name || '',
+    lastName: me.Last_Name || '',
     mobile: me.PhoneNumber || '',
     eulaAccepted: !!(me.eula_version || '').trim(),
     expectations: note.text,

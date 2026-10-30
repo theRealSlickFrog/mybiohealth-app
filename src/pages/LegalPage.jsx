@@ -1,12 +1,13 @@
 // Public legal pages (EULA / Privacy Policy). No auth. Reachable at /eula,
 // /privacy, or a version-pinned path like /eula-v1 — the Caspio signup consent
-// checkbox links to /eula-v1 and /privacy-v1. Placeholder copy for now; drop the
-// real text into DOCS below when it's ready.
+// checkbox links to /eula-v1 and /privacy-v1. The privacy policy is section 8 of
+// the Member Agreement, so both show the one document.
 import { useEffect } from 'react';
+import AgreementText from '../components/AgreementText.jsx';
 
 const DOCS = {
-  eula:    { title: 'End User License Agreement', body: 'EULA Statement here' },
-  privacy: { title: 'Privacy Policy',             body: 'Privacy Statement here' },
+  eula:    { title: 'Member Agreement' },
+  privacy: { title: 'Member Agreement and Privacy Policy' },
 };
 
 export default function LegalPage({ doc }) {
@@ -36,10 +37,7 @@ export default function LegalPage({ doc }) {
     <div style={wrap}>
       <div style={inner}>
         <a href="/" style={{ color: '#6b7280', textDecoration: 'none', fontSize: 14 }}>← MyBioHealth</a>
-        <h1 style={{ fontFamily: 'Georgia, serif', fontWeight: 400, fontSize: 30, margin: '28px 0 18px' }}>
-          {d.title}
-        </h1>
-        <p style={{ fontSize: 15, lineHeight: 1.7 }}>{d.body}</p>
+        <AgreementText />
       </div>
     </div>
   );
