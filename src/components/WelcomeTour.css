@@ -184,3 +184,8 @@
 
 /* Full agreement, expanded in place on the agreement step. */
 .mbh-onb .full-agreement { max-height: 320px; overflow-y: auto; margin-top: 12px; padding: 0 14px; border: 1px solid #C4CFC9; border-radius: 6px; }
+.mbh-onb .ask { font-size: 1.1rem; line-height: 1.45; font-weight: 600; margin: 24px 0 12px; }
+.mbh-onb .vis { display: grid; gap: 8px; margin: 0 0 14px; }
+.mbh-onb .vis-pill { padding: 10px 16px; border: 1px solid #C4CFC9; border-radius: 14px; background: transparent; color: inherit; font: inherit; font-size: 0.95rem; text-align: left; cursor: pointer; }
+.mbh-onb .vis-pill:hover { border-color: #3D6E58; }
+.mbh-onb .vis-pill b { display: block; margin-bottom: 2px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #58675F; }

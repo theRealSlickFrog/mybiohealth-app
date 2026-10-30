@@ -58,6 +58,13 @@
 .un-same { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--un-muted); }
 .un-same input { accent-color: var(--un-accent); }
 
+.un-nudge { display: flex; flex-wrap: wrap; align-items: center; gap: 0 24px; padding: 6px 16px; border-radius: 8px; background: var(--un-accent-soft); font-size: 0.9rem; }
+.un-nudge b { font-weight: 600; }
+.un-nudge .late { color: var(--un-err); }
+.un-sugg { list-style: none; margin: 0; padding: 0; border: 1px solid var(--un-line); border-radius: 6px; background: var(--un-surface); }
+.un-sugg li + li { border-top: 1px solid var(--un-line); }
+.un-sugg button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; min-height: 44px; padding: 8px 12px; background: none; border: 0; color: var(--un-ink); font: inherit; text-align: left; cursor: pointer; }
+.un-sugg span { font-size: 0.85rem; color: var(--un-muted); }
 .un-complete { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 20px; border-radius: 8px; background: var(--un-accent-soft); }
 .un-complete h2 { margin: 0; font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 1.5rem; }
 .un-complete .un-btn { margin-top: 8px; }

@@ -1,82 +1,68 @@
-// Slide-out left navigation drawer.
-import { MBH_SAGE, SAGE_BG, SAGE_TEXT, SLATE, CARD, BORDER, MBH_DROP_IMG, NAV_ITEMS } from '../lib/constants.js';
+// Member navigation, laid out as in Ken's container prototype. A fixed sidebar on
+// a desktop (`permanent`), a slide-out drawer on a phone.
+import { CARD, BORDER, NAV_ITEMS, SLATE } from '../lib/constants.js';
 import { logout } from '../lib/auth.js';
 
-export default function Drawer({ activePage, onSelect, onClose }) {
-  const groups = [
-    { label: null,        header: false, keys: ['strategy'] },
-    { label: 'Check-In',  header: true,  keys: ['checkin_priorities', 'jots', 'upnext'] },
-    { label: 'Signals',   header: true,  keys: ['biosignals', 'glucose_v2', 'context_signals', 'dexa', 'risk_measures'] },
-    { label: 'Member',    header: false, keys: ['account', 'calendar', 'vault', 'library', 'questions'] },
-  ];
-  // The drawer renders only keys named above, so a NAV_ITEMS entry missing from
-  // every group is silently dropped rather than appearing unsorted at the end.
+const ACCENT = '#3D6E58';
+const ACCENT_SOFT = '#DAE7E0';
+
+// `heading` is a label that isn't a page. `child` items sit indented under the
+// item above. Every NAV_ITEMS key must appear here or it can't be reached.
+const GROUPS = [
+  [{ key: 'upnext' }, { key: 'strategy' }, { key: 'checkin_priorities', child: true }, { key: 'jots', child: true }],
+  [{ heading: 'Primary Signals' }, { key: 'biosignals', child: true }, { key: 'dexa', child: true }, { key: 'risk_measures', child: true }, { key: 'context_signals', child: true }, { key: 'glucose_v2' }],
+  [{ key: 'vault' }, { key: 'calendar' }],
+  [{ key: 'library' }, { key: 'questions', child: true }, { key: 'membership' }, { key: 'account' }],
+];
+
+const withMy = (t) => String(t).split(/(My(?=[A-Z]))/).map((p, i) => (p === 'My' ? <em key={i}>My</em> : p));
+
+export default function Drawer({ activePage, onSelect, onClose, permanent = false }) {
+  const panel = (
+    <div style={permanent
+      ? { position: 'sticky', top: 0, height: '100vh', width: 264, flex: '0 0 264px', background: CARD, borderRight: `1px solid ${BORDER}`, display: 'flex', flexDirection: 'column', overflowY: 'auto' }
+      : { position: 'fixed', top: 0, left: 0, bottom: 0, width: 280, maxWidth: '86vw', background: CARD, zIndex: 301, display: 'flex', flexDirection: 'column', boxShadow: '4px 0 20px rgba(0,0,0,0.15)', overflowY: 'auto' }}>
+      <div style={{ padding: '26px 24px 14px', fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 21, color: SLATE }}>
+        <em>My</em>BioHealth
+      </div>
+      <nav aria-label="Main" style={{ flex: 1, padding: '0 12px 12px' }}>
+        {GROUPS.map((g, gi) => (
+          <div key={gi} style={{ marginTop: gi ? 18 : 0 }}>
+            {g.map((it) => {
+              if (it.heading) {
+                return <div key={it.heading} style={{ padding: '9px 12px', fontSize: 15, color: SLATE }}>{withMy(it.heading)}</div>;
+              }
+              const item = NAV_ITEMS.find((n) => n.key === it.key);
+              const active = activePage === it.key;
+              return (
+                <button key={it.key} type="button" aria-current={active ? 'page' : undefined}
+                  onClick={() => { onSelect(it.key); onClose?.(); }}
+                  style={{
+                    width: '100%', display: 'block', minHeight: it.child ? 38 : 44, padding: it.child ? '8px 12px 8px 28px' : '10px 12px',
+                    border: 0, borderRadius: 8, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                    fontSize: it.child ? 14 : 15, fontWeight: active ? 600 : 400,
+                    background: active ? ACCENT_SOFT : 'transparent', color: active ? ACCENT : SLATE,
+                  }}>
+                  {withMy(item.label)}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+      <div style={{ padding: '10px 12px 18px', borderTop: `1px solid ${BORDER}` }}>
+        <button type="button" onClick={() => logout(activePage)} style={{
+          width: '100%', minHeight: 44, padding: '10px 12px', border: 0, background: 'transparent', borderRadius: 8,
+          cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', fontSize: 15, color: '#58675F',
+        }}>Log out</button>
+      </div>
+    </div>
+  );
+  if (permanent) return panel;
   return (
     <>
-      <div onClick={onClose} style={{
-        position: 'fixed', inset: 0, background: 'rgba(30,45,61,0.5)', zIndex: 300,
-      }} />
-      <div style={{
-        position: 'fixed', top: 0, left: 0, bottom: 0, width: 260, background: CARD, zIndex: 301,
-        display: 'flex', flexDirection: 'column', boxShadow: '4px 0 20px rgba(0,0,0,0.15)',
-        overflowY: 'auto',
-      }}>
-        <div style={{ background: SLATE, padding: '16px 20px 20px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-          <img src={MBH_DROP_IMG} alt="MyBioHealth" style={{ width: 28, height: 28, display: 'block', objectFit: 'contain' }} />
-          <div>
-            <div style={{ color: 'white', fontSize: 14, fontWeight: 600 }}>
-              <em style={{ fontStyle: 'normal' }}>My</em>BioHealth
-            </div>
-            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, fontStyle: 'italic' }}>it's in you to know</div>
-          </div>
-        </div>
-        <div style={{ flex: 1, padding: '8px 0' }}>
-          {groups.map((g, gi) => (
-            <div key={gi}>
-              {gi > 0 && <div style={{ height: 1, background: BORDER, margin: '4px 0' }} />}
-              {g.label && (
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: g.header ? MBH_SAGE : '#374151', padding: g.header ? '14px 20px 4px' : '12px 20px 4px' }}>
-                  {g.label}
-                </div>
-              )}
-              {NAV_ITEMS.filter((n) => g.keys.includes(n.key)).map((item) => {
-                const active = activePage === item.key;
-                return (
-                  <button key={item.key} onClick={() => { onSelect(item.key); onClose(); }} style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: item.child ? 10 : 14,
-                    padding: item.child ? '10px 20px 10px 42px' : '13px 20px', border: 'none', cursor: 'pointer',
-                    background: active ? SAGE_BG : 'transparent',
-                    borderLeft: active ? `3px solid ${MBH_SAGE}` : '3px solid transparent',
-                    textAlign: 'left',
-                  }}>
-                    <span style={{ fontSize: item.child ? 13 : 18, lineHeight: 1, opacity: item.child ? 0.55 : 1 }}>{item.child ? '↳' : item.icon}</span>
-                    <span style={{ fontSize: item.child ? 13 : 14, fontWeight: active ? 600 : 400, color: active ? SAGE_TEXT : SLATE }}>
-                      {item.label}
-                    </span>
-                    {active && <div style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: MBH_SAGE }} />}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-        <div style={{ padding: '16px 20px', borderTop: `1px solid ${BORDER}`, flexShrink: 0 }}>
-          <button
-            onClick={() => logout(activePage)}
-            style={{
-              width: '100%', background: 'transparent', border: `1px solid ${BORDER}`,
-              borderRadius: 999, padding: '10px 16px', fontSize: 13, fontWeight: 500,
-              color: '#5e564b', cursor: 'pointer', marginBottom: 14, fontFamily: 'inherit',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            }}
-            onMouseOver={(e) => { e.currentTarget.style.background = '#f5f0e8'; }}
-            onMouseOut={(e)  => { e.currentTarget.style.background = 'transparent'; }}
-          >
-            <span style={{ fontSize: 14 }}>🚪</span>
-            <span>Log out</span>
-          </button>
-        </div>
-      </div>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(30,45,61,0.5)', zIndex: 300 }} />
+      {panel}
     </>
   );
 }
