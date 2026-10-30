@@ -173,3 +173,18 @@
   .signup-page .signup-form { padding: 22px 16px 18px; }
   .signup-page .signup-row { grid-template-columns: 1fr; }
 }
+
+/* Before-login steps: membership type and expectations. */
+.signup-page .signup-step-title { margin: 0 0 16px; font-size: 1.1rem; font-weight: 600; }
+.signup-page .signup-opts { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; border: 0; }
+.signup-page .signup-opt { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
+.signup-page .signup-opt input { accent-color: #3D6E58; width: 18px; height: 18px; }
+.signup-page .signup-sep { border-top: 1px solid #C4CFC9; margin: 8px 0; }
+.signup-page .signup-text { width: 100%; padding: 10px 12px; border: 1px solid #C4CFC9; border-radius: 6px; font: inherit; color: #17211E; resize: vertical; }
+.signup-page .signup-input { width: 100%; min-height: 46px; margin-top: 10px; padding: 10px 12px; border: 1px solid #C4CFC9; border-radius: 6px; font: inherit; color: #17211E; }
+.signup-page .signup-linkbtn { background: none; border: 0; padding: 0; min-height: 40px; color: #3D6E58; font: inherit; font-weight: 600; cursor: pointer; }
+.signup-page .signup-sugs { list-style: none; margin: 0 0 8px; padding: 0; }
+.signup-page .signup-sug { display: block; width: 100%; padding: 8px 0; background: none; border: 0; color: #17211E; font: inherit; font-size: 0.92rem; text-align: left; cursor: pointer; }
+.signup-page .signup-sug:hover { color: #3D6E58; }
+.signup-page .signup-stepnav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.signup-page .signup-stepnav .signup-submit { width: auto; flex: 1; max-width: 240px; margin-top: 0; }

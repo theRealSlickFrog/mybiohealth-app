@@ -3,10 +3,11 @@
 // lib/welcomeTour.js); closing it by any route counts as done.
 //
 // Screens, wording, prices and look follow Ken's prototype ("MBH Onboarding
-// Near Final"), minus what sign-up already covers: login and first/last name.
-// The Member Agreement (EULA) comes first, before any personal details are
-// asked, and only for a member who hasn't accepted it yet (members who signed
-// up on the old Caspio form ticked it there). It can't be closed or skipped.
+// Near Final"), minus what /signup already covers: login, first/last name and,
+// normally, membership type and expectations (asked here only if this browser
+// doesn't have those answers). The Member Agreement (EULA) follows Details, only
+// for a member who hasn't accepted it yet. It can't be closed or skipped.
+// Finishing leaves the member on Up Next, behind the popup.
 //
 // Each step is saved to Caspio on Continue (lib/onboarding.js says where every
 // answer lands) and loaded back on open, so a refresh resumes mid-flow.
@@ -16,64 +17,42 @@
 // IdleWarningModal (500), so an expiring session still shows over it.
 
 import { useEffect, useRef, useState } from 'react';
-import { STRIPE_CHECKOUT_URL } from '../lib/constants.js';
+import { STRIPE_CHECKOUT_URL, STRIPE_GIFTED_URL, STRIPE_OTHER_URL } from '../lib/constants.js';
+import AgreementText from './AgreementText.jsx';
+import { LINKS } from '../lib/upNext.js';
 import {
-  loadOnboarding, saveDoctorVisit, saveEulaAccepted, saveExpectations, saveGiftCode, saveGiftRecipient,
+  EXPECTATION_SUGGESTIONS as SUGGESTIONS, MEMBERSHIP_TYPES, clearPreSignup, loadOnboarding, loadPreSignup, saveEulaAccepted, saveExpectations, saveGiftCode, saveGiftRecipient,
   saveGroupMembers, saveMemberDetails, saveMembershipType, saveStep,
 } from '../lib/onboarding.js';
 import { MAX_UPLOAD_BYTES, uploadDocument } from '../lib/vault.js';
 import './WelcomeTour.css';
 
 const CONFIG = {
-  // Stripe hosted checkout per case (the prototype's CONFIG.payUrl).
-  // TODO: group (member plus others: 1 x CA$500 + n x CA$400) and gift links —
-  // not given yet. Until set, payment is off for those and the screen says so.
-  PAY_URL: { member: STRIPE_CHECKOUT_URL, group: '', gift: '' },
-  // TODO: booking link for the initial Orientation. "Book here" stays hidden until set.
-  ORIENTATION_URL: '',
-  // Calendly office hours, from the prototype.
-  ZOOM_URL: 'https://calendly.com/ken-mybiohealth/mybiohealth-office-hours',
+  // Stripe hosted checkout per case (the prototype's CONFIG.payUrl). A group uses
+  // the member link; the quantity of others is set inside Stripe.
+  PAY_URL: { member: STRIPE_CHECKOUT_URL, group: STRIPE_CHECKOUT_URL, gift: STRIPE_OTHER_URL },
   MAX_OTHERS: 5,
   UPLOAD_ACCEPT: '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png',
   UPLOAD_DESCRIPTION: 'Labs (onboarding)',
 };
-// From the prototype: Member CA$500, each related person CA$400, then CA$125
-// per person per quarter.
-const PRICE = { member: 500, related: 400, quarterly: 125 };
+// From the prototype: Member CA$500, each related person CA$400, per year.
+const PRICE = { member: 500, related: 400 };
 
-const SUGGESTIONS = [
-  'Understand which small changes will make an outsized difference to my health.',
-  'Have a more informed conversation with my doctor.',
-  'Know what deserves my attention, and what doesn’t.',
-  'Get ahead of something I’ve been told to watch, such as cholesterol or A1C.',
-  'Get ahead of what runs in my family.',
-  'Something recent has my attention, such as a milestone birthday, a loss, or an illness.',
-];
-const MEMBERSHIP_TYPES = [
-  ['one', 'One Membership'],
-  ['one_plus', 'One + Memberships'],
-  ['gift', 'Gift a Membership'],
-];
-const APPROACH = [['spoken', 'Already spoken with them'], ['contact', 'Please contact them'], ['advise', 'Not sure, suggest how']];
+const APPROACH = [['spoken', 'Already spoken with them'], ['contact', 'Please contact them'], ['advise', 'Not sure, suggest how'], ['wrap', 'Send me something I can wrap']];
 const COMMS = ['Email', 'Text', 'Both'];
-const WHEN = [['week', 'This week', 7], ['two_weeks', 'Within two weeks', 14], ['month', 'Within a month', 30]];
-const DOCTOR_DOCS = ['Lab requisition template', 'Physician explainer'];
 // From the prototype: the plain-language summary of the agreement.
 const TERMS = [
-  ['Your health is yours.', 'We use your data to serve you. We will never sell information that identifies you to anyone, for any reason.'],
-  ['We use anonymized data.', 'Once your personal identifiers are removed, we may use or share that data — including with researchers — to advance population health. Your name, contact details, and exact location are never part of that.'],
-  ['We own the platform and co-authored content.', 'Notes, strategies, and consultation records created on MyBioHealth belong to MyBioHealth Inc. You have the right to view and print them while your account is active.'],
-  ['Closing your account removes your access.', 'It does not immediately delete your data, which we retain for legitimate legal and business purposes.'],
-  ['You are consenting to these terms.', 'Clicking ‘I Agree’ creates a binding agreement. The exact version of this agreement and the time of your acceptance are recorded.'],
+  ['Your health. Your decisions.', 'MyBioHealth helps you understand your health information and prepare for more informed conversations with your physician. It is an educational platform, not a substitute for medical care.'],
+  ['Your data. Protected and put to work.', 'Your health data remains yours. Our data repository is hosted in Canada. We never sell information that identifies you. We may use or share de-identified data for research and improving the platform. MyBioHealth owns its platform, methodologies, and content created through its services; you can access and download your own records and reports.'],
+  ['Your agreement. Your choice.', 'Your membership is governed by the full Member Agreement, which includes our Privacy Policy. Your data may be retained after you close your account, as described there. Selecting “I Agree” confirms your acceptance, and we record the agreement version and timestamp.'],
 ];
-const ACCEPT_TEXT = 'BY CLICKING “I AGREE” YOU CONFIRM THAT YOU HAVE READ AND UNDERSTOOD THIS AGREEMENT, THAT YOU ARE 18 YEARS OF AGE OR OLDER, AND THAT YOU CONSENT TO ITS TERMS INCLUDING THE USE OF YOUR ANONYMIZED DATA AS DESCRIBED IN SECTION 6.';
-// Full agreement, served by this app (pages/LegalPage.jsx).
-const EULA_URL = '/eula-v1';
+const ACCEPT_TEXT = 'BY CLICKING “I AGREE” YOU CONFIRM THAT YOU HAVE READ AND UNDERSTOOD THIS AGREEMENT, THAT YOU ARE 18 YEARS OF AGE OR OLDER, AND THAT YOU CONSENT TO ITS TERMS INCLUDING THE USE OF YOUR DE-IDENTIFIED DATA AS DESCRIBED IN SECTION 10.';
 
-function stepsFor(type, eulaAccepted) {
+function stepsFor(type, eulaAccepted, introDone) {
   return [
-    ...(eulaAccepted ? [] : ['eula']), 'type', 'expectations', 'details', ...(type === 'gift' ? ['giftRecipient'] : []),
-    'upload', 'doctor', type === 'gifted' ? 'claim' : 'pay', 'thanks',
+    ...(introDone ? [] : ['type', 'expectations']), 'details', ...(eulaAccepted ? [] : ['eula']),
+    ...(type === 'gift' ? ['giftRecipient'] : []), 'upload', 'doctor', ...(type === 'one_plus' ? ['others'] : []),
+    type === 'gifted' ? 'claim' : 'pay',
   ];
 }
 
@@ -86,10 +65,6 @@ const fmtMobile = (v) => {
   return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : (v || '');
 };
 const money = (n) => n.toLocaleString('en-CA');
-const byDateFor = (when) => {
-  const days = WHEN.find((w) => w[0] === when)?.[2];
-  return days ? new Date(Date.now() + days * 864e5) : null;
-};
 
 export default function WelcomeTour({ onClose, member }) {
   const preview = !member;
@@ -98,20 +73,21 @@ export default function WelcomeTour({ onClose, member }) {
   const [a, setA] = useState({
     email: preview ? 'preview@example.com' : '', type: '', group: [], giftRecipient: emptyPerson(),
     expectations: '', expectationsId: null, giftCode: '',
-    mobile: '', comms: 'Both', dobText: '', doctorVisit: '', eulaAccepted: false,
+    firstName: preview ? 'Preview' : '', lastName: preview ? 'Member' : '',
+    mobile: '', comms: 'Both', dobText: '', eulaAccepted: false,
   });
-  const [step, setStep] = useState(preview ? 'eula' : 'type');
+  const [introDone, setIntroDone] = useState(false);
+  const [step, setStep] = useState('type');
+  const [fullAgreement, setFullAgreement] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [uploads, setUploads] = useState([]); // { name, status: 'uploading'|'done'|'error', note? }
   const [sugOpen, setSugOpen] = useState(false);
   const [payOpened, setPayOpened] = useState(false);
-  const [codeOpen, setCodeOpen] = useState(false);
-  const [held, setHeld] = useState(false);
   const cardRef = useRef(null);
 
   const set = (patch) => { setA((prev) => ({ ...prev, ...patch })); setError(''); };
-  const steps = stepsFor(a.type, a.eulaAccepted);
+  const steps = stepsFor(a.type, a.eulaAccepted, introDone);
   const idx = Math.max(steps.indexOf(step), 0);
 
   useEffect(() => { cardRef.current?.focus({ preventScroll: true }); }, []);
@@ -120,23 +96,37 @@ export default function WelcomeTour({ onClose, member }) {
   useEffect(() => {
     if (preview || loaded) return;
     let live = true;
-    loadOnboarding(member)
+    (async () => {
+      const d = await loadOnboarding(member);
+      // Answers given on /signup, before there was an account to save them to.
+      const pre = loadPreSignup();
+      if (pre?.type && !d.type) {
+        await saveMembershipType(member, pre.type);
+        d.expectationsId = await saveExpectations(member, pre.expectations || '', d.expectationsId);
+        if (pre.giftCode) await saveGiftCode(member, pre.giftCode);
+        Object.assign(d, { type: pre.type, expectations: pre.expectations || '', giftCode: pre.giftCode || '' });
+      }
+      clearPreSignup();
+      return d;
+    })()
       .then((d) => {
         if (!live) return;
         const dob = d.dob && parseDob(d.dob);
         setA((prev) => ({
           ...prev,
-          email: d.email, type: d.type || '',
+          email: d.email, firstName: d.firstName, lastName: d.lastName, type: d.type || '',
           group: Array.isArray(d.group) ? d.group : [],
           giftRecipient: d.giftRecipient || prev.giftRecipient,
           expectations: d.expectations || '', expectationsId: d.expectationsId, giftCode: d.giftCode || '',
           mobile: fmtMobile(d.mobile), comms: d.comms || 'Both',
-          dobText: dob ? fmtShort(dob.iso) : '', doctorVisit: d.doctorVisit || '',
+          dobText: dob ? fmtShort(dob.iso) : '',
           eulaAccepted: d.eulaAccepted,
         }));
-        // Until the agreement is accepted, that's where it starts, whatever was saved.
-        if (!d.eulaAccepted) setStep('eula');
-        else if (d.step && stepsFor(d.type, true).includes(d.step)) setStep(d.step);
+        // Type and expectations already answered: they drop out of the steps.
+        const intro = !!d.type;
+        const list = stepsFor(d.type, d.eulaAccepted, intro);
+        setIntroDone(intro);
+        setStep(d.step && list.includes(d.step) ? d.step : list[0]);
         setLoaded(true);
       })
       .catch((e) => { console.warn('Onboarding load failed:', e); if (live) setLoadError(true); });
@@ -163,23 +153,26 @@ export default function WelcomeTour({ onClose, member }) {
     }
   }
 
+  useEffect(() => {
+    if (step === 'others' && a.group.length === 0) setA((p) => ({ ...p, group: [blankRow()] }));
+  }, [step, a.group.length]);
+
   function goNext() {
     const problem = validate(step, a, uploads);
     if (problem) { setError(problem); return; }
     advance(steps[idx + 1], () => saveCurrent(step, a, member, (id) => setA((p) => ({ ...p, expectationsId: id }))));
   }
 
-  // I Agree. Once saved, the agreement drops out of the steps, so the next
-  // screen is shown as the first one (no Back into the agreement).
+  // I Agree. Once saved, the agreement drops out of the steps (no Back into it).
   async function agree() {
     setBusy(true); setError('');
     try {
       if (!preview) {
         await saveEulaAccepted(member);
-        await saveStep(member, 'type');
+        await saveStep(member, steps[idx + 1]);
       }
       setA((p) => ({ ...p, eulaAccepted: true }));
-      setStep('type');
+      setStep(steps[idx + 1]);
     } catch (e) {
       console.error('Onboarding save failed:', e);
       setError("Couldn't save that. Please check your connection and try again.");
@@ -187,10 +180,10 @@ export default function WelcomeTour({ onClose, member }) {
       setBusy(false);
     }
   }
-  const goBack = () => { setError(''); setPayOpened(false); setCodeOpen(false); setHeld(false); setStep(steps[idx - 1]); };
+  const goBack = () => { setError(''); setPayOpened(false); setStep(steps[idx - 1]); };
 
   function chooseType(type) {
-    set({ type, group: type === 'one_plus' && a.group.length === 0 ? [blankRow()] : a.group });
+    set({ type });
   }
 
   async function uploadFiles(fileList) {
@@ -219,17 +212,15 @@ export default function WelcomeTour({ onClose, member }) {
   const people = a.type === 'one_plus' ? 1 + a.group.length : 1;
   const payUrl = a.type === 'gift' ? CONFIG.PAY_URL.gift : people > 1 ? CONFIG.PAY_URL.group : CONFIG.PAY_URL.member;
 
-  function openPayment() {
-    if (!payUrl) return;
-    window.open(payUrl, '_blank', 'noopener');
+  // The reference and email let a payment be matched back to this member.
+  function openStripe(url) {
+    const email = (a.email || '').trim().toLowerCase();
+    const ref = a.type === 'gifted' ? a.giftCode.trim() : member;
+    const params = new URLSearchParams();
+    if (ref) params.set('client_reference_id', ref.replace(/[^\w-]/g, '_'));
+    if (email) params.set('prefilled_email', email);
+    window.open(`${url}?${params}`, '_blank', 'noopener');
     setPayOpened(true);
-  }
-
-  // "Have an invitation?" — keep the code for MBH to check, then finish.
-  function redeem(e) {
-    e.preventDefault();
-    if (!a.giftCode.trim()) { setError('Enter your code.'); return; }
-    advance('thanks', () => saveGiftCode(member, a.giftCode.trim()));
   }
 
   const uploading = uploads.some((u) => u.status === 'uploading');
@@ -257,7 +248,12 @@ export default function WelcomeTour({ onClose, member }) {
             <ul className="terms">
               {TERMS.map(([lead, text]) => <li key={lead}><strong>{withMy(lead)}</strong> <span>{withMy(text)}</span></li>)}
             </ul>
-            <p className="quiet"><a className="link accent" href={EULA_URL} target="_blank" rel="noopener noreferrer">Read the full agreement</a></p>
+            <p className="quiet">
+              <button type="button" className="link accent" aria-expanded={fullAgreement} onClick={() => setFullAgreement((o) => !o)}>
+                {fullAgreement ? 'Hide the full agreement' : 'Read the full agreement'}
+              </button>
+            </p>
+            {fullAgreement && <div className="full-agreement"><AgreementText showTitle={false} /></div>}
             <p className="legal">{ACCEPT_TEXT}</p>
           </>
         );
@@ -274,7 +270,14 @@ export default function WelcomeTour({ onClose, member }) {
               <div className="sep" role="separator" />
               <Opt name="mbh-type" checked={a.type === 'gifted'} onChange={() => chooseType('gifted')}>I was gifted a Membership</Opt>
             </fieldset>
-            {a.type === 'one_plus' && (
+          </>
+        );
+
+      case 'others':
+        return (
+          <>
+            <h2>Who else is joining?</h2>
+            <p className="lead">Your own Membership is set. Add the people joining with you, up to {CONFIG.MAX_OTHERS}.</p>
               <div>
                 {a.group.map((r, i) => (
                   <div key={i} className="rcp">
@@ -296,7 +299,6 @@ export default function WelcomeTour({ onClose, member }) {
                   <button type="button" className="pill add" onClick={() => set({ group: [...a.group, blankRow()] })}>+ Add another</button>
                 )}
               </div>
-            )}
           </>
         );
 
@@ -335,7 +337,7 @@ export default function WelcomeTour({ onClose, member }) {
         return (
           <>
             <h2>Details</h2>
-            <div className="fld"><p className="loggedin" role="status">&#10003; {a.email}</p></div>
+            <div className="fld"><p className="loggedin" role="status">&#10003; {[a.firstName, a.lastName].filter(Boolean).join(' ')}{(a.firstName || a.lastName) ? ' · ' : ''}{a.email}</p></div>
             <div className="fld">
               <label className="sr" htmlFor="mbh-mobile">Mobile</label>
               <input id="mbh-mobile" className="in" type="tel" autoComplete="tel" inputMode="tel" placeholder="Mobile"
@@ -387,7 +389,7 @@ export default function WelcomeTour({ onClose, member }) {
         return (
           <>
             <h2>Upload labs and medical reports.</h2>
-            <p className="lead">From LifeLabs, Dynacare, Medcan, Cleveland Clinic, MyChart, etc.</p>
+            <p className="lead">From LifeLabs, Dynacare, Medcan, Cleveland Clinic, MyChart, etc. Also CGM data and DEXA reports.</p>
             <DropZone onFiles={uploadFiles} />
             {uploads.length > 0 && (
               <ul className="files" aria-live="polite">
@@ -409,26 +411,14 @@ export default function WelcomeTour({ onClose, member }) {
           </>
         );
 
-      case 'doctor': {
-        const by = byDateFor(a.doctorVisit);
+      case 'doctor':
         return (
           <>
-            <h2>Take these to your doctor.</h2>
-            <ul className="files">
-              {DOCTOR_DOCS.map((d) => (
-                <li key={d} className="file"><span className="name">{d}</span><span className="state">Docs will be emailed to you</span></li>
-              ))}
-            </ul>
-            <fieldset className="q" style={{ marginTop: 32 }}>
-              <legend>When will you see your doctor?</legend>
-              {WHEN.map(([v, t]) => (
-                <Opt key={v} name="mbh-when" checked={a.doctorVisit === v} onChange={() => set({ doctorVisit: v })}>{t}</Opt>
-              ))}
-              {by && <p className="echo" aria-live="polite">By {by.toLocaleDateString('en-CA', { month: 'long', day: 'numeric' })}.</p>}
-            </fieldset>
+            <h2>See your physician.</h2>
+            <p className="lead">The explainer for your physician, with the lab requisition attached.</p>
+            <p><a className="btn alt" href={LINKS.explainer} target="_blank" rel="noopener noreferrer">Download the explainer</a></p>
           </>
         );
-      }
 
       case 'pay': {
         const due = PRICE.member + (people - 1) * PRICE.related;
@@ -438,15 +428,15 @@ export default function WelcomeTour({ onClose, member }) {
             <h2>Complete membership.</h2>
             <p className="quiet" style={{ marginTop: 0 }}>
               {a.type === 'gift'
-                ? 'Gift a Membership: pricing isn’t available online yet.'
+                ? 'Gift a Membership: the amount is shown at checkout.'
                 : people > 1
-                  ? `You and ${others} ${others === 1 ? 'other' : 'others'}: CA$${money(due)} today, then CA$${money(PRICE.quarterly * people)} each quarter.`
-                  : `Member: CA$${PRICE.member}, then CA$${PRICE.quarterly} each quarter.`}
+                  ? `You and ${others} ${others === 1 ? 'other' : 'others'}: CA$${money(due)} per year, renews annually.`
+                  : `Member: CA$${PRICE.member} per year, renews annually.`}
             </p>
-            {!payUrl && <p className="quiet">The payment link for this option isn&rsquo;t set up yet.</p>}
+            <p className="quiet">Card details are entered on Stripe, never on this page.</p>
             {payOpened && (
               <p className="quiet">
-                <button type="button" className="link accent" disabled={busy} onClick={() => advance('thanks')}>I have completed payment</button>
+                <button type="button" className="link accent" onClick={onClose}>I have completed payment</button>
               </p>
             )}
           </>
@@ -457,28 +447,12 @@ export default function WelcomeTour({ onClose, member }) {
         return (
           <>
             <h2>Gifted Membership.</h2>
-            <p className="quiet" style={{ marginTop: 0 }}>
-              {held
-                ? 'The gift could not be matched yet. The request is held for review, and MBH will follow up by the preferred contact method.'
-                : 'This Membership was gifted. The CGMs and DEXA are paid by the gifter. No payment is due.'}
-            </p>
-          </>
-        );
-
-      case 'thanks':
-        return (
-          <>
-            <h2>Thank you.</h2>
-            <p className="lead" style={{ marginTop: 0 }}>The first steps are:</p>
-            <ol className="two">
-              <li><i className="num" aria-hidden="true">1</i><span><b>Establish your baseline</b><small>Labs | CGM | DEXA</small><small>Visit your doctor</small></span></li>
-              <li className="arrow" aria-hidden="true">&rarr;</li>
-              <li><i className="num" aria-hidden="true">2</i><span><b>Create <em className="my">My</em>Strategy</b><small>3 Priorities | 3 MicroHabits</small><small>Check-in periodically</small></span></li>
-            </ol>
-            <p className="book">
-              Book your initial Orientation. You will need your first CGM for the Orientation.
-              {CONFIG.ORIENTATION_URL && <> <a className="link accent" href={CONFIG.ORIENTATION_URL} target="_blank" rel="noopener noreferrer">Book here</a></>}
-            </p>
+            <p className="quiet" style={{ marginTop: 0 }}>This Membership was gifted. The CGMs and DEXA are paid by the gifter. No payment is due.</p>
+            {payOpened && (
+              <p className="quiet">
+                <button type="button" className="link accent" onClick={onClose}>I have claimed my Membership</button>
+              </p>
+            )}
           </>
         );
 
@@ -495,22 +469,17 @@ export default function WelcomeTour({ onClose, member }) {
   let primary = null;
   if (loaded && !loadError) {
     if (step === 'eula') primary = { label: busy ? 'Saving…' : 'I Agree', onClick: agree, disabled: busy };
-    else if (step === 'pay') primary = { label: 'Continue to payment', onClick: openPayment, disabled: busy || !payUrl };
-    else if (step === 'claim') {
-      primary = held
-        ? { label: 'Continue', onClick: () => advance('thanks'), disabled: busy }
-        // There's no gift record to match against yet, so every claim is held for MBH to review.
-        : { label: 'Claim Membership', onClick: () => setHeld(true), disabled: busy };
-    } else if (step === 'thanks') primary = { label: 'Finish', onClick: onClose, disabled: false };
+    else if (step === 'pay') primary = { label: 'Continue to payment', onClick: () => openStripe(payUrl), disabled: busy };
+    else if (step === 'claim') primary = { label: 'Claim Membership', onClick: () => openStripe(STRIPE_GIFTED_URL), disabled: busy };
     else {
       primary = {
-        label: busy ? 'Saving…' : step === 'doctor' ? 'I will do this' : 'Continue',
+        label: busy ? 'Saving…' : 'Continue',
         onClick: goNext,
         disabled: busy || uploading,
       };
     }
   }
-  const showBack = loaded && !loadError && idx > 0 && step !== 'thanks';
+  const showBack = loaded && !loadError && idx > 0;
 
   return (
     <div className="mbh-onb" role="dialog" aria-modal="true" aria-labelledby="mbh-tour-title">
@@ -519,9 +488,8 @@ export default function WelcomeTour({ onClose, member }) {
       <div className="card" ref={cardRef} tabIndex={-1}>
         <div className="top">
           <p className="brand" id="mbh-tour-title">Welcome to <em className="my">My</em>BioHealth</p>
-          <a href={CONFIG.ZOOM_URL} target="_blank" rel="noopener noreferrer">Book a Zoom</a>
           {/* Closing counts as done, so it's not offered until the agreement is accepted. */}
-          {step !== 'eula' && <button type="button" className="close" onClick={onClose} aria-label="Close">&times;</button>}
+          {a.eulaAccepted && <button type="button" className="close" onClick={onClose} aria-label="Close">&times;</button>}
         </div>
         <div className="bar" aria-hidden="true"><i style={{ width: `${((idx + 1) / steps.length) * 100}%` }} /></div>
 
@@ -536,23 +504,6 @@ export default function WelcomeTour({ onClose, member }) {
           </div>
         )}
 
-        {step === 'pay' && loaded && (
-          <div className="quiet" style={{ marginTop: 40 }}>
-            {!codeOpen ? (
-              <button type="button" className="link" onClick={() => setCodeOpen(true)}>Have an invitation?</button>
-            ) : (
-              <form onSubmit={redeem}>
-                <label className="sr" htmlFor="mbh-code">Invitation code</label>
-                <input id="mbh-code" className="in" type="text" autoComplete="off" autoCapitalize="characters" spellCheck={false}
-                  autoFocus placeholder="Invitation code" value={a.giftCode} onChange={(e) => set({ giftCode: e.target.value })} />
-                <div className="nav">
-                  <button type="button" className="link" onClick={() => { setCodeOpen(false); setError(''); }}>Cancel</button>
-                  <button type="submit" className="btn" disabled={busy}>Continue</button>
-                </div>
-              </form>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -562,8 +513,9 @@ export default function WelcomeTour({ onClose, member }) {
 function validate(step, a, uploads) {
   switch (step) {
     case 'type': {
-      if (!a.type) return 'Choose one.';
-      if (a.type !== 'one_plus') return '';
+      return a.type ? '' : 'Choose one.';
+    }
+    case 'others': {
       const seen = new Set([(a.email || '').toLowerCase()]);
       for (let i = 0; i < a.group.length; i++) {
         const r = a.group[i];
@@ -588,7 +540,6 @@ function validate(step, a, uploads) {
         ? '' : 'Enter their first name, last name and a valid email.';
     case 'upload':
       return uploads.some((u) => u.status === 'done') ? '' : 'Add at least one lab report.';
-    case 'doctor': return a.doctorVisit ? '' : 'Choose one.';
     default: return '';
   }
 }
@@ -599,9 +550,9 @@ async function saveCurrent(step, a, member, onNoteId) {
   switch (step) {
     case 'type':
       await saveMembershipType(member, a.type);
-      if (a.type === 'one_plus') {
-        await saveGroupMembers(member, a.group.map((r) => ({ name: r.name.trim(), email: r.email.trim().toLowerCase(), how: r.how })));
-      }
+      break;
+    case 'others':
+      await saveGroupMembers(member, a.group.map((r) => ({ name: r.name.trim(), email: r.email.trim().toLowerCase(), how: r.how })));
       break;
     case 'expectations':
       onNoteId(await saveExpectations(member, a.expectations.trim(), a.expectationsId));
@@ -615,9 +566,6 @@ async function saveCurrent(step, a, member, onNoteId) {
       await saveGiftRecipient(member, { first: p.first.trim(), last: p.last.trim(), email: p.email.trim() });
       break;
     }
-    case 'doctor':
-      await saveDoctorVisit(member, a.doctorVisit, byDateFor(a.doctorVisit).toISOString().slice(0, 10));
-      break;
     default: break;
   }
 }

@@ -1,7 +1,8 @@
 // Public sign-up page at /signup.
 //
 // Two versions while we move off Caspio's form:
-//  - Our own form (CONFIG.OWN_FORM): name and email, posted to the API proxy's
+//  - Our own form (CONFIG.OWN_FORM): membership type and expectations first (kept
+//    in this browser and saved at first login), then name and email, posted to the API proxy's
 //    /signup (lib/signup.js). The member is created and goes straight to
 //    Caspio's set-password page, then signs in once: no activation email. No
 //    password here (the Caspio API can't set one) and no EULA (it's the first
@@ -11,6 +12,7 @@
 // In dev, ?own_form previews our form whatever the flag says.
 import { useEffect, useState } from 'react';
 import { CASPIO_LOGIN_URL, CASPIO_SIGNUP_URL, devBlockExternalLink } from '../lib/auth.js';
+import { EXPECTATION_SUGGESTIONS, MEMBERSHIP_TYPES, loadPreSignup, savePreSignup } from '../lib/onboarding.js';
 import { SignupError, signUp } from '../lib/signup.js';
 import './SignupPage.css';
 
@@ -25,6 +27,8 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function SignupPage() {
   const ownForm = CONFIG.OWN_FORM
     || (import.meta.env.DEV && new URLSearchParams(window.location.search).has('own_form'));
+
+  const [introDone, setIntroDone] = useState(false);
 
   useEffect(() => {
     document.title = 'Sign up — MyBioHealth';
@@ -51,11 +55,78 @@ export default function SignupPage() {
         <h1 className="signup-title">Create your account</h1>
         <p className="signup-sub">
           {ownForm
-            ? 'Start with your name and email. Next you’ll choose a password, then sign in.'
+            ? (introDone ? 'Your name and email. Next you’ll choose a password, then sign in.' : 'A couple of quick questions first.')
             : 'Start with your name, email and a password. The rest comes after you sign in.'}
         </p>
-        {ownForm ? <SignupForm /> : <CaspioFrame />}
+        {ownForm ? (introDone ? <SignupForm /> : <IntroSteps onDone={() => setIntroDone(true)} />) : <CaspioFrame />}
       </main>
+    </div>
+  );
+}
+
+function IntroSteps({ onDone }) {
+  const saved = loadPreSignup() || {};
+  const [part, setPart] = useState(0);
+  const [type, setType] = useState(saved.type || '');
+  const [expectations, setExpectations] = useState(saved.expectations || '');
+  const [giftCode, setGiftCode] = useState(saved.giftCode || '');
+  const [sugOpen, setSugOpen] = useState(false);
+  const [err, setErr] = useState('');
+
+  function next() {
+    if (part === 0) {
+      if (!type) { setErr('Choose one.'); return; }
+      setErr('');
+      setPart(1);
+      return;
+    }
+    if (type === 'gifted' && !giftCode.trim()) { setErr('Enter the gifter’s email or an invitation code.'); return; }
+    savePreSignup({ type, expectations: expectations.trim(), giftCode: giftCode.trim() });
+    onDone();
+  }
+  const opt = (key, label) => (
+    <label key={key} className="signup-opt">
+      <input type="radio" name="su-type" checked={type === key} onChange={() => { setType(key); setErr(''); }} />
+      <span>{label}</span>
+    </label>
+  );
+
+  return (
+    <div className="signup-form">
+      {part === 0 ? (
+        <>
+          <h2 className="signup-step-title">Membership type</h2>
+          <fieldset className="signup-opts">
+            <legend className="signup-hp">Membership type</legend>
+            {MEMBERSHIP_TYPES.map(([k, l]) => opt(k, l))}
+            <div className="signup-sep" role="separator" />
+            {opt('gifted', 'I was gifted a Membership')}
+          </fieldset>
+        </>
+      ) : (
+        <>
+          <h2 className="signup-step-title">What are your expectations of <em>My</em>BioHealth?</h2>
+          <textarea className="signup-text" rows={3} maxLength={300} placeholder="Write in your own words" aria-label="Expectations of MyBioHealth"
+            value={expectations} onChange={(e) => setExpectations(e.target.value)} />
+          <button type="button" className="signup-linkbtn" aria-expanded={sugOpen} onClick={() => setSugOpen((o) => !o)}>Perhaps… {sugOpen ? '▴' : '▾'}</button>
+          {sugOpen && (
+            <ul className="signup-sugs">
+              {EXPECTATION_SUGGESTIONS.map((t) => (
+                <li key={t}><button type="button" className="signup-sug" onClick={() => { setExpectations(t); setSugOpen(false); }}>{t}</button></li>
+              ))}
+            </ul>
+          )}
+          {type === 'gifted' && (
+            <input className="signup-input" type="text" maxLength={120} aria-label="Gifter email or invitation code" placeholder="Gifter's email or invitation code"
+              value={giftCode} onChange={(e) => { setGiftCode(e.target.value); setErr(''); }} />
+          )}
+        </>
+      )}
+      {err && <p className="signup-err" role="alert">{err}</p>}
+      <div className="signup-stepnav">
+        {part > 0 ? <button type="button" className="signup-linkbtn" onClick={() => { setErr(''); setPart(0); }}>Back</button> : <span />}
+        <button type="button" className="signup-submit" onClick={next}>Continue</button>
+      </div>
     </div>
   );
 }
