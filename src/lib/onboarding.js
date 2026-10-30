@@ -18,6 +18,7 @@
 //                      invitation code (gifted members, or "Have an invitation?")
 //   doctor visit       member_info, feature='DOCTOR_VISIT', text_box_1=week|two_weeks|month,
 //                      text_box_2=JSON {when, byDate:'YYYY-MM-DD', committedAt: ISO}
+//   closing question   member_info, feature='VISION', text_box_1=70s|80s, text_box_2=JSON {text, target, savedAt}
 //   progress           member_info, feature='ONBOARDING_STEP', text_box_1=step key
 //   EULA accepted      legal_entity.eula_version, eula_accepted_date (the same
 //                      fields the Caspio sign-up checkbox filled)
@@ -71,6 +72,7 @@ const FEATURES = {
   giftCode: 'GIFT_CODE',
   doctorVisit: 'DOCTOR_VISIT',
   step: 'ONBOARDING_STEP',
+  vision: 'VISION',
 };
 // Answers kept as JSON in the wide text_box_2 rather than text_box_1 (255 chars).
 const JSON_KEYS = new Set(['group', 'giftRecipient']);
@@ -179,5 +181,8 @@ export const saveGiftCode = (member, code) => saveFeature(member, 'giftCode', co
 // member_info DOCTOR_VISIT: text_box_1 = when, text_box_2 = JSON with the by-date.
 export const saveDoctorVisit = (member, when, byDate) =>
   saveFeature(member, 'doctorVisit', when, { when, byDate, committedAt: new Date().toISOString() });
+// member_info VISION: what the member would love to be able to do.
+export const saveVision = (member, text, target) =>
+  saveFeature(member, 'vision', target, { text, target, savedAt: new Date().toISOString() });
 // member_info ONBOARDING_STEP, text_box_1 — where to resume after a refresh.
 export const saveStep = (member, step) => saveFeature(member, 'step', step);

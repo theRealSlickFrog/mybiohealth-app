@@ -41,12 +41,12 @@ export const NAV_ITEMS = [
   // Top-level
   { key: 'strategy',            label: 'MyStrategy',             icon: '🎯' },
   // CHECK-IN section
-  { key: 'checkin_priorities',  label: 'Priorities & MHx',       icon: '📋' },
+  { key: 'checkin_priorities',  label: 'Check-in',               icon: '📋' },
   { key: 'jots',                label: 'Jots',                   icon: '✏️' },
   { key: 'upnext',              label: 'Up Next',                icon: '⏭️' },
   // SIGNALS section
   { key: 'biosignals',          label: 'BioSignals (Primary Six)', icon: '📊' },
-  { key: 'glucose_v2',          label: 'Glucose Summary (CGM)',  icon: '🩸' },
+  { key: 'glucose_v2',          label: 'CGM Cycles',             icon: '🩸' },
   { key: 'context_signals',     label: 'Context Signals',        icon: '🫀' },
   { key: 'dexa',                label: 'Structural (DEXA)',      icon: '🦴' },
   { key: 'risk_measures',       label: 'Risk Measures',          icon: '📐' },
@@ -54,8 +54,9 @@ export const NAV_ITEMS = [
   { key: 'account',             label: 'Account',                icon: '💳' },
   { key: 'calendar',            label: 'Calendar',               icon: '📅' },
   { key: 'vault',               label: 'MyVault',                icon: '📁' },
-  { key: 'library',             label: 'MBH Library',            icon: '📚' },
+  { key: 'library',             label: 'Library | Q&A',          icon: '📚' },
   { key: 'questions',           label: 'Questions',              icon: '✉️' },
+  { key: 'membership',          label: 'Membership and Gifting', icon: '🎁' },
 ];
 
 // Pages that exist and are routable but are deliberately kept out of the

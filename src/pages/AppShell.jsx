@@ -21,6 +21,7 @@ import QuestionsPage from './QuestionsPage.jsx';
 import CheckinPrioritiesPage from './CheckinPrioritiesPage.jsx';
 import JotsPage from './JotsPage.jsx';
 import UpNextPage from './UpNextPage.jsx';
+import MembershipPage from './MembershipPage.jsx';
 import ContextSignalsPage from './ContextSignalsPage.jsx';
 import RiskMeasuresPage from './RiskMeasuresPage.jsx';
 import VoiceTestPage from './VoiceTestPage.jsx';
@@ -41,6 +42,14 @@ export default function AppShell() {
   const activePageRef = useRef(activePage);
   activePageRef.current = activePage;
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // The menu is a fixed sidebar from this width up, as in the prototype.
+  const [wide, setWide] = useState(() => window.matchMedia('(min-width: 900px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 900px)');
+    const on = (e) => setWide(e.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
   // If we arrived via the secure ?t= handoff, exchange it for a session before
   // rendering pages. The legacy ?guid= path boots immediately (booting=false).
   const [booting, setBooting] = useState(hasHandoffToken());
@@ -215,14 +224,18 @@ export default function AppShell() {
 
       {tour && <WelcomeTour onClose={closeTour} member={tour === 'member' ? getStoredGuid() : null} />}
 
-      {drawerOpen && <Drawer activePage={activePage} onSelect={navigate} onClose={() => setDrawerOpen(false)} />}
+      {!wide && drawerOpen && <Drawer activePage={activePage} onSelect={navigate} onClose={() => setDrawerOpen(false)} />}
+
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+      {wide && <Drawer permanent activePage={activePage} onSelect={navigate} />}
+      <div style={{ flex: 1, minWidth: 0 }}>
 
       <div style={{ position: 'sticky', top: 0, zIndex: 100, background: SLATE, padding: '13px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <button onClick={() => setDrawerOpen(true)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '2px 4px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {!wide && <button onClick={() => setDrawerOpen(true)} aria-label="Menu" style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '2px 4px', display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div style={{ width: 20, height: 2, background: 'white', borderRadius: 1 }} />
           <div style={{ width: 20, height: 2, background: 'white', borderRadius: 1 }} />
           <div style={{ width: 20, height: 2, background: 'white', borderRadius: 1 }} />
-        </button>
+        </button>}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
           <img src={MBH_DROP_IMG} alt="MyBioHealth" style={{ width: 24, height: 24, display: 'block', objectFit: 'contain' }} />
           <div style={{ color: 'white', fontSize: 13, fontWeight: 600, lineHeight: 1 }}>
@@ -262,9 +275,12 @@ export default function AppShell() {
         {activePage === 'checkin_priorities' && <CheckinPrioritiesPage />}
         {activePage === 'jots'               && <JotsPage />}
         {activePage === 'upnext'             && <UpNextPage onNavigate={navigate} />}
+        {activePage === 'membership'         && <MembershipPage onNavigate={navigate} />}
         {activePage === 'context_signals'    && <ContextSignalsPage />}
         {activePage === 'risk_measures'      && <RiskMeasuresPage />}
         {activePage === 'voice_test'         && <VoiceTestPage />}
+      </div>
+      </div>
       </div>
     </div>
   );

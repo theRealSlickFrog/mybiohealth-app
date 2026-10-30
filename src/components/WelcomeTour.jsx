@@ -21,7 +21,7 @@ import { STRIPE_CHECKOUT_URL, STRIPE_GIFTED_URL, STRIPE_OTHER_URL } from '../lib
 import AgreementText from './AgreementText.jsx';
 import { LINKS } from '../lib/upNext.js';
 import {
-  EXPECTATION_SUGGESTIONS as SUGGESTIONS, MEMBERSHIP_TYPES, clearPreSignup, loadOnboarding, loadPreSignup, saveEulaAccepted, saveExpectations, saveGiftCode, saveGiftRecipient,
+  EXPECTATION_SUGGESTIONS as SUGGESTIONS, MEMBERSHIP_TYPES, clearPreSignup, loadOnboarding, loadPreSignup, saveVision, saveEulaAccepted, saveExpectations, saveGiftCode, saveGiftRecipient,
   saveGroupMembers, saveMemberDetails, saveMembershipType, saveStep,
 } from '../lib/onboarding.js';
 import { MAX_UPLOAD_BYTES, uploadDocument } from '../lib/vault.js';
@@ -48,11 +48,18 @@ const TERMS = [
 ];
 const ACCEPT_TEXT = 'BY CLICKING “I AGREE” YOU CONFIRM THAT YOU HAVE READ AND UNDERSTOOD THIS AGREEMENT, THAT YOU ARE 18 YEARS OF AGE OR OLDER, AND THAT YOU CONSENT TO ITS TERMS INCLUDING THE USE OF YOUR DE-IDENTIFIED DATA AS DESCRIBED IN SECTION 10.';
 
+// From the prototype's closing question.
+const VISION = [
+  ['Strength', 'Carry my own bags and lift a child.'],
+  ['Mobility', 'Get down on the floor and back up without help.'],
+  ['Endurance', 'Walk or hike easily with friends or family.'],
+];
+
 function stepsFor(type, eulaAccepted, introDone) {
   return [
     ...(introDone ? [] : ['type', 'expectations']), 'details', ...(eulaAccepted ? [] : ['eula']),
     ...(type === 'gift' ? ['giftRecipient'] : []), 'upload', 'doctor', ...(type === 'one_plus' ? ['others'] : []),
-    type === 'gifted' ? 'claim' : 'pay',
+    type === 'gifted' ? 'claim' : 'pay', 'closing',
   ];
 }
 
@@ -221,6 +228,17 @@ export default function WelcomeTour({ onClose, member }) {
     if (email) params.set('prefilled_email', email);
     window.open(`${url}?${params}`, '_blank', 'noopener');
     setPayOpened(true);
+  }
+
+  // Last screen. The answer is optional, and a failed save never traps the member.
+  async function finish() {
+    const text = (a.vision || '').trim();
+    if (text && !preview) {
+      setBusy(true);
+      try { await saveVision(member, text, visionHorizon(a.dobText).target); } catch (e) { console.error('Vision save failed:', e); }
+      setBusy(false);
+    }
+    onClose();
   }
 
   const uploading = uploads.some((u) => u.status === 'uploading');
@@ -436,7 +454,7 @@ export default function WelcomeTour({ onClose, member }) {
             <p className="quiet">Card details are entered on Stripe, never on this page.</p>
             {payOpened && (
               <p className="quiet">
-                <button type="button" className="link accent" onClick={onClose}>I have completed payment</button>
+                <button type="button" className="link accent" disabled={busy} onClick={() => advance('closing')}>I have completed payment</button>
               </p>
             )}
           </>
@@ -450,11 +468,31 @@ export default function WelcomeTour({ onClose, member }) {
             <p className="quiet" style={{ marginTop: 0 }}>This Membership was gifted. The CGMs and DEXA are paid by the gifter. No payment is due.</p>
             {payOpened && (
               <p className="quiet">
-                <button type="button" className="link accent" onClick={onClose}>I have claimed my Membership</button>
+                <button type="button" className="link accent" disabled={busy} onClick={() => advance('closing')}>I have claimed my Membership</button>
               </p>
             )}
           </>
         );
+
+      case 'closing': {
+        const { now, target } = visionHorizon(a.dobText);
+        return (
+          <>
+            <h2>Welcome to <em className="my">My</em>BioHealth.</h2>
+            <p className="lead">Thank you for joining. Your trajectory starts here.</p>
+            <p className="ask">{now}What would you love to be able to do in your {target}?</p>
+            <div className="vis">
+              {VISION.map(([k, v]) => (
+                <button key={k} type="button" className="vis-pill" onClick={() => set({ vision: v })}><b>{k}</b>{v}</button>
+              ))}
+            </div>
+            <label className="sr" htmlFor="mbh-vision">What would you love to be able to do in your {target}?</label>
+            <textarea id="mbh-vision" className="in box" rows={4} maxLength={600} placeholder="In your own words"
+              value={a.vision || ''} onChange={(e) => set({ vision: e.target.value })} />
+            <p className="quiet"><button type="button" className="link" onClick={onClose}>Skip for now</button></p>
+          </>
+        );
+      }
 
       default:
         return null;
@@ -471,6 +509,7 @@ export default function WelcomeTour({ onClose, member }) {
     if (step === 'eula') primary = { label: busy ? 'Saving…' : 'I Agree', onClick: agree, disabled: busy };
     else if (step === 'pay') primary = { label: 'Continue to payment', onClick: () => openStripe(payUrl), disabled: busy };
     else if (step === 'claim') primary = { label: 'Claim Membership', onClick: () => openStripe(STRIPE_GIFTED_URL), disabled: busy };
+    else if (step === 'closing') primary = { label: busy ? 'Saving…' : 'Continue', onClick: finish, disabled: busy };
     else {
       primary = {
         label: busy ? 'Saving…' : 'Continue',
@@ -479,7 +518,7 @@ export default function WelcomeTour({ onClose, member }) {
       };
     }
   }
-  const showBack = loaded && !loadError && idx > 0;
+  const showBack = loaded && !loadError && idx > 0 && step !== 'closing';
 
   return (
     <div className="mbh-onb" role="dialog" aria-modal="true" aria-labelledby="mbh-tour-title">
@@ -606,6 +645,16 @@ const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const fmtLong = (iso) => { const [y, m, d] = iso.split('-').map(Number); return `${cap(MONTHS[m - 1])} ${d}, ${y}`; };
 const fmtShort = (iso) => { const [y, m, d] = iso.split('-').map(Number); return `${cap(MONTHS[m - 1].slice(0, 3))} ${d}, ${y}`; };
 const pad2 = (n) => String(n).padStart(2, '0');
+// "You're in your 50s." and the decade to picture: 70s under 60, otherwise 80s.
+function visionHorizon(dobText) {
+  const dob = parseDob(dobText);
+  const age = dob ? ageOf(dob.iso) : null;
+  return {
+    now: age === null ? '' : `You’re in your ${Math.floor(age / 10) * 10}s. `,
+    target: age !== null && age >= 60 ? '80s' : '70s',
+  };
+}
+
 function ageOf(iso) {
   const [y, m, d] = iso.split('-').map(Number);
   const n = new Date();
